@@ -1,0 +1,30 @@
+# Single source of truth for model IDs and prompt versions. Bump `version` on any change and
+# record it in the experiment log. Keep models fixed when comparing designs.
+version: 1
+
+models:
+  supervisor: openai/gpt-4.1-mini        # stronger model for supervisor + planner
+  extraction: openai/gpt-4o-mini
+  coverage: openai/gpt-4o-mini
+  fraud: openai/gpt-4o-mini
+  critic: openai/gpt-4.1-mini
+  settlement: openai/gpt-4o-mini
+  judge: google/gemini-3.1-flash-lite     # different family from the agents
+  guard: meta-llama/llama-guard-4-12b
+
+embeddings: BAAI/bge-small-en-v1.5
+reranker: cross-encoder/ms-marco-MiniLM-L-6-v2
+
+temperature:
+  default: 0.0
+  reflection: 0.3
+
+budgets:
+  max_tool_calls_per_claim: 40
+  max_cost_usd_per_claim: 0.20
+
+approval:
+  senior_threshold_inr: 100000           # assumption — agree with the domain expert
+
+prompts_dir: config/prompts               # one file per agent, six slots: role, context, task,
+                                          # constraints, format, examples

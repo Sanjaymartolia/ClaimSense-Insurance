@@ -1,0 +1,35 @@
+name: ci
+on:
+  push: { branches: [main] }
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: pip install -e ".[dev]"
+      - run: ruff check .
+      - run: ruff format --check .
+      - run: pytest
+
+  # T48: eval gate. Fails the build when the dev-set score is below the threshold.
+  # eval-gate:
+  #   needs: test
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - uses: actions/setup-python@v5
+  #       with: { python-version: "3.12" }
+  #     - run: pip install -e ".[dev,agents,mcp,retrieval]"
+  #     - run: python -m eval.run --split dev --min-score 0.80
+  #       env: { OPENROUTER_API_KEY: "${{ secrets.OPENROUTER_API_KEY }}" }
+  #     - name: Notify Discord on failure
+  #       if: failure()
+  #       env: { WEBHOOK: "${{ secrets.DISCORD_WEBHOOK_CI }}" }
+  #       run: >
+  #         curl -sS -H "Content-Type: application/json"
+  #         -d "{\"content\": \"❌ eval gate failed on ${{ github.ref_name }}: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\"}"
+  #         "$WEBHOOK"

@@ -1,0 +1,127 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1400 840" font-family="Arial, Helvetica, sans-serif">
+<rect width="1400" height="840" fill="#ffffff"/>
+<defs><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#495057"/></marker></defs>
+<rect x="250" y="715" width="945" height="110" rx="10" fill="#f8f9fa" stroke="#dee2e6"/>
+<path d="M260,75.0 L300,75.0" fill="none" stroke="#495057" stroke-width="1.6" marker-end="url(#ah)" marker-start="url(#ah)"/>
+<path d="M520,75.0 L560,75.0" fill="none" stroke="#495057" stroke-width="1.6" marker-end="url(#ah)"/>
+<path d="M680.0,110 L680,170" fill="none" stroke="#495057" stroke-width="1.6" marker-end="url(#ah)"/>
+<path d="M985,170 L960.0,110" fill="none" stroke="#495057" stroke-width="1.6" marker-end="url(#ah)"/>
+<path d="M960.0,40 L960,18 L410,18 L410.0,40" fill="none" stroke="#495057" stroke-width="1.6" marker-end="url(#ah)"/>
+<path d="M1080,205.0 L1120,205" fill="none" stroke="#495057" stroke-width="1.6" marker-end="url(#ah)" marker-start="url(#ah)"/>
+<path d="M135,240 L135.0,300" fill="none" stroke="#495057" stroke-width="1.6" marker-end="url(#ah)" marker-start="url(#ah)"/>
+<path d="M345,240 L345.0,300" fill="none" stroke="#495057" stroke-width="1.6" marker-end="url(#ah)" marker-start="url(#ah)"/>
+<path d="M555,240 L555.0,300" fill="none" stroke="#495057" stroke-width="1.6" marker-end="url(#ah)" marker-start="url(#ah)"/>
+<path d="M765,240 L765.0,300" fill="none" stroke="#495057" stroke-width="1.6" marker-end="url(#ah)" marker-start="url(#ah)"/>
+<path d="M985,240 L985.0,300" fill="none" stroke="#495057" stroke-width="1.6" marker-end="url(#ah)" marker-start="url(#ah)"/>
+<path d="M135.0,370 L135,420" fill="none" stroke="#495057" stroke-width="1.6" marker-end="url(#ah)"/>
+<path d="M345.0,370 L345,420" fill="none" stroke="#495057" stroke-width="1.6" marker-end="url(#ah)"/>
+<path d="M555.0,370 L555,420" fill="none" stroke="#495057" stroke-width="1.6" marker-end="url(#ah)"/>
+<path d="M765.0,370 L765,420" fill="none" stroke="#495057" stroke-width="1.6" marker-end="url(#ah)"/>
+<path d="M985.0,370 L985.0,410" fill="none" stroke="#495057" stroke-width="1.6" marker-end="url(#ah)"/>
+<path d="M1080,445.0 L1120,445.0" fill="none" stroke="#495057" stroke-width="1.6" marker-end="url(#ah)" marker-start="url(#ah)"/>
+<path d="M985.0,480 L985.0,520" fill="none" stroke="#495057" stroke-width="1.6" marker-end="url(#ah)"/>
+<path d="M135,470 L135.0,520" fill="none" stroke="#495057" stroke-width="1.6" marker-end="url(#ah)"/>
+<path d="M345,470 L345.0,520" fill="none" stroke="#495057" stroke-width="1.6" marker-end="url(#ah)"/>
+<path d="M555,470 L555.0,520" fill="none" stroke="#495057" stroke-width="1.6" marker-end="url(#ah)"/>
+<path d="M135.0,580 L135.0,630" fill="none" stroke="#495057" stroke-width="1.6" marker-end="url(#ah)"/>
+<path d="M345.0,580 L345.0,630" fill="none" stroke="#495057" stroke-width="1.6" marker-end="url(#ah)"/>
+<path d="M555.0,580 L555.0,630" fill="none" stroke="#495057" stroke-width="1.6" marker-end="url(#ah)"/>
+<path d="M985.0,580 L985.0,630" fill="none" stroke="#495057" stroke-width="1.6" marker-end="url(#ah)"/>
+<path d="M135.0,750 L135.0,690" fill="none" stroke="#495057" stroke-width="1.6" marker-end="url(#ah)"/>
+<rect x="40" y="40" width="220" height="70" rx="8" fill="#ffe3e3" stroke="#c92a2a" stroke-width="1.8"/>
+<text x="150.0" y="72.0" font-size="11" font-weight="bold" text-anchor="middle" fill="#212529">Claims adjudicator</text>
+<text x="150.0" y="86.0" font-size="11" font-weight="normal" text-anchor="middle" fill="#212529">insurer / TPA desk</text>
+<rect x="300" y="40" width="220" height="70" rx="8" fill="#f8f9fa" stroke="#343a40" stroke-width="1.8"/>
+<text x="410.0" y="72.0" font-size="11" font-weight="bold" text-anchor="middle" fill="#212529">① Case UI + FastAPI  [L16]</text>
+<text x="410.0" y="86.0" font-size="11" font-weight="normal" text-anchor="middle" fill="#212529">upload packet · stream worksheet</text>
+<rect x="560" y="40" width="240" height="70" rx="8" fill="#ffe3e3" stroke="#c92a2a" stroke-width="1.8"/>
+<text x="680.0" y="72.0" font-size="11" font-weight="bold" text-anchor="middle" fill="#212529">Input guardrails  [L15]</text>
+<text x="680.0" y="86.0" font-size="11" font-weight="normal" text-anchor="middle" fill="#212529">mask health data · docs = data</text>
+<rect x="840" y="40" width="240" height="70" rx="8" fill="#ffe3e3" stroke="#c92a2a" stroke-width="1.8"/>
+<text x="960.0" y="72.0" font-size="11" font-weight="bold" text-anchor="middle" fill="#212529">⑧ Output guardrails  [L15]</text>
+<text x="960.0" y="86.0" font-size="11" font-weight="normal" text-anchor="middle" fill="#212529">deductions cited · totals · right patient</text>
+<rect x="40" y="170" width="1040" height="70" rx="8" fill="#e7f5ff" stroke="#1971c2" stroke-width="1.8"/>
+<text x="560.0" y="202.0" font-size="11" font-weight="bold" text-anchor="middle" fill="#212529">② Supervisor + Planner (LangGraph)  [L8 · L10]</text>
+<text x="560.0" y="216.0" font-size="11" font-weight="normal" text-anchor="middle" fill="#212529">plan: extract → admissibility → line items → fraud screen → critic → approve → settle · checkpointer</text>
+<rect x="1120" y="170" width="240" height="200" rx="8" fill="#fff4e6" stroke="#e67700" stroke-width="1.8"/>
+<text x="1240.0" y="232.0" font-size="11" font-weight="bold" text-anchor="middle" fill="#212529">⑨ Memory  [L9]</text>
+<text x="1240.0" y="246.0" font-size="11" font-weight="normal" text-anchor="middle" fill="#212529"></text>
+<text x="1240.0" y="260.0" font-size="11" font-weight="normal" text-anchor="middle" fill="#212529">claim history per policy</text>
+<text x="1240.0" y="274.0" font-size="11" font-weight="normal" text-anchor="middle" fill="#212529">sub-limits used</text>
+<text x="1240.0" y="288.0" font-size="11" font-weight="normal" text-anchor="middle" fill="#212529">bills already seen</text>
+<text x="1240.0" y="302.0" font-size="11" font-weight="normal" text-anchor="middle" fill="#212529"></text>
+<text x="1240.0" y="316.0" font-size="11" font-weight="normal" text-anchor="middle" fill="#212529">approved adjudicator lessons</text>
+<rect x="40" y="300" width="190" height="70" rx="8" fill="#f8f9fa" stroke="#343a40" stroke-width="1.8"/>
+<text x="135.0" y="325.0" font-size="11" font-weight="bold" text-anchor="middle" fill="#212529">③ Extraction agent  [L11]</text>
+<text x="135.0" y="339.0" font-size="11" font-weight="normal" text-anchor="middle" fill="#212529">fields + line items</text>
+<text x="135.0" y="353.0" font-size="11" font-weight="normal" text-anchor="middle" fill="#212529">with source spans</text>
+<rect x="250" y="300" width="190" height="70" rx="8" fill="#f8f9fa" stroke="#343a40" stroke-width="1.8"/>
+<text x="345.0" y="325.0" font-size="11" font-weight="bold" text-anchor="middle" fill="#212529">④ Coverage analyst  [L11]</text>
+<text x="345.0" y="339.0" font-size="11" font-weight="normal" text-anchor="middle" fill="#212529">clause per line ·</text>
+<text x="345.0" y="353.0" font-size="11" font-weight="normal" text-anchor="middle" fill="#212529">calls calculator</text>
+<rect x="460" y="300" width="190" height="70" rx="8" fill="#f8f9fa" stroke="#343a40" stroke-width="1.8"/>
+<text x="555.0" y="325.0" font-size="11" font-weight="bold" text-anchor="middle" fill="#212529">⑤ Fraud analyst  [L11]</text>
+<text x="555.0" y="339.0" font-size="11" font-weight="normal" text-anchor="middle" fill="#212529">duplicates · tariff</text>
+<text x="555.0" y="353.0" font-size="11" font-weight="normal" text-anchor="middle" fill="#212529">outliers · dates</text>
+<rect x="670" y="300" width="190" height="70" rx="8" fill="#f8f9fa" stroke="#343a40" stroke-width="1.8"/>
+<text x="765.0" y="325.0" font-size="11" font-weight="bold" text-anchor="middle" fill="#212529">⑥ Critic  [L11]</text>
+<text x="765.0" y="339.0" font-size="11" font-weight="normal" text-anchor="middle" fill="#212529">re-checks citations</text>
+<text x="765.0" y="353.0" font-size="11" font-weight="normal" text-anchor="middle" fill="#212529">+ arithmetic (1 revision)</text>
+<rect x="890" y="300" width="190" height="70" rx="8" fill="#f8f9fa" stroke="#343a40" stroke-width="1.8"/>
+<text x="985.0" y="325.0" font-size="11" font-weight="bold" text-anchor="middle" fill="#212529">Settlement agent  [L11]</text>
+<text x="985.0" y="339.0" font-size="11" font-weight="normal" text-anchor="middle" fill="#212529">worksheet + letter ·</text>
+<text x="985.0" y="353.0" font-size="11" font-weight="normal" text-anchor="middle" fill="#212529">settles after approval</text>
+<rect x="40" y="420" width="820" height="50" rx="8" fill="#f1f3f5" stroke="#495057" stroke-width="1.8" stroke-dasharray="6 4"/>
+<text x="450.0" y="449.0" font-size="11" font-weight="bold" text-anchor="middle" fill="#212529">Hooks  [L14]   pre-tool: permission + budget check   ·   post-tool: trace, health data scrubbed</text>
+<rect x="890" y="410" width="190" height="70" rx="8" fill="#ffe3e3" stroke="#c92a2a" stroke-width="1.8"/>
+<text x="985.0" y="435.0" font-size="11" font-weight="bold" text-anchor="middle" fill="#212529">⑦ Approval gate  [L14]</text>
+<text x="985.0" y="449.0" font-size="11" font-weight="normal" text-anchor="middle" fill="#212529">interrupt() on worksheet hash</text>
+<text x="985.0" y="463.0" font-size="11" font-weight="normal" text-anchor="middle" fill="#212529">2 levels above threshold</text>
+<rect x="1120" y="410" width="240" height="70" rx="8" fill="#ffe3e3" stroke="#c92a2a" stroke-width="1.8"/>
+<text x="1240.0" y="442.0" font-size="11" font-weight="bold" text-anchor="middle" fill="#212529">Adjudicator (+ senior)</text>
+<text x="1240.0" y="456.0" font-size="11" font-weight="normal" text-anchor="middle" fill="#212529">approve · edit a line · reject</text>
+<rect x="40" y="520" width="190" height="60" rx="8" fill="#e3fafc" stroke="#0c8599" stroke-width="1.8"/>
+<text x="135.0" y="547.0" font-size="11" font-weight="bold" text-anchor="middle" fill="#212529">policy-kb  [L7]  (read)</text>
+<text x="135.0" y="561.0" font-size="11" font-weight="normal" text-anchor="middle" fill="#212529">search wording · get clause</text>
+<rect x="250" y="520" width="190" height="60" rx="8" fill="#e3fafc" stroke="#0c8599" stroke-width="1.8"/>
+<text x="345.0" y="547.0" font-size="11" font-weight="bold" text-anchor="middle" fill="#212529">adjudication-calc  [L7]  (read)</text>
+<text x="345.0" y="561.0" font-size="11" font-weight="normal" text-anchor="middle" fill="#212529">caps · proportional cut · co-pay</text>
+<rect x="460" y="520" width="190" height="60" rx="8" fill="#e3fafc" stroke="#0c8599" stroke-width="1.8"/>
+<text x="555.0" y="547.0" font-size="11" font-weight="bold" text-anchor="middle" fill="#212529">tariff  [L7]  (read)</text>
+<text x="555.0" y="561.0" font-size="11" font-weight="normal" text-anchor="middle" fill="#212529">expected cost range</text>
+<rect x="890" y="520" width="190" height="60" rx="8" fill="#e3fafc" stroke="#0c8599" stroke-width="1.8"/>
+<text x="985.0" y="547.0" font-size="11" font-weight="bold" text-anchor="middle" fill="#212529">claims-db  [L7]</text>
+<text x="985.0" y="561.0" font-size="11" font-weight="normal" text-anchor="middle" fill="#212529">history (read) · settle_claim (WRITE)</text>
+<rect x="40" y="630" width="190" height="60" rx="8" fill="#fff4e6" stroke="#e67700" stroke-width="1.8"/>
+<text x="135.0" y="657.0" font-size="11" font-weight="bold" text-anchor="middle" fill="#212529">Hybrid index  [L5 · L6]</text>
+<text x="135.0" y="671.0" font-size="11" font-weight="normal" text-anchor="middle" fill="#212529">BM25 + vectors + reranker</text>
+<rect x="250" y="630" width="190" height="60" rx="8" fill="#fff4e6" stroke="#e67700" stroke-width="1.8"/>
+<text x="345.0" y="657.0" font-size="11" font-weight="bold" text-anchor="middle" fill="#212529">Calculator</text>
+<text x="345.0" y="671.0" font-size="11" font-weight="normal" text-anchor="middle" fill="#212529">plain Python, Decimal, unit-tested</text>
+<rect x="460" y="630" width="190" height="60" rx="8" fill="#fff4e6" stroke="#e67700" stroke-width="1.8"/>
+<text x="555.0" y="657.0" font-size="11" font-weight="bold" text-anchor="middle" fill="#212529">Tariff table</text>
+<text x="555.0" y="671.0" font-size="11" font-weight="normal" text-anchor="middle" fill="#212529">30 procedures × 3 city tiers</text>
+<rect x="890" y="630" width="190" height="60" rx="8" fill="#fff4e6" stroke="#e67700" stroke-width="1.8"/>
+<text x="985.0" y="657.0" font-size="11" font-weight="bold" text-anchor="middle" fill="#212529">Claims DB</text>
+<text x="985.0" y="671.0" font-size="11" font-weight="normal" text-anchor="middle" fill="#212529">policies · claims · settlements</text>
+<rect x="40" y="750" width="190" height="60" rx="8" fill="#fff4e6" stroke="#e67700" stroke-width="1.8"/>
+<text x="135.0" y="777.0" font-size="11" font-weight="bold" text-anchor="middle" fill="#212529">Ingestion  [L4 · L5]</text>
+<text x="135.0" y="791.0" font-size="11" font-weight="normal" text-anchor="middle" fill="#212529">policy PDF → numbered clauses</text>
+<rect x="270" y="750" width="170" height="60" rx="8" fill="#f1f3f5" stroke="#495057" stroke-width="1.8"/>
+<text x="355.0" y="777.0" font-size="11" font-weight="bold" text-anchor="middle" fill="#212529">Traces  [L13]</text>
+<text x="355.0" y="791.0" font-size="11" font-weight="normal" text-anchor="middle" fill="#212529">health data masked</text>
+<rect x="455" y="750" width="170" height="60" rx="8" fill="#f1f3f5" stroke="#495057" stroke-width="1.8"/>
+<text x="540.0" y="777.0" font-size="11" font-weight="bold" text-anchor="middle" fill="#212529">Metrics + Grafana  [L13 · L16]</text>
+<text x="540.0" y="791.0" font-size="11" font-weight="normal" text-anchor="middle" fill="#212529">edit rate · ₹ deducted by reason</text>
+<rect x="640" y="750" width="170" height="60" rx="8" fill="#f1f3f5" stroke="#495057" stroke-width="1.8"/>
+<text x="725.0" y="777.0" font-size="11" font-weight="bold" text-anchor="middle" fill="#212529">Eval harness  [L13 · L15]</text>
+<text x="725.0" y="791.0" font-size="11" font-weight="normal" text-anchor="middle" fill="#212529">80 claims · judge · red team</text>
+<rect x="825" y="750" width="170" height="60" rx="8" fill="#f1f3f5" stroke="#495057" stroke-width="1.8"/>
+<text x="910.0" y="777.0" font-size="11" font-weight="bold" text-anchor="middle" fill="#212529">Improvement loop  [L12]</text>
+<text x="910.0" y="791.0" font-size="11" font-weight="normal" text-anchor="middle" fill="#212529">playbook from adjudicator edits</text>
+<rect x="1010" y="750" width="170" height="60" rx="8" fill="#f1f3f5" stroke="#495057" stroke-width="1.8"/>
+<text x="1095.0" y="777.0" font-size="11" font-weight="bold" text-anchor="middle" fill="#212529">CI/CD  [L16]</text>
+<text x="1095.0" y="791.0" font-size="11" font-weight="normal" text-anchor="middle" fill="#212529">eval gate · Docker Compose</text>
+<text x="270" y="738" font-size="12" fill="#868e96" font-style="italic">Operate and measure (runs alongside every request)</text>
+<text x="660" y="23" font-size="12" fill="#868e96" font-style="italic">reply</text>
+</svg>

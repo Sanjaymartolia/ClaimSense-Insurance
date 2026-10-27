@@ -1,0 +1,22 @@
+{
+  "permissions": {
+    "deny": [
+      "Read(./.env)",
+      "Read(./.env.local)",
+      "Read(../claimsense-heldout/**)"
+    ]
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python -m ruff format --quiet . 2>/dev/null; python -m ruff check --fix --quiet . 2>/dev/null || true"
+          }
+        ]
+      }
+    ]
+  }
+}
