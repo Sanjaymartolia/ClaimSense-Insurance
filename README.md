@@ -90,3 +90,6 @@ flowchart TD
     W --> X["Generate letter and update history"]
     X --> Y["Output guardrails and response"]
 ```
+
+## License
+MIT — see [LICENSE](LICENSE).
