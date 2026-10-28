@@ -31,6 +31,8 @@ retrieval = [
     "pypdf>=4.0",
 ]
 dev = ["pytest>=8.0", "ruff>=0.6", "pypdf>=5.0,<7.0"]  # pypdf: ingestion tests
+course = ["matplotlib>=3.8", "langchain-community>=0.3"]  # + agents,retrieval; see course/README
+docs = ["matplotlib>=3.8", "python-docx>=1.1"]  # scripts/build_team_guide.py
 
 [tool.setuptools.packages.find]
 where = ["src"]

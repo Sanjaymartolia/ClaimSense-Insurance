@@ -10,3 +10,7 @@ __pycache__/
 chroma-data/
 data/raw/
 .claude/settings.local.json
+# course kit scratch (course/ and exercises/<name>/); runs/ plots are kept for reports
+.index/
+.cache/
+.state/
