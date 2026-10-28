@@ -35,6 +35,8 @@ See `CLAUDE.md` for the folder → role map and the rules every contributor (and
 | `src/claimsense/contracts/` | Shared Pydantic types: Claim, Worksheet, ApprovalToken, Lesson, Handoff |
 | `src/claimsense/calc/` | The adjudication calculator — all rupee maths |
 | `src/claimsense/mcp_servers/` | policy-kb, adjudication-calc, tariff, claims-db |
+| `src/claimsense/ingestion/` | Policy PDF → clauses → retrieval corpus ([README](src/claimsense/ingestion/README.md)) |
+| `data/` | Synthetic starter pack: policy PDFs, tariffs, processed clauses, knowledge base ([README](data/README.md)) |
 | `src/claimsense/graph/`, `agents/`, `reflexion/` | LangGraph supervisor, specialists, playbook loop |
 | `eval/` | Harness, dev golden set, red-team suite (held-out set lives outside the repo) |
 | `docs/` | ADRs, experiments, threat model, memory policy, meetings |
