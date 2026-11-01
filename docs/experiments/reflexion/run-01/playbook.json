@@ -1,0 +1,187 @@
+{
+  "frozen_hash": "6b4c530d988ac0615a32c258af3968d54475de1bc0dcce98edb2e20de14559b7",
+  "lessons": [
+    {
+      "lesson_id": "LSN-30d9c04f",
+      "text": "Verify that procedure category claims are adjudicated under clause 4.1, not its sub-clauses like 4.1.1, as per the Arogya Sanjeevani policy.",
+      "applies_when": "When adjudicating procedure category bill lines under the Arogya Sanjeevani policy.",
+      "clause_ids": [
+        "new_india_arogya_sanjeevani:4.1"
+      ],
+      "source_case_id": "CLM-0004",
+      "status": "rejected",
+      "reviewer_id": "Dhruvi Ramani",
+      "review_note": "contradicts clause 4.1.1 Note b: procedure charges are \"other expenses\" and are subject to the proportional cut; gold reading not agreed with domain lead",
+      "created_at": "2026-11-01T15:20:54.259044Z"
+    },
+    {
+      "lesson_id": "LSN-47e092b0",
+      "text": "Check if room or ICU rates exceed policy limits and apply proportional deduction to all expenses except medicines as per clause 4.1.1 Note b.",
+      "applies_when": "When adjudicating medicine bill lines under the Arogya Sanjeevani policy with room or ICU rates exceeding limits.",
+      "clause_ids": [
+        "new_india_arogya_sanjeevani:4.1.1"
+      ],
+      "source_case_id": "CLM-0004",
+      "status": "approved",
+      "reviewer_id": "Dhruvi Ramani",
+      "review_note": null,
+      "created_at": "2026-11-01T16:00:39.763025Z"
+    },
+    {
+      "lesson_id": "LSN-e90ad757",
+      "text": "Apply proportional deduction exactly as per clause 4.1.1 Note b without rounding amounts prematurely when room/ICU rates exceed limits.",
+      "applies_when": "When room or ICU rates exceed policy limits under investigations category.",
+      "clause_ids": [
+        "new_india_arogya_sanjeevani:4.1.1"
+      ],
+      "source_case_id": "CLM-0004",
+      "status": "rejected",
+      "reviewer_id": "Dhruvi Ramani",
+      "review_note": "not actionable for clause selection: rounding is done by the calculator; the difference is the gold file rounding to whole rupees",
+      "created_at": "2026-11-01T16:02:27.068050Z"
+    },
+    {
+      "lesson_id": "LSN-99d83f2a",
+      "text": "Always confirm coverage applicability for the investigations category as per the Arogya Sanjeevani policy clauses before processing claims.",
+      "applies_when": "When adjudicating claims under the investigations bill line category for the Arogya Sanjeevani policy.",
+      "clause_ids": [
+        "Arogya Sanjeevani Investigations Coverage Clause"
+      ],
+      "source_case_id": "CLM-0005",
+      "status": "rejected",
+      "reviewer_id": "Dhruvi Ramani",
+      "review_note": "vague and cites a non-existent clause id; the mistake was an in-bill duplicate line, a fraud finding, not a clause choice",
+      "created_at": "2026-11-01T16:03:48.620461Z"
+    },
+    {
+      "lesson_id": "LSN-aadc9136",
+      "text": "Always confirm coverage applicability for the 'investigations' bill line category as specified in the Arogya Sanjeevani policy clauses before processing the claim.",
+      "applies_when": "When adjudicating claims with bill line category 'investigations' under the Arogya Sanjeevani policy.",
+      "clause_ids": [
+        "Arogya Sanjeevani Investigations Coverage Clause"
+      ],
+      "source_case_id": "CLM-0009",
+      "status": "rejected",
+      "reviewer_id": "Dhruvi Ramani",
+      "review_note": "vague and cites a non-existent clause id; the mistake was an in-bill duplicate line, a fraud finding, not a clause choice",
+      "created_at": "2026-11-01T16:05:45.956012Z"
+    },
+    {
+      "lesson_id": "LSN-ad720734",
+      "text": "Always confirm coverage applicability for the 'investigations' bill line category as specified in the Arogya Sanjeevani policy clauses before processing payment.",
+      "applies_when": "When adjudicating claims with bill line category 'investigations' under the Arogya Sanjeevani policy.",
+      "clause_ids": [
+        "None"
+      ],
+      "source_case_id": "CLM-0010",
+      "status": "rejected",
+      "reviewer_id": "Dhruvi Ramani",
+      "review_note": "vague and cites a non-existent clause id; the mistake was an in-bill duplicate line, a fraud finding, not a clause choice",
+      "created_at": "2026-11-01T16:07:17.878327Z"
+    },
+    {
+      "lesson_id": "LSN-1b0890dc",
+      "text": "Verify that procedure category claims are adjudicated under clause 4.1 as specified in the Arogya Sanjeevani policy before considering any sub-clauses.",
+      "applies_when": "When adjudicating procedure category bill lines under the Arogya Sanjeevani policy.",
+      "clause_ids": [
+        "new_india_arogya_sanjeevani:4.1"
+      ],
+      "source_case_id": "CLM-0011",
+      "status": "rejected",
+      "reviewer_id": "Dhruvi Ramani",
+      "review_note": "contradicts clause 4.1.1 Note b: procedure charges are \"other expenses\" subject to the proportional cut; gold reading not agreed with domain lead",
+      "created_at": "2026-11-01T16:08:24.096915Z"
+    },
+    {
+      "lesson_id": "LSN-d69e9593",
+      "text": "Apply proportional deductions exactly as specified in clause 4.1.1 Note b without rounding amounts prematurely.",
+      "applies_when": "When room or ICU rates exceed policy limits under investigations category.",
+      "clause_ids": [
+        "new_india_arogya_sanjeevani:4.1.1"
+      ],
+      "source_case_id": "CLM-0011",
+      "status": "rejected",
+      "reviewer_id": "Dhruvi Ramani",
+      "review_note": "not actionable for clause selection: rounding is done by the calculator; the gold rounds to whole rupees",
+      "created_at": "2026-11-01T16:09:36.233611Z"
+    },
+    {
+      "lesson_id": "LSN-2a7a2cf8",
+      "text": "Verify that procedure category claims are adjudicated under clause 4.1 as specified in the Arogya Sanjeevani policy before considering any sub-clauses.",
+      "applies_when": "When adjudicating procedure category bill lines under the Arogya Sanjeevani policy.",
+      "clause_ids": [
+        "new_india_arogya_sanjeevani:4.1"
+      ],
+      "source_case_id": "CLM-0012",
+      "status": "rejected",
+      "reviewer_id": "Dhruvi Ramani",
+      "review_note": "contradicts clause 4.1.1 Note b: procedure charges are subject to the proportional cut; gold reading not agreed with domain lead",
+      "created_at": "2026-11-01T16:10:51.011795Z"
+    },
+    {
+      "lesson_id": "LSN-3e9c456b",
+      "text": "When the room or ICU rate exceeds the policy limits, apply proportional deduction to all expenses except medicines as specified in clause 4.1.1 Note b.",
+      "applies_when": "Claims involving nursing or room charges where the room or ICU rate exceeds the policy limits under the Arogya Sanjeevani policy.",
+      "clause_ids": [
+        "new_india_arogya_sanjeevani:4.1.1"
+      ],
+      "source_case_id": "CLM-0012",
+      "status": "approved",
+      "reviewer_id": "Dhruvi Ramani",
+      "review_note": null,
+      "created_at": "2026-11-01T16:14:40.329606Z"
+    },
+    {
+      "lesson_id": "LSN-48602e95",
+      "text": "Check that procedure category claims are adjudicated under clause 4.1 before considering any sub-clauses like 4.1.1.",
+      "applies_when": "When adjudicating procedure category bill lines under the Arogya Sanjeevani policy.",
+      "clause_ids": [
+        "new_india_arogya_sanjeevani:4.1"
+      ],
+      "source_case_id": "CLM-0014",
+      "status": "rejected",
+      "reviewer_id": "Dhruvi Ramani",
+      "review_note": "contradicts clause 4.1.1 Note b: procedure charges are subject to the proportional cut; gold reading not agreed with domain lead",
+      "created_at": "2026-11-01T16:17:57.710201Z"
+    },
+    {
+      "lesson_id": "LSN-e42ab612",
+      "text": "Check for proportional deduction rules under clause 4.1.1 when room or ICU rates exceed policy limits before applying other expense payments.",
+      "applies_when": "When adjudicating medicine bills under the Arogya Sanjeevani policy with room or ICU rates exceeding allowed limits.",
+      "clause_ids": [
+        "new_india_arogya_sanjeevani:4.1.1"
+      ],
+      "source_case_id": "CLM-0014",
+      "status": "rejected",
+      "reviewer_id": "Dhruvi Ramani",
+      "review_note": "omits the medicines exception in clause 4.1.1 Note b; duplicate of the approved lesson that states it correctly",
+      "created_at": "2026-11-01T16:18:58.420081Z"
+    },
+    {
+      "lesson_id": "LSN-9b81c322",
+      "text": "Check that when the room or ICU rate exceeds the policy limits, all other expenses except medicines are proportionally reduced according to clause 4.1.1 Note b.",
+      "applies_when": "When the room or ICU rate exceeds the policy limits in nursing bill line categories.",
+      "clause_ids": [
+        "new_india_arogya_sanjeevani:4.1.1"
+      ],
+      "source_case_id": "CLM-0014",
+      "status": "rejected",
+      "reviewer_id": "Dhruvi Ramani",
+      "review_note": "duplicate of an approved lesson (same rule, same clause, nursing lines)",
+      "created_at": "2026-11-01T16:21:20.182867Z"
+    },
+    {
+      "lesson_id": "LSN-dd440297",
+      "text": "Always confirm coverage applicability for the 'investigations' bill line category as specified in the Arogya Sanjeevani policy clauses before processing payment.",
+      "applies_when": "When adjudicating claims with bill line category 'investigations' under the Arogya Sanjeevani policy.",
+      "clause_ids": [
+        "Arogya Sanjeevani Investigations Coverage Clause"
+      ],
+      "source_case_id": "CLM-0015",
+      "status": "rejected",
+      "reviewer_id": "Dhruvi Ramani",
+      "review_note": "vague and cites a non-existent clause id; duplicate line is a fraud finding, not a clause choice",
+      "created_at": "2026-11-01T16:22:15.913793Z"
+    }
+  ]
+}

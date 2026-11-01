@@ -1,0 +1,262 @@
+{
+  "generated_at": "2026-11-01T13:38:22.885556+00:00",
+  "mode": "mode: STUB (deterministic, no model) | executor: local | calculator: reference | approval: CONSOLE",
+  "summary": {
+    "cases": 20,
+    "settlement_error_total_rs": "65989.27",
+    "settlement_error_mean_rs": "3299.46",
+    "exact_match_rate": 0.3,
+    "edit_rate": 0.2,
+    "critic_rejection_rate": 0.0
+  },
+  "breakdown": {
+    "exact": [
+      "CLM-0001",
+      "CLM-0002",
+      "CLM-0003",
+      "CLM-0007",
+      "CLM-0013",
+      "CLM-0017"
+    ],
+    "rounding_only_under_1_rs": [
+      "CLM-0006",
+      "CLM-0008",
+      "CLM-0016",
+      "CLM-0018",
+      "CLM-0019",
+      "CLM-0020"
+    ],
+    "real_disagreement": [
+      "CLM-0004",
+      "CLM-0005",
+      "CLM-0009",
+      "CLM-0010",
+      "CLM-0011",
+      "CLM-0012",
+      "CLM-0014",
+      "CLM-0015"
+    ]
+  },
+  "per_case": [
+    {
+      "case_id": "CLM-0001",
+      "proposed_total": "0",
+      "gold_total": "0",
+      "abs_error": "0",
+      "edited": false,
+      "lines_edited": 0,
+      "critic_rejections": 0,
+      "lessons_used": [],
+      "status": "repudiated"
+    },
+    {
+      "case_id": "CLM-0002",
+      "proposed_total": "0",
+      "gold_total": "0",
+      "abs_error": "0",
+      "edited": false,
+      "lines_edited": 0,
+      "critic_rejections": 0,
+      "lessons_used": [],
+      "status": "repudiated"
+    },
+    {
+      "case_id": "CLM-0003",
+      "proposed_total": "0",
+      "gold_total": "0",
+      "abs_error": "0",
+      "edited": false,
+      "lines_edited": 0,
+      "critic_rejections": 0,
+      "lessons_used": [],
+      "status": "repudiated"
+    },
+    {
+      "case_id": "CLM-0004",
+      "proposed_total": "80990.23",
+      "gold_total": "102313",
+      "abs_error": "21322.77",
+      "edited": true,
+      "lines_edited": 2,
+      "critic_rejections": 0,
+      "lessons_used": [],
+      "status": "settled"
+    },
+    {
+      "case_id": "CLM-0005",
+      "proposed_total": "103940.45",
+      "gold_total": "96660",
+      "abs_error": "7280.45",
+      "edited": false,
+      "lines_edited": 0,
+      "critic_rejections": 0,
+      "lessons_used": [],
+      "status": "settled"
+    },
+    {
+      "case_id": "CLM-0006",
+      "proposed_total": "71374.45",
+      "gold_total": "71374",
+      "abs_error": "0.45",
+      "edited": false,
+      "lines_edited": 0,
+      "critic_rejections": 0,
+      "lessons_used": [],
+      "status": "settled"
+    },
+    {
+      "case_id": "CLM-0007",
+      "proposed_total": "0",
+      "gold_total": "0",
+      "abs_error": "0",
+      "edited": false,
+      "lines_edited": 0,
+      "critic_rejections": 0,
+      "lessons_used": [],
+      "status": "repudiated"
+    },
+    {
+      "case_id": "CLM-0008",
+      "proposed_total": "79842.75",
+      "gold_total": "79843",
+      "abs_error": "0.25",
+      "edited": false,
+      "lines_edited": 0,
+      "critic_rejections": 0,
+      "lessons_used": [],
+      "status": "settled"
+    },
+    {
+      "case_id": "CLM-0009",
+      "proposed_total": "76604.20",
+      "gold_total": "73664",
+      "abs_error": "2940.20",
+      "edited": false,
+      "lines_edited": 0,
+      "critic_rejections": 0,
+      "lessons_used": [],
+      "status": "settled"
+    },
+    {
+      "case_id": "CLM-0010",
+      "proposed_total": "144884.50",
+      "gold_total": "141867",
+      "abs_error": "3017.50",
+      "edited": false,
+      "lines_edited": 0,
+      "critic_rejections": 0,
+      "lessons_used": [],
+      "status": "settled"
+    },
+    {
+      "case_id": "CLM-0011",
+      "proposed_total": "57184.61",
+      "gold_total": "60741",
+      "abs_error": "3556.39",
+      "edited": true,
+      "lines_edited": 2,
+      "critic_rejections": 0,
+      "lessons_used": [],
+      "status": "settled"
+    },
+    {
+      "case_id": "CLM-0012",
+      "proposed_total": "67575.39",
+      "gold_total": "78511",
+      "abs_error": "10935.61",
+      "edited": true,
+      "lines_edited": 2,
+      "critic_rejections": 0,
+      "lessons_used": [],
+      "status": "settled"
+    },
+    {
+      "case_id": "CLM-0013",
+      "proposed_total": "0",
+      "gold_total": "0",
+      "abs_error": "0",
+      "edited": false,
+      "lines_edited": 0,
+      "critic_rejections": 0,
+      "lessons_used": [],
+      "status": "repudiated"
+    },
+    {
+      "case_id": "CLM-0014",
+      "proposed_total": "74629.15",
+      "gold_total": "85136",
+      "abs_error": "10506.85",
+      "edited": true,
+      "lines_edited": 2,
+      "critic_rejections": 0,
+      "lessons_used": [],
+      "status": "settled"
+    },
+    {
+      "case_id": "CLM-0015",
+      "proposed_total": "114515.85",
+      "gold_total": "108088",
+      "abs_error": "6427.85",
+      "edited": false,
+      "lines_edited": 0,
+      "critic_rejections": 0,
+      "lessons_used": [],
+      "status": "settled"
+    },
+    {
+      "case_id": "CLM-0016",
+      "proposed_total": "73089.20",
+      "gold_total": "73089",
+      "abs_error": "0.20",
+      "edited": false,
+      "lines_edited": 0,
+      "critic_rejections": 0,
+      "lessons_used": [],
+      "status": "settled"
+    },
+    {
+      "case_id": "CLM-0017",
+      "proposed_total": "0",
+      "gold_total": "0",
+      "abs_error": "0",
+      "edited": false,
+      "lines_edited": 0,
+      "critic_rejections": 0,
+      "lessons_used": [],
+      "status": "repudiated"
+    },
+    {
+      "case_id": "CLM-0018",
+      "proposed_total": "111406.50",
+      "gold_total": "111406",
+      "abs_error": "0.50",
+      "edited": false,
+      "lines_edited": 0,
+      "critic_rejections": 0,
+      "lessons_used": [],
+      "status": "settled"
+    },
+    {
+      "case_id": "CLM-0019",
+      "proposed_total": "255800.80",
+      "gold_total": "255801",
+      "abs_error": "0.20",
+      "edited": false,
+      "lines_edited": 0,
+      "critic_rejections": 0,
+      "lessons_used": [],
+      "status": "settled"
+    },
+    {
+      "case_id": "CLM-0020",
+      "proposed_total": "78242.95",
+      "gold_total": "78243",
+      "abs_error": "0.05",
+      "edited": false,
+      "lines_edited": 0,
+      "critic_rejections": 0,
+      "lessons_used": [],
+      "status": "settled"
+    }
+  ]
+}
