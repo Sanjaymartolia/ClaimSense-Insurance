@@ -25,7 +25,7 @@ DEFAULT_POLICY = "data/policy/new_india/policy_wording.pdf"
 DEFAULT_RAW_OUTPUT = "data/processed/extracted_clauses_raw.jsonl"
 DEFAULT_STRUCTURED_OUTPUT = "data/processed/policy_clauses_structured.jsonl"
 
-PARSER_VERSION = "1.0.0"
+PARSER_VERSION = "1.1.0"
 UIN = "NIAHLIP25044V022425"
 INSURER = "The New India Assurance Co. Ltd."
 PRODUCT = "Arogya Sanjeevani Policy"
@@ -34,6 +34,8 @@ _HEADER_RE = re.compile(r"^(?:Page\s+\d+\s+of\s+\d+\s+UIN:.*|AROGYA SANJEEVANI P
 _FULL_NUMBER_RE = re.compile(r"^\s*(\d+(?:\.\d+){1,4})\s*[.)]?\s+(.+?)\s*$")
 _TOP_LEVEL_RE = re.compile(r"^\s*(\d{1,2})\s*[.)]?\s+(.+?)\s*$")
 _BARE_ITEM_RE = re.compile(r"^\s*(\d{1,3})\s*[.)]?\s+(.+?)\s*$")
+_ANNEXURE_LIST_RE = re.compile(r"^List\s+(I{1,3}|IV)\s*[–-]\s*(.+)$")
+_TABLE_HEADER_LINES = {"S", "No", "No.", "Item"}
 _WAITING_RE = re.compile(r"\b(?:waiting\s+period|wait(?:ing)?\s+of)\b[^.;\n]{0,180}", re.I)
 _DURATION_RE = re.compile(
     r"\b(?:\d+\s*(?:days?|months?|years?)|one\s+year|two\s+years|"
@@ -64,6 +66,15 @@ _MAIN_HEADINGS = {
     10: "general terms",
     11: "redressal of grievance",
     12: "table of benefits",
+}
+# Rows of the benefit table printed after numbered rows 1 and 2. They carry no number of
+# their own and their labels wrap over lines, so each maps to its full label.
+_BENEFIT_ROWS = {
+    "Cataract": "Cataract Treatment",
+    "AYUSH": "AYUSH",
+    "Pre Existing": "Pre Existing Disease",
+    "Cumulative": "Cumulative bonus",
+    "Co Pay": "Co Pay",
 }
 
 
@@ -118,7 +129,9 @@ def _is_top_level_heading(match: re.Match[str]) -> bool:
     # Require a known section title. This prevents the many bare numbered
     # subitems under waiting periods and exclusions from resetting hierarchy.
     expected = _MAIN_HEADINGS[int(number)]
-    return len(title) < 100 and expected in title.lower()
+    lowered = title.lower()
+    # A long line is prose unless it opens with the heading ("8. Moratorium Period: After ...").
+    return (len(title) < 100 and expected in lowered) or lowered.startswith(expected)
 
 
 def extract_clauses(pdf_path: Path) -> tuple[list[dict[str, Any]], dict[str, Any]]:
@@ -132,7 +145,7 @@ def extract_clauses(pdf_path: Path) -> tuple[list[dict[str, Any]], dict[str, Any
     current_parent: str | None = None
     list_ordinals: dict[str, int] = {}
     list_context: dict[str, Any] | None = None
-    in_annexure = False
+    annexure: str | None = None
 
     def start_clause(number: str, displayed: str, title: str, page: int, source_line: str) -> None:
         nonlocal current, current_parent
@@ -141,16 +154,36 @@ def extract_clauses(pdf_path: Path) -> tuple[list[dict[str, Any]], dict[str, Any
         clauses.append(current)
         current_parent = number
 
+    def start_list_item(shown: str, title: str, page: int, source_line: str) -> None:
+        nonlocal current
+        ordinal = list_ordinals.get(current_parent, 0) + 1
+        list_ordinals[current_parent] = ordinal
+        number = f"{current_parent}.{ordinal}"
+        current = Clause(number, shown, title.strip(), page, list_context)
+        current.add(page, source_line)
+        clauses.append(current)
+
     for page_number, page in enumerate(reader.pages, start=1):
         for raw_line in (page.extract_text() or "").splitlines():
             line = _clean_line(raw_line)
             if not line or _HEADER_RE.match(line):
                 continue
             if _is_annexure(line):
-                in_annexure = True
+                annexure = line[-1].upper()
                 current = None
+                if annexure == "C":
+                    title = "List of day-care treatments"
+                    start_clause("annexure-c", "Annexure-C", title, page_number, line)
                 continue
-            if in_annexure:
+            if annexure:
+                # Annexure-B (ombudsman addresses) has no clause, so `current` stays None.
+                heading = _ANNEXURE_LIST_RE.match(line) if annexure == "A" else None
+                if heading:
+                    roman, title = heading.groups()
+                    number = f"annexure-a.list-{roman.lower()}"
+                    start_clause(number, f"List {roman}", title, page_number, line)
+                elif current is not None and line not in _TABLE_HEADER_LINES:
+                    current.add(page_number, line)
                 continue
 
             context_heading = re.match(
@@ -161,7 +194,13 @@ def extract_clauses(pdf_path: Path) -> tuple[list[dict[str, Any]], dict[str, Any
             if context_heading:
                 list_context = {"text": line, "page_number": page_number}
                 if current is not None:
-                    current.add(page_number, line)
+                    # The heading opens the next list: it belongs to the section, not the
+                    # item printed before it.
+                    section = next(
+                        (c for c in reversed(clauses) if c.clause_number == current_parent),
+                        current,
+                    )
+                    section.add(page_number, line)
                 continue
 
             full = _FULL_NUMBER_RE.match(line)
@@ -180,22 +219,21 @@ def extract_clauses(pdf_path: Path) -> tuple[list[dict[str, Any]], dict[str, Any
                 list_context = None
                 continue
 
+            if current_parent == "12":
+                row = next((label for label in _BENEFIT_ROWS if line.startswith(label)), None)
+                if row:
+                    start_list_item(row, _BENEFIT_ROWS[row], page_number, line)
+                    continue
+
             # The policy uses simple numbered lists for the specific waiting
             # periods, exclusions, claim procedure, general conditions and
             # benefits. Preserve those items as descendants of the section.
             item = _BARE_ITEM_RE.match(line)
             if current_parent and current_parent.split(".", 1)[0] in _NUMBERED_LIST_ROOTS and item:
-                ordinal = list_ordinals.get(current_parent, 0) + 1
-                list_ordinals[current_parent] = ordinal
-                shown, title = item.groups()
-                parent = current_parent
-                number = f"{parent}.{ordinal}"
-                current = Clause(number, shown, title.strip(), page_number, list_context)
-                current.add(page_number, line)
-                clauses.append(current)
                 # Keep consecutive list items under the same section or
                 # subsection, even after one becomes the current clause.
-                current_parent = parent
+                shown, title = item.groups()
+                start_list_item(shown, title, page_number, line)
                 continue
 
             if current is not None:

@@ -9,7 +9,7 @@ insurance decisions or medical pricing. Placement decisions: [ADR-0002](../docs/
 | `policy/new_india/` | Six New India Assurance PDFs for Arogya Sanjeevani (wording, CIS, prospectus, proposal form, excluded items, claim form) + `manifest.json` with SHA-256 per file |
 | `tariffs/synthetic_tariffs.csv` | 30 procedures × 3 city tiers = 90 synthetic reference ranges |
 | `processed/` | Clause-extraction output (`extracted_clauses_raw.jsonl`, `policy_clauses_structured.jsonl`) and the human review sheet `clause_review.xlsx` |
-| `knowledge_base/` | Retrieval corpus built from the two source PDFs + its manifest |
+| `knowledge_base/` | Retrieval corpus built from the policy wording ([ADR-0003](../docs/adr/0003-policy-corpus-scope.md)) + its manifest |
 
 Dev claims, gold worksheets and red-team cases live in [`eval/`](../eval/README.md). The 60
 held-out claims live **outside this repo** in `../claimsense-heldout/`.

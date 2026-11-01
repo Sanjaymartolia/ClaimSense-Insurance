@@ -1,8 +1,8 @@
-"""Build the retrieval knowledge base directly from the two source PDFs.
+"""Build the retrieval knowledge base directly from the policy wording PDF.
 
-The numbered-clause parser runs in memory against policy_wording.pdf. The
-excluded-items PDF is extracted independently. The structured JSONL produced by
-the separate clause-review pipeline is not an input to this builder.
+The numbered-clause parser runs in memory against policy_wording.pdf. The structured
+JSONL produced by the separate clause-review pipeline is not an input to this builder.
+The other policy PDFs are deliberately not chunked (ADR-0003).
 
 This script does not make coverage decisions or verify heuristic interpretations.
 It produces provenance-preserving JSONL chunks suitable for later embedding and
@@ -33,8 +33,7 @@ from claimsense.ingestion.extract_policy_clauses import (
     PARSER_VERSION as CLAUSE_PARSER_VERSION,
 )
 
-PARSER_VERSION = "1.0.0"
-DEFAULT_EXCLUSIONS = "data/policy/new_india/excluded_items.pdf"
+PARSER_VERSION = "1.1.0"
 DEFAULT_OUTPUT = "data/knowledge_base/policy_knowledge_base.jsonl"
 DEFAULT_MANIFEST = "data/knowledge_base/manifest.json"
 DEFAULT_CHUNK_SIZE = 1800
@@ -156,7 +155,12 @@ def clause_records(policy_pdf: Path, chunk_size: int, overlap: int) -> list[dict
             if parent_heading:
                 parent_number = parent.get("clause_number") or record.get("parent_clause_number")
                 context_lines.append(f"Parent section {parent_number}: {parent_heading}")
-            if parent_source_text and str(interpretation.get("topic") or "") == "waiting_period":
+            section_context = (waiting or {}).get("section_context_text")
+            if section_context:
+                # A list item takes its own period only; the parent's conditions stay in
+                # proposed_interpretation so they don't drown out the item's name.
+                context_lines.append("Waiting-period section context: " + section_context)
+            elif parent_source_text and str(clause_number).startswith("6."):
                 context_lines.append("Waiting-period section context: " + parent_source_text[:1400])
             retrieval_text = "\n".join(context_lines) + "\nClause source text:\n" + piece
             kb.append(
@@ -212,95 +216,17 @@ def clause_records(policy_pdf: Path, chunk_size: int, overlap: int) -> list[dict
     return kb
 
 
-def exclusion_page_records(
-    pdf_path: Path, chunk_size: int, overlap: int
-) -> tuple[list[dict[str, Any]], dict[str, Any]]:
-    if not pdf_path.is_file():
-        raise FileNotFoundError(f"Excluded-items PDF not found: {pdf_path}")
-    digest = sha256_file(pdf_path)
-    reader = PdfReader(str(pdf_path))
-    records: list[dict[str, Any]] = []
-    for page_no, page in enumerate(reader.pages, start=1):
-        page_text = clean_pdf_text(page.extract_text() or "")
-        if not page_text:
-            records.append(
-                {
-                    "chunk_id": f"excluded-items::page-{page_no:03d}::part-001",
-                    "record_type": "excluded_items_reference",
-                    "text": "",
-                    "source": {
-                        "document": pdf_path.name,
-                        "sha256": digest,
-                        "page_number": page_no,
-                        "page_numbers": [page_no],
-                    },
-                    "verification_status": "not_human_verified",
-                    "authority_level": "supporting_exclusions_reference",
-                    "review_flags": ["page_text_empty_or_needs_ocr_review"],
-                    "retrieval_warning": (
-                        "Supporting excluded-items reference, not a substitute for policy wording. "
-                        "Cross-check item definition, applicability, exceptions and policy version."
-                    ),
-                }
-            )
-            continue
-        pieces = split_text(page_text, chunk_size, overlap)
-        for idx, piece in enumerate(pieces, start=1):
-            records.append(
-                {
-                    "chunk_id": f"excluded-items::page-{page_no:03d}::part-{idx:03d}",
-                    "record_type": "excluded_items_reference",
-                    "text": piece,
-                    "source": {
-                        "document": pdf_path.name,
-                        "sha256": digest,
-                        "page_number": page_no,
-                        "page_numbers": [page_no],
-                    },
-                    "verification_status": "not_human_verified",
-                    "authority_level": "supporting_exclusions_reference",
-                    "review_flags": [
-                        "cross_check_against_policy_wording",
-                        "check_policy_version_and_schedule",
-                    ],
-                    "retrieval_warning": (
-                        "Supporting excluded-items reference, not a substitute for policy wording. "
-                        "Cross-check item definition, applicability, exceptions and policy version."
-                    ),
-                }
-            )
-    extracted_characters = sum(len((page.extract_text() or "").strip()) for page in reader.pages)
-    if extracted_characters < 80:
-        raise ValueError(
-            f"Very little text could be extracted from {pdf_path.name} "
-            f"({extracted_characters} characters); "
-            "OCR or layout-specific extraction is likely needed."
-        )
-    metadata = {
-        "extracted_characters": extracted_characters,
-        "document": pdf_path.name,
-        "sha256": digest,
-        "page_count": len(reader.pages),
-        "record_type": "excluded_items_reference",
-        "authority_level": "supporting_exclusions_reference",
-    }
-    return records, metadata
-
-
 def build_knowledge_base(
     policy_pdf: Path,
-    exclusions_pdf: Path,
     output_jsonl: Path,
     manifest_path: Path,
     chunk_size: int = DEFAULT_CHUNK_SIZE,
     overlap: int = DEFAULT_OVERLAP,
 ) -> dict[str, Any]:
-    for path in (policy_pdf, exclusions_pdf):
-        if not path.is_file():
-            raise FileNotFoundError(f"Required source PDF not found: {path}")
+    if not policy_pdf.is_file():
+        raise FileNotFoundError(f"Required source PDF not found: {policy_pdf}")
 
     policy_records = clause_records(policy_pdf, chunk_size, overlap)
-    exclusion_records, exclusion_meta = exclusion_page_records(exclusions_pdf, chunk_size, overlap)
 
     # Confirm the in-memory extractor is tied to the exact source PDF.
     expected_policy_hash = sha256_file(policy_pdf)
@@ -315,16 +241,15 @@ def build_knowledge_base(
             f"for {len(mismatches)} chunks."
         )
 
-    combined = policy_records + exclusion_records
     # Deterministic order and unique stable IDs are useful for reproducible embedding runs.
-    ids = [r["chunk_id"] for r in combined]
+    ids = [r["chunk_id"] for r in policy_records]
     if len(ids) != len(set(ids)):
         raise ValueError("Duplicate chunk_id generated; refusing to write KB")
-    written = write_jsonl(output_jsonl, combined)
+    written = write_jsonl(output_jsonl, policy_records)
 
     policy_reader = PdfReader(str(policy_pdf))
     manifest = {
-        "knowledge_base_version": "1.0.0",
+        "knowledge_base_version": "1.1.0",
         "built_by": "src/claimsense/ingestion/build_policy_knowledge_base.py",
         "inputs": {
             "policy_wording": {
@@ -332,14 +257,6 @@ def build_knowledge_base(
                 "sha256": expected_policy_hash,
                 "page_count": len(policy_reader.pages),
                 "authority_level": "primary_policy_wording",
-            },
-            "excluded_items": {
-                "path": portable_path(exclusions_pdf),
-                **exclusion_meta,
-                "authority_note": (
-                    "Supporting reference; verify consistency with the policy wording and "
-                    "applicable policy version before using an item as a rule."
-                ),
             },
         },
         "clause_extraction": {
@@ -355,7 +272,6 @@ def build_knowledge_base(
             "jsonl_path": portable_path(output_jsonl),
             "record_count": written,
             "policy_clause_chunks": len(policy_records),
-            "excluded_items_chunks": len(exclusion_records),
             "unique_chunk_ids": len(set(ids)),
         },
         "chunking": {
@@ -369,7 +285,7 @@ def build_knowledge_base(
             "Waiting-period applicability, conditions and exceptions are retained as "
             "source-linked text.",
             "No numeric threshold is inferred by this builder.",
-            "The excluded-items PDF is not treated as overriding policy wording.",
+            "excluded_items.pdf is not chunked: it repeats List I of Annexure-A (ADR-0003).",
             "For final decisions, check the policy schedule, endorsements, coverage dates "
             "and version.",
         ],
@@ -392,7 +308,6 @@ def build_knowledge_base(
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--policy-pdf", type=Path, default=REPO_ROOT / DEFAULT_POLICY)
-    parser.add_argument("--excluded-items-pdf", type=Path, default=REPO_ROOT / DEFAULT_EXCLUSIONS)
     parser.add_argument("--output", type=Path, default=REPO_ROOT / DEFAULT_OUTPUT)
     parser.add_argument("--manifest", type=Path, default=REPO_ROOT / DEFAULT_MANIFEST)
     parser.add_argument("--chunk-size", type=int, default=DEFAULT_CHUNK_SIZE)
@@ -400,7 +315,6 @@ def main() -> None:
     args = parser.parse_args()
     manifest = build_knowledge_base(
         args.policy_pdf,
-        args.excluded_items_pdf,
         args.output,
         args.manifest,
         args.chunk_size,
