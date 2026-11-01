@@ -26,8 +26,6 @@ class ToolError(BaseModel):
 # 2. Data Loading Function
 def load_tariff_data() -> dict:
     """Loads the synthetic tariff data from the CSV file."""
-    # Construct path relative to the project root assuming script runs from root
-    # Adjust this path if your working directory differs when running the server
     project_root = Path(__file__).resolve().parents[3] 
     csv_path = project_root / "data" / "tariffs" / "synthetic_tariffs.csv"
     
@@ -59,10 +57,17 @@ mcp = FastMCP("tariff")
 
 @mcp.tool()
 def get_procedure_tariff(procedure: str, tier: int) -> TariffResult | ToolError:
-    """[read] Get expected cost range for a procedure in a specific city tier."""
+    """[read] Get the expected minimum and maximum cost range for a medical procedure.
+    Use this tool when you need to know the standard tariff for a specific treatment based on the hospital's city tier.
+    If this returns a ToolError stating the procedure is not found, do not assume fraud; add a note to the worksheet for human review.
+    
+    Args:
+        procedure: The name of the medical procedure (e.g., 'cataract surgery').
+        tier: The city tier as an integer (1, 2, or 3).
+    """
     proc_lower = procedure.lower()
     if proc_lower not in TARIFF_DB:
-        return ToolError(error=f"Procedure '{procedure}' not found in tariff database.")
+        return ToolError(error=f"Procedure '{procedure}' not found in tariff database. Flag for human adjudicator.")
     if tier not in TARIFF_DB.get(proc_lower, {}):
         return ToolError(error=f"Tier {tier} not found for procedure '{procedure}'.")
     
@@ -76,7 +81,14 @@ def get_procedure_tariff(procedure: str, tier: int) -> TariffResult | ToolError:
 
 @mcp.tool()
 def compare_bill_with_tariff(procedure: str, tier: int, billed_amount: int) -> ComparisonResult | ToolError:
-    """[read] Compare a billed amount against the expected tariff range."""
+    """[read] Compare a billed hospital amount against the expected standard tariff.
+    Use this tool when evaluating a claim for potential fraud or overbilling to determine if the charged amount is an outlier.
+    
+    Args:
+        procedure: The medical procedure name.
+        tier: The city tier (1, 2, or 3).
+        billed_amount: The actual amount billed in rupees.
+    """
     tariff_result = get_procedure_tariff(procedure, tier)
     
     if isinstance(tariff_result, ToolError):
