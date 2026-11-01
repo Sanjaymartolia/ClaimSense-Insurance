@@ -31,16 +31,19 @@ def load_tariff_data() -> dict:
     
     tariff_db = {}
     try:
-        with open(csv_path, mode='r', encoding='utf-8-sig') as file:
+        with open(csv_path, mode='r', encoding='utf-8') as file:
             reader = csv.DictReader(file)
-            # Normalize headers to lowercase and strip whitespace
-            reader.fieldnames = [field.strip().lower() for field in reader.fieldnames if field]
-            
             for row in reader:
-                proc = row['procedure'].strip().lower()
-                tier = int(row['tier'])
-                min_cost = int(row['min_cost'])
-                max_cost = int(row['max_cost'])
+                # Read correct column names from actual CSV
+                proc = row['procedure_name'].strip().lower()
+                
+                # Parse tier string (e.g., "tier_1" -> 1)
+                tier_str = row['city_tier'].strip()
+                tier = int(tier_str.split('_')[1]) if '_' in tier_str else int(tier_str)
+                
+                # Read reference prices
+                min_cost = int(float(row['reference_low_inr']))
+                max_cost = int(float(row['reference_high_inr']))
                 
                 if proc not in tariff_db:
                     tariff_db[proc] = {}
