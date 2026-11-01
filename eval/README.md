@@ -7,7 +7,8 @@
   corpus.
 - Held-out set (60): stored **outside this repo** in `../claimsense-heldout/`, which Claude Code is
   denied access to (`.claude/settings.json`). The person tuning agents never writes these.
-- `golden_dev/retrieval_queries.jsonl` — 12 question → clause pairs for search recall.
+- `golden_dev/retrieval_queries.jsonl` — 12 question → clause pairs for search recall. Where a
+  query lists several clauses, each one answers it, so any of them counts as a hit.
   **Draft:** the Domain lead must verify each clause id.
 - `redteam/` — `attacks.jsonl` holds 12 attack seeds. `build_cases.py` turns them into
   `claims.jsonl` + `gold.jsonl`: **30 attacked claims (CLM-9001…9030)**. Each case is a dev

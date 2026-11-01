@@ -14,6 +14,7 @@ ROOT = Path(__file__).resolve().parents[2]
 POLICY_PDF = ROOT / "data/policy/new_india/policy_wording.pdf"
 COMMITTED_KB = ROOT / "data/knowledge_base/policy_knowledge_base.jsonl"
 RETRIEVAL_QUERIES = ROOT / "eval/golden_dev/retrieval_queries.jsonl"
+PRODUCT = "new_india_arogya_sanjeevani"
 
 
 @pytest.fixture(scope="module")
@@ -132,7 +133,47 @@ def test_committed_knowledge_base_matches_a_fresh_build(tmp_path):
     assert _read_jsonl(output) == _read_jsonl(COMMITTED_KB)
 
 
-def test_retrieval_labels_point_at_real_clauses():
-    clause_ids = {record["clause_id"] for record in _read_jsonl(COMMITTED_KB)}
+def test_retrieval_labels_point_at_searchable_clauses():
+    clause_ids = {
+        record["clause_id"] for record in _read_jsonl(COMMITTED_KB) if record["searchable"]
+    }
     for query in _read_jsonl(RETRIEVAL_QUERIES):
         assert set(query["clauses"]) <= clause_ids, query["qid"]
+
+
+def test_limit_queries_accept_the_clause_and_the_table_row_stating_it(chunks):
+    labels = {query["qid"]: query["clauses"] for query in _read_jsonl(RETRIEVAL_QUERIES)}
+    limits = {"R01": ("12.1", "Rs.5000/-"), "R02": ("12.2", "Rs.10,000/-")}
+    for qid, (table_row, limit) in limits.items():
+        assert labels[qid] == [f"{PRODUCT}:4.1", f"{PRODUCT}:{table_row}"]
+        assert limit in _first_chunk(chunks, "4.1")["source_text"]
+        assert limit in _first_chunk(chunks, table_row)["source_text"]
+
+
+def test_table_row_contradicting_its_clause_is_kept_but_not_searchable(chunks):
+    row = _first_chunk(chunks, "12.5")
+    assert "4 years" in row["source_text"]
+    assert row["searchable"] is False
+    assert row["conflict"]["conflicts_with"] == f"{PRODUCT}:6.1"
+    assert "ADR-0004" in row["conflict"]["decision"]
+    assert "36 months" in _first_chunk(chunks, "6.1")["source_text"]
+
+
+def test_only_the_conflicting_row_leaves_search(chunks):
+    others = [chunk for chunk in chunks if chunk["clause_number"] != "12.5"]
+    assert all(chunk["searchable"] is True for chunk in others)
+    assert all(chunk["conflict"] is None for chunk in others)
+    assert not any("4 years" in chunk["source_text"] for chunk in others)
+
+
+def test_chunks_carry_the_pdf_date_without_claiming_an_effective_date(chunks):
+    for chunk in chunks:
+        assert chunk["source"]["document_date"] == "2025-03-06"
+        assert chunk["source"]["document_date_basis"] == "pdf_creation_metadata"
+        assert "effective_date" not in chunk["source"]
+
+
+def test_manifest_counts_searchable_chunks(tmp_path):
+    manifest = build_knowledge_base(POLICY_PDF, tmp_path / "kb.jsonl", tmp_path / "manifest.json")
+    outputs = manifest["outputs"]
+    assert outputs["searchable_chunks"] == outputs["record_count"] - 1

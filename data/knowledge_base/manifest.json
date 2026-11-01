@@ -1,5 +1,5 @@
 {
-  "knowledge_base_version": "1.1.0",
+  "knowledge_base_version": "1.2.0",
   "built_by": "src/claimsense/ingestion/build_policy_knowledge_base.py",
   "inputs": {
     "policy_wording": {
@@ -22,6 +22,7 @@
     "jsonl_path": "data/knowledge_base/policy_knowledge_base.jsonl",
     "record_count": 181,
     "policy_clause_chunks": 181,
+    "searchable_chunks": 180,
     "unique_chunk_ids": 181
   },
   "chunking": {
@@ -35,6 +36,8 @@
     "Waiting-period applicability, conditions and exceptions are retained as source-linked text.",
     "No numeric threshold is inferred by this builder.",
     "excluded_items.pdf is not chunked: it repeats List I of Annexure-A (ADR-0003).",
+    "Index only chunks with searchable=true; table row 12.5 contradicts clause 6.1 (ADR-0004).",
+    "source.document_date is the PDF's creation date; no document states a policy effective date (ADR-0004).",
     "For final decisions, check the policy schedule, endorsements, coverage dates and version."
   ],
   "limitations": [

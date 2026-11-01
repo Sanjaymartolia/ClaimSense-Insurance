@@ -33,11 +33,20 @@ from claimsense.ingestion.extract_policy_clauses import (
     PARSER_VERSION as CLAUSE_PARSER_VERSION,
 )
 
-PARSER_VERSION = "1.1.0"
+PARSER_VERSION = "1.2.0"
 DEFAULT_OUTPUT = "data/knowledge_base/policy_knowledge_base.jsonl"
 DEFAULT_MANIFEST = "data/knowledge_base/manifest.json"
 DEFAULT_CHUNK_SIZE = 1800
 DEFAULT_OVERLAP = 250
+# A table row that contradicts its numbered clause stays available for audit and get_clause,
+# but search must not offer it as evidence (ADR-0004).
+TABLE_CONFLICTS = {
+    "12.5": {
+        "conflicts_with": "new_india_arogya_sanjeevani:6.1",
+        "resolution": "Clause 6.1 applies: 36 months, not the 4 years in this table row.",
+        "decision": "ADR-0004",
+    },
+}
 
 
 def portable_path(path: Path) -> str:
@@ -177,11 +186,16 @@ def clause_records(policy_pdf: Path, chunk_size: int, overlap: int) -> list[dict
                     "hierarchy": record.get("hierarchy") or [],
                     "chunk_index": idx,
                     "chunk_count": len(pieces),
+                    "searchable": clause_number not in TABLE_CONFLICTS,
+                    "conflict": TABLE_CONFLICTS.get(clause_number),
                     "source": {
                         "document": source.get("document") or "policy_wording.pdf",
                         "sha256": source.get("sha256"),
                         "page_number": source.get("page_number"),
                         "page_numbers": source.get("page_numbers") or [],
+                        # When the PDF was made, not when the policy took effect (ADR-0004).
+                        "document_date": source_metadata["document_date"],
+                        "document_date_basis": "pdf_creation_metadata",
                         "insurer": source.get("insurer"),
                         "product": source.get("product"),
                         "uin_observed_in_policy_pdf": source.get("uin_observed_in_policy_pdf"),
@@ -249,7 +263,7 @@ def build_knowledge_base(
 
     policy_reader = PdfReader(str(policy_pdf))
     manifest = {
-        "knowledge_base_version": "1.1.0",
+        "knowledge_base_version": "1.2.0",
         "built_by": "src/claimsense/ingestion/build_policy_knowledge_base.py",
         "inputs": {
             "policy_wording": {
@@ -272,6 +286,7 @@ def build_knowledge_base(
             "jsonl_path": portable_path(output_jsonl),
             "record_count": written,
             "policy_clause_chunks": len(policy_records),
+            "searchable_chunks": sum(record["searchable"] for record in policy_records),
             "unique_chunk_ids": len(set(ids)),
         },
         "chunking": {
@@ -286,6 +301,10 @@ def build_knowledge_base(
             "source-linked text.",
             "No numeric threshold is inferred by this builder.",
             "excluded_items.pdf is not chunked: it repeats List I of Annexure-A (ADR-0003).",
+            "Index only chunks with searchable=true; table row 12.5 contradicts clause 6.1 "
+            "(ADR-0004).",
+            "source.document_date is the PDF's creation date; no document states a policy "
+            "effective date (ADR-0004).",
             "For final decisions, check the policy schedule, endorsements, coverage dates "
             "and version.",
         ],

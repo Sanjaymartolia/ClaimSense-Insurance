@@ -240,10 +240,12 @@ def extract_clauses(pdf_path: Path) -> tuple[list[dict[str, Any]], dict[str, Any
                 current.add(page_number, line)
 
     raw_records = [c.as_raw_record(pdf_path.name, digest) for c in clauses]
+    created = reader.metadata.creation_date if reader.metadata else None
     source_metadata = {
         "source_document": pdf_path.name,
         "source_sha256": digest,
         "page_count": len(reader.pages),
+        "document_date": created.date().isoformat() if created else None,
         "insurer": INSURER,
         "product": PRODUCT,
         "uin_observed_in_policy_pdf": UIN,

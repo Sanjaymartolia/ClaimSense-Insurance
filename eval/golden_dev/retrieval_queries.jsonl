@@ -1,5 +1,5 @@
-{"qid": "R01", "status": "draft_domain_lead_to_verify", "query": "What is the daily limit for room rent?", "clauses": ["new_india_arogya_sanjeevani:4.1"]}
-{"qid": "R02", "status": "draft_domain_lead_to_verify", "query": "How much ICU charge per day does the policy pay?", "clauses": ["new_india_arogya_sanjeevani:4.1"]}
+{"qid": "R01", "status": "draft_domain_lead_to_verify", "query": "What is the daily limit for room rent?", "clauses": ["new_india_arogya_sanjeevani:4.1", "new_india_arogya_sanjeevani:12.1"]}
+{"qid": "R02", "status": "draft_domain_lead_to_verify", "query": "How much ICU charge per day does the policy pay?", "clauses": ["new_india_arogya_sanjeevani:4.1", "new_india_arogya_sanjeevani:12.2"]}
 {"qid": "R03", "status": "draft_domain_lead_to_verify", "query": "The patient took a room costlier than the limit. Are the other hospital charges reduced too?", "clauses": ["new_india_arogya_sanjeevani:4.1.1"]}
 {"qid": "R04", "status": "draft_domain_lead_to_verify", "query": "What co-payment is deducted from every claim?", "clauses": ["new_india_arogya_sanjeevani:9.5"]}
 {"qid": "R05", "status": "draft_domain_lead_to_verify", "query": "Is an illness in the first month after the policy starts covered?", "clauses": ["new_india_arogya_sanjeevani:6.3"]}

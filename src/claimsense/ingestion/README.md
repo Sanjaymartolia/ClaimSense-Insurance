@@ -60,10 +60,17 @@ hierarchy, the proposed labels, `authority_level` and a `retrieval_warning`. A w
 item's `text` carries only its own period; the parent clause's conditions stay in
 `proposed_interpretation.parent_context`.
 
+Fields set by [ADR-0004](../../../docs/adr/0004-wording-conflict-and-document-date.md):
+- `searchable`, `conflict`: table row `12.5` says 4 years where clause `6.1` says 36 months, so it
+  has `searchable: false` and a `conflict` naming the clause that applies. Every other chunk has
+  `searchable: true` and `conflict: null`.
+- `source.document_date`, `source.document_date_basis`: the PDF's creation date. It is not a policy
+  effective date, because no document states one.
+
 Chunking defaults: 1,800 characters, 250 overlap, split at a whitespace boundary or better. Only
 clauses over the cap are split (`5`, `9.4`, `annexure-c`). Their parts share a `clause_id`, so
 retrieval should merge them.
 
-**Next step (retrieval/):** embed `text` into Chroma, keep the rest as metadata, and return
-`chunk_id` + page references with every hit. These records don't yet map to
+**Next step (retrieval/):** embed `text` for `searchable` chunks into Chroma, keep the rest as
+metadata, and return `chunk_id` + page references with every hit. These records don't yet map to
 `contracts.policy.Clause` (see ADR-0002). Never index gold worksheets.
