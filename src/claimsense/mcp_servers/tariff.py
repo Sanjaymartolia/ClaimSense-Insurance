@@ -31,8 +31,11 @@ def load_tariff_data() -> dict:
     
     tariff_db = {}
     try:
-        with open(csv_path, mode='r', encoding='utf-8') as file:
+        with open(csv_path, mode='r', encoding='utf-8-sig') as file:
             reader = csv.DictReader(file)
+            # Normalize headers to lowercase and strip whitespace
+            reader.fieldnames = [field.strip().lower() for field in reader.fieldnames if field]
+            
             for row in reader:
                 proc = row['procedure'].strip().lower()
                 tier = int(row['tier'])
