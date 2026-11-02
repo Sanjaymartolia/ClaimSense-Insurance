@@ -1,0 +1,137 @@
+"""Recall@k and MRR for each search stage, with a chart in runs/ (L5-L6).
+
+Run from the repository root: ``python -m claimsense.retrieval.evaluate --label <name>``.
+The chart needs matplotlib: ``pip install -e ".[retrieval,docs]"``.
+"""
+
+import argparse
+import json
+from collections.abc import Sequence
+from pathlib import Path
+from typing import Any
+
+from claimsense.retrieval.index import DEFAULT_INDEX_DIR, REPO_ROOT, open_retriever
+from claimsense.retrieval.search import RERANK_POOL, HybridRetriever
+
+DEFAULT_QUERIES = REPO_ROOT / "eval/golden_dev/retrieval_queries.jsonl"
+K = 5
+
+# Each stage returns clause IDs, best first, so a split clause counts once.
+STAGES = {
+    "Dense": lambda retriever, query: retriever.clause_ids(retriever.dense(query)),
+    "BM25": lambda retriever, query: retriever.clause_ids(retriever.lexical(query)),
+    "RRF": lambda retriever, query: retriever.clause_ids(retriever.fused(query)),
+    "RRF + reranker": lambda retriever, query: [
+        hit.clause_id for hit in retriever.search(query, k=RERANK_POOL)
+    ],
+}
+
+
+def first_hit_rank(expected: Sequence[str], ranked: Sequence[str]) -> int | None:
+    """1-based rank of the first listed clause. Any listed clause answers the query."""
+    return next((i for i, clause in enumerate(ranked, start=1) if clause in expected), None)
+
+
+def recall_at_k(ranks: Sequence[int | None], k: int = K) -> float:
+    return sum(rank is not None and rank <= k for rank in ranks) / len(ranks)
+
+
+def mean_reciprocal_rank(ranks: Sequence[int | None]) -> float:
+    return sum(1 / rank for rank in ranks if rank is not None) / len(ranks)
+
+
+def rank_by_stage(
+    retriever: HybridRetriever, queries: Sequence[dict[str, Any]]
+) -> dict[str, list[int | None]]:
+    return {
+        stage: [first_hit_rank(q["clauses"], run(retriever, q["query"])) for q in queries]
+        for stage, run in STAGES.items()
+    }
+
+
+def plot_stages(ranks: dict[str, list[int | None]], out: Path) -> None:
+    import matplotlib
+
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    stages = list(ranks)
+    series = (
+        (f"Recall@{K}", "#2a78d6", [recall_at_k(ranks[stage]) for stage in stages], -1),
+        ("MRR", "#eb6834", [mean_reciprocal_rank(ranks[stage]) for stage in stages], 1),
+    )
+    fig, ax = plt.subplots(figsize=(7.2, 4), dpi=160, facecolor="#fcfcfb")
+    ax.set_facecolor("#fcfcfb")
+    width, gap = 0.3, 0.012
+    for label, color, values, side in series:
+        positions = [i + side * (width / 2 + gap) for i in range(len(stages))]
+        bars = ax.bar(positions, values, width, color=color, label=label)
+        for bar, value in zip(bars, values, strict=True):
+            ax.annotate(
+                f"{value:.2f}",
+                (bar.get_x() + bar.get_width() / 2, value),
+                xytext=(0, 3),
+                textcoords="offset points",
+                ha="center",
+                fontsize=9,
+                color="#0b0b0b",
+            )
+    ax.set_xticks(range(len(stages)), stages, color="#52514e", fontsize=9)
+    ax.set_ylim(0, 1.12)
+    ax.set_yticks([0, 0.25, 0.5, 0.75, 1])
+    ax.tick_params(axis="y", labelcolor="#52514e", labelsize=8)
+    ax.tick_params(length=0)
+    ax.grid(axis="y", color="#e6e5e0", linewidth=0.8)
+    ax.set_axisbelow(True)
+    for spine in ("top", "right", "left"):
+        ax.spines[spine].set_visible(False)
+    ax.spines["bottom"].set_color("#b5b4ad")
+    count = len(next(iter(ranks.values())))
+    ax.set_title(
+        f"Search quality by stage on {count} labelled queries",
+        loc="left",
+        fontsize=11,
+        color="#0b0b0b",
+        pad=26,
+    )
+    ax.legend(
+        frameon=False,
+        fontsize=9,
+        loc="lower left",
+        bbox_to_anchor=(-0.01, 1.0),
+        ncols=2,
+        labelcolor="#52514e",
+    )
+    fig.tight_layout()
+    out.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(out)
+    plt.close(fig)
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--label", required=True, help="names the chart: runs/retrieval_<label>.png"
+    )
+    parser.add_argument("--queries", type=Path, default=DEFAULT_QUERIES)
+    parser.add_argument("--index-dir", type=Path, default=DEFAULT_INDEX_DIR)
+    args = parser.parse_args()
+
+    lines = args.queries.read_text(encoding="utf-8").splitlines()
+    queries = [json.loads(line) for line in lines]
+    ranks = rank_by_stage(open_retriever(index_dir=args.index_dir), queries)
+
+    print("query  " + "".join(f"{stage:>16}" for stage in ranks))
+    for i, query in enumerate(queries):
+        row = "".join(f"{str(ranks[stage][i] or '-'):>16}" for stage in ranks)
+        print(f"{query['qid']:<7}{row}")
+    for name, metric in ((f"Recall@{K}", recall_at_k), ("MRR", mean_reciprocal_rank)):
+        print(f"{name:<7}" + "".join(f"{metric(ranks[stage]):>16.3f}" for stage in ranks))
+
+    out = REPO_ROOT / "runs" / f"retrieval_{args.label}.png"
+    plot_stages(ranks, out)
+    print(f"Chart: {out.relative_to(REPO_ROOT).as_posix()}")
+
+
+if __name__ == "__main__":
+    main()

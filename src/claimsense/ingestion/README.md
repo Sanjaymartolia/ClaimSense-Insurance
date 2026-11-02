@@ -71,6 +71,6 @@ Chunking defaults: 1,800 characters, 250 overlap, split at a whitespace boundary
 clauses over the cap are split (`5`, `9.4`, `annexure-c`). Their parts share a `clause_id`, so
 retrieval should merge them.
 
-**Next step (retrieval/):** embed `text` for `searchable` chunks into Chroma, keep the rest as
-metadata, and return `chunk_id` + page references with every hit. These records don't yet map to
+**Next step:** [`retrieval/`](../retrieval/README.md) indexes `text` for `searchable` chunks and
+returns `chunk_id` + page references with every hit. These records don't yet map to
 `contracts.policy.Clause` (see ADR-0002). Never index gold worksheets.
