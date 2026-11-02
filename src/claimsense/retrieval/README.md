@@ -14,7 +14,7 @@ The first run downloads the two models named in `config/models.yaml` from Huggin
 | Module | Reads | Writes |
 |---|---|---|
 | `index` | `data/knowledge_base/policy_knowledge_base.jsonl` | `chroma-data/` (gitignored) |
-| `evaluate` | the index, `eval/golden_dev/retrieval_queries.jsonl` | `runs/retrieval_<name>.png` |
+| `evaluate` | the index, `eval/golden_dev/retrieval_queries.jsonl` | `runs/retrieval_<name>.png` (scores per stage and kind of query) |
 
 ## Using it
 ```python
