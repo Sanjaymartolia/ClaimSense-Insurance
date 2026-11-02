@@ -1,6 +1,6 @@
 # RAG Architecture and Implementation
 
-**For:** Spandan and anyone building on policy search. **Written:** 2026-11-03, from the code on `shashank/t11-query-rewrite` (`94d31a8`). **Owner:** Knowledge & Memory.
+**For:** Spandan and anyone building on policy search. **Written:** 2026-11-03, from the code on `shashank/t11-query-rewrite` (`94d31a8`) and `main` (`c6ecb69`). **Owner:** Knowledge & Memory.
 
 This describes what the code does today. Anything not built is labelled.
 
@@ -12,7 +12,7 @@ This describes what the code does today. Anything not built is labelled.
 | **Planned** | No code yet |
 
 ## Start here
-**Search works, and you can build against it now.** It is a Python library, not a service: no MCP tool or HTTP endpoint serves it yet, and it isn't merged to `main`.
+**Search works, and you can build against it now.** It is a Python library, not a service: no MCP tool or HTTP endpoint serves it yet, and it isn't merged to `main`. A separate, keyword-only policy server was added to `main` on 2026-11-03. It doesn't use this search, so read [the comparison](#two-policy-servers-and-the-search-library) before wiring it in.
 
 If you only read one part, read [section 14](#14-rag-to-agents-handoff). To try it now:
 
@@ -73,6 +73,7 @@ flowchart TB
     end
     subgraph CONSUMERS["Consumers"]
         MCP["policy_kb.py MCP<br/>STUB, T16"]
+        PSERVER["policy_server.py MCP on main<br/>BM25 only, not wired"]
         SEAM["Services.policy_search<br/>Services.get_clause<br/>stub by default"]
         COVERAGE["CoverageAgent"]
         CRITIC["CriticAgent"]
@@ -87,10 +88,12 @@ flowchart TB
     HYBRID --> EVALUATE
     HYBRID -.->|"not wired yet"| MCP
     MCP -.->|"not wired yet"| SEAM
+    KB -.->|"reads the file directly"| PSERVER
+    PSERVER -.->|"not wired yet"| SEAM
     SEAM --> COVERAGE
     SEAM --> CRITIC
     classDef pending stroke-dasharray: 5 5
-    class MCP pending
+    class MCP,PSERVER pending
 ```
 
 | Layer | Status | Where |
@@ -101,7 +104,8 @@ flowchart TB
 | Hybrid search and reranking | **Implemented** | `src/claimsense/retrieval/search.py` |
 | Bill-line query rewrite | **Implemented** (glossary, no model) | `src/claimsense/retrieval/rewrite.py` |
 | Retrieval scoring | **Implemented** (draft labels) | `src/claimsense/retrieval/evaluate.py` |
-| MCP tool for agents | **Stub** | `src/claimsense/mcp_servers/policy_kb.py` |
+| MCP tool over this search | **Stub** | `src/claimsense/mcp_servers/policy_kb.py` |
+| Separate keyword-only MCP server | **Partial**, on `main`, not wired | `src/claimsense/mcp_servers/policy_server.py` |
 | Agents using real search | **Planned** (agents use a stub today) | `src/claimsense/agents/services.py` |
 | Answer generation over retrieved text | **Not part of this design** | Agents select clauses; code computes rupees |
 
@@ -474,7 +478,7 @@ The shared contracts differ. `RetrievedPassage` in `src/claimsense/contracts/pol
 
 **Latest results:** 83 passed on the RAG tests. On a scratch copy of this branch merged with `main`, the product suite gave 121 passed and 4 skipped.
 
-**CI gap:** CI installs `.[dev]` only, so `tests/retrieval/test_hybrid_index.py` skips through `importorskip`. CI runs `ruff check .`, which reports 117 errors on the merged code, all outside `retrieval/` and `ingestion/`. Those two folders are clean, but a PR's CI run will still fail until the rest are fixed.
+**CI gap:** CI installs `.[dev]` only, so `tests/retrieval/test_hybrid_index.py` skips through `importorskip`. CI runs `ruff check .`, which reports 122 errors on the merged code, all outside `retrieval/` and `ingestion/`. Those two folders are clean, but a PR's CI run will still fail until the rest are fixed.
 
 ### Search scores
 `eval/golden_dev/retrieval_queries.jsonl` has 47 rows, each with `qid`, `status`, `kind`, `query` and `clauses`. The `clauses` field is the answer key: search receives only `query`, then `evaluate.py` compares the results with `clauses`. In product code, only `evaluate.py` and a test read this file, and the course kit's scoring script and test also read it. No agent code reads it, so agents never see the answers.
@@ -522,7 +526,7 @@ python -m claimsense.retrieval.evaluate --label <name>
 | Item | Owner | Status |
 |---|---|---|
 | Merge T09 to T11 (branches pushed, no PRs yet) | Knowledge & Memory | Pending |
-| `policy-kb` MCP tools (T16) | Tools & Security | Stub |
+| `policy-kb` MCP tools (T16), including reconciling `policy_kb.py` and `policy_server.py` | Tools & Security | Stub, plus a separate keyword-only server |
 | Contract PR: optional `effective_date`, add `chunk_id` and pages | Two roles | Not started |
 | Label verification | Domain lead | Draft |
 | `context_text` on `FullClause` | Knowledge & Memory | Not started |
@@ -570,7 +574,7 @@ sequenceDiagram
 ```
 
 ### MCP tools: implemented and pending
-**`src/claimsense/mcp_servers/policy_kb.py` is a stub.** Both tools exist with the right names and always return an error. Neither calls the retriever:
+**`src/claimsense/mcp_servers/policy_kb.py` is a stub.** Both tools always return an error, and neither calls the retriever:
 
 ```python
 search_wording("room rent")  # ToolError(error="not implemented (T16): needs retrieval index from T10", retryable=False)
@@ -580,11 +584,33 @@ get_clause("new_india_arogya_sanjeevani:4.1")  # ToolError(error="not implemente
 | Server | File | Tools | Status |
 |---|---|---|---|
 | `policy-kb` | `mcp_servers/policy_kb.py` | `search_wording`, `get_clause` (read) | **Stub** (T16, Tools & Security) |
+| `policy-kb` (same server name) | `mcp_servers/policy_server.py`, on `main` | `policy_search`, `get_clause` (read) | **Partial.** Runs, but with the limits below. No tests, and no code uses it |
 | `tariff` | `mcp_servers/tariff.py` | `get_procedure_tariff`, `compare_bill_with_tariff` (read) | **Implemented.** No test in the repo, and not run for this document because `fastmcp` isn't installed here. Takes `tier` as an integer, while `Services.tariff_range` passes `"tier_1"` |
 | `adjudication-calc` | None | None | **Planned.** `calc/adjudication.py` also raises `NotImplementedError` (T15) |
 | `claims-db` | None | None | **Planned** (T18) |
 
 The commented wiring in `real_services()` (`agents/services.py:193`) calls `policy_kb.search`, which doesn't exist. The function is `search_wording`. `real_services()` still returns stub search and also needs the T15 calculator.
+
+### Two policy servers and the search library
+`policy_server.py` arrived in commit `c6ecb69` while this document was being written. It was built before hybrid search was on `main`, against the old 167-chunk knowledge base, so these are integration gaps rather than coding mistakes. Each row below was tested on a scratch copy of `main` merged with these branches.
+
+| | `policy_kb.py` | `policy_server.py` | `HybridRetriever` |
+|---|---|---|---|
+| Status | Stub | Partial, on `main` | Implemented, not behind a tool |
+| Method | None | BM25 only, using `CATEGORY_TERMS` | BM25, vectors, RRF, reranker, glossary |
+| Recall@5, all 47 draft labels | n/a | 0.745 | **0.915** |
+| Recall@5, `bill_line_dev` | n/a | 0.529, or 0.765 when given the line's category | **0.824**, with no category |
+| Queries with no result | n/a | Appendectomy, RMO visit, Pharmacy. The empty list crashes coverage (AGT-07) | None |
+| Split clauses | n/a | First part only: `annexure-c` 1,799 of 9,956 characters | Merged in full |
+| Conflicting row `12.5` | n/a | Returned, and ranked first for pre-existing disease queries | Left out of search (ADR-0004) |
+| Knowledge-base location | n/a | Default path is wrong from its place in the repo, so it fails unless `CLAIMSENSE_KB_PATH` or `CLAIMSENSE_REPO` is set | Correct |
+| Returns contract types | Yes, when implemented | **Yes** | No: needs the adapter |
+| Tool names match `Services` | No | **Yes** | n/a |
+| Tests | None | None | 54 |
+
+The worked example gives the same ₹45,328.58 overpayment through `policy_server.py`, because the cause is in `agents/clauses.py` (AGT-01).
+
+**For now, use the adapter below rather than `policy_server.py`.** For T16, one option is for Tools & Security to keep its tool names, contract mapping and `ToolError` wrappers and replace its search with `HybridRetriever`, then remove the `policy_kb.py` stub. That decision belongs to Tools & Security and is listed as AGT-14 in the [fixes list](CLAIMS_AND_GOLD_SET_FIXES.md).
 
 ### Expected request and response formats
 **Today, Python:**
@@ -628,7 +654,7 @@ retriever.get_clause("new_india_arogya_sanjeevani:12.5").conflict
 | `policy_search` | `query: str`, `category: str \| None = None`, `k: int = 5` | `list[RetrievedPassage]` | `[]` crashes coverage today (AGT-07) |
 | `get_clause` | `clause_id: str` | `Clause \| None` | `None` gives the critic an `unknown_clause` issue |
 
-**Planned for MCP (signatures from the stub):** `search_wording(query, k=5) -> list[RetrievedPassage] | ToolError` and `get_clause(clause_id) -> Clause | ToolError`. MCP tools must return `ToolError` rather than raise, so T16 should catch `StaleIndexError` and turn it into one. `get_clause` needs `None` mapped as well.
+**Planned for MCP:** the stub declares `search_wording(query, k=5) -> list[RetrievedPassage] | ToolError` and `get_clause(clause_id) -> Clause | ToolError`, while `policy_server.py` registers `policy_search(query, category=None, k=5)` and `get_clause(clause_id)` with the same return types. T16 has to settle the names. MCP tools must return `ToolError` rather than raise, so T16 should catch `StaleIndexError` and turn it into one, and map `None` for an unknown clause.
 
 ### How to use interim real search
 Until T16 and the contract PR land, use this adapter locally. It keeps the keyword names the agents use. Keep it out of `retrieval/`, because the mapping belongs to the agents' side.
@@ -640,8 +666,9 @@ from datetime import date
 from claimsense.contracts import Clause, RetrievedPassage
 from claimsense.retrieval.index import load_chunks, open_retriever
 
-# The contract requires a date, and no document states one (ADR-0004). This is the PDF's date.
-PLACEHOLDER_EFFECTIVE_DATE = date(2025, 3, 6)
+# The contract requires a date, and no document states one (ADR-0004). This means "unknown",
+# and matches UNKNOWN_EFFECTIVE_DATE in policy_server.py.
+UNKNOWN_EFFECTIVE_DATE = date(1900, 1, 1)
 
 
 def with_real_search(services):
@@ -658,7 +685,7 @@ def with_real_search(services):
             section=number,
             title=title,
             text=text,
-            effective_date=PLACEHOLDER_EFFECTIVE_DATE,
+            effective_date=UNKNOWN_EFFECTIVE_DATE,
             source_url="data/policy/new_india/policy_wording.pdf",
         )
 
@@ -733,7 +760,7 @@ Fixes 1 and 2 were applied in memory and checked on the worked example. The othe
 |---|---|---|
 | Search code and knowledge base | Knowledge & Memory | No: pushed |
 | Interim adapter, `agents/` fixes, real wiring in `real_services()` | Agents & Orchestration | Your work |
-| T16 `policy-kb` tools | Tools & Security | Only final wiring; the adapter covers development |
+| T16 `policy-kb` tools, and reconciling the two servers | Tools & Security | Only final wiring; the adapter covers development |
 | Contract PR | Two roles | Only citations and the placeholder date |
 | T15 calculator | Tools & Security | Only final wiring; `reference_calculate` covers development |
 | Rule decisions: room cut, nursing, first policy date | Domain lead with T15 owners | Blocks trusting amounts |

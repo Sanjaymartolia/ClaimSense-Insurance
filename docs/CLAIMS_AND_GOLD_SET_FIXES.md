@@ -1,6 +1,6 @@
 # Claims and Gold Set Fixes
 
-**Audit date:** 2026-11-03. **Code audited:** `shashank/t11-query-rewrite` (`94d31a8`) merged with `origin/main` (`577b288`).
+**Audit date:** 2026-11-03. **Code audited:** `shashank/t11-query-rewrite` (`94d31a8`) merged with `origin/main` (`c6ecb69`).
 **Owners of the fixes:** see each item. Nothing in `eval/`, `agents/` or `calc/` was changed by this audit.
 
 ## Summary
@@ -11,7 +11,7 @@ This doesn't block agent building, because no agent code reads these files. It d
 | Priority | Fix first | IDs |
 |---|---|---|
 | Critical | Wrong payouts in gold and the agent gaps that hide them | GOLD-01, GOLD-02, GOLD-03, AGT-01, AGT-02, DEC-01 |
-| High | Missing test cases, unverified labels, no evaluation harness | GOLD-04, GOLD-05, GOLD-07, CLAIM-01, CLAIM-03, RET-01, RET-02, EVAL-01, AGT-03 to AGT-07, AGT-10, AGT-11, AGT-12, DEC-02, DEC-04 |
+| High | Missing test cases, unverified labels, no evaluation harness | GOLD-04, GOLD-05, GOLD-07, CLAIM-01, CLAIM-03, RET-01, RET-02, EVAL-01, AGT-03 to AGT-07, AGT-10, AGT-11, AGT-12, AGT-14, DEC-02, DEC-04 |
 | Medium | Consistency and accuracy | GOLD-06, GOLD-08, CLAIM-02, CLAIM-04, RET-03, RET-04, RET-05, EVAL-02, AGT-08, AGT-09, AGT-13, DEC-03, REC-01 to REC-04 |
 | Low | Tidying | REC-05, REC-06, REC-07 |
 
@@ -325,7 +325,7 @@ All counts are from the 20 dev claims. The set needs these before T39 is complet
 ### AGT-11: The `policy-kb` MCP tools are stubs
 - **Priority:** High
 - **Where:** `src/claimsense/mcp_servers/policy_kb.py`.
-- **Issue:** `search_wording` and `get_clause` both return a "not implemented" `ToolError`. The search they need now exists.
+- **Issue:** `search_wording` and `get_clause` both return a "not implemented" `ToolError`. The search they need now exists. See AGT-14 for the second server on `main`.
 - **Expected:** Both call `HybridRetriever` and return structured errors.
 - **Fix:** Implement T16. See `docs/RAG_ARCHITECTURE_AND_IMPLEMENTATION.md`.
 - **Depends on:** AGT-12; merging the RAG branches. Owner: Tools & Security.
@@ -345,6 +345,20 @@ All counts are from the 20 dev claims. The set needs these before T39 is complet
 - **Expected:** The critic receives the heading context.
 - **Fix:** Add `context_text` to `FullClause`. Until then, use the interim adapter in the RAG handoff.
 - **Depends on:** Nothing. Owner: Knowledge & Memory.
+
+### AGT-14: `policy_server.py` bypasses hybrid search and breaks ADR-0004 once merged
+- **Priority:** High
+- **Where:** `src/claimsense/mcp_servers/policy_server.py` (on `main`, commit `c6ecb69`), `PolicyKnowledgeBase`, `_load_jsonl`, `_repo_root`.
+- **Issue:** This second `policy-kb` server was written before hybrid search reached `main`. Tested on a scratch copy of `main` merged with the RAG branches:
+  - **Wrong default path.** It looks in `src/claimsense/ClaimSense-Insurance/data/...`. Without `CLAIMSENSE_KB_PATH` or `CLAIMSENSE_REPO`, the tools return `kb_missing` and `policy_search` raises `FileNotFoundError`.
+  - **Keyword only.** It has no vectors, RRF, reranker or glossary. Recall@5 on the 47 draft labels is 0.745, against 0.915 for `HybridRetriever`. For `bill_line_dev` it is 0.529, or 0.765 with the line's category, against 0.824.
+  - **Empty results.** "Appendectomy", "RMO visit" and "Pharmacy" return nothing, which crashes coverage (AGT-07).
+  - **Split clauses cut short.** `_load_jsonl` keeps the first chunk per clause, so `get_clause` returns 1,799 of 9,956 characters for `annexure-c`, 1,798 of 2,708 for `5` and 1,791 of 1,891 for `9.4`.
+  - **Row `12.5` is served.** It ignores `searchable`, and the row ranks first for pre-existing disease queries, against ADR-0004.
+  - **Not connected.** No code or test uses it. `load_policy_kb` mentions a `role4_services` module that doesn't exist.
+- **Expected:** One `policy-kb` server that serves `HybridRetriever`, honours `searchable`, returns whole clauses and finds its data by default.
+- **Fix:** One option is to keep this file's tool names, contract mapping and `ToolError` wrappers, replace its search with `HybridRetriever`, and remove the `policy_kb.py` stub. Add tests. `Clause.text` also has the same missing-headings problem as AGT-13.
+- **Depends on:** Tools & Security to decide; merging the RAG branches; AGT-12.
 
 ---
 
