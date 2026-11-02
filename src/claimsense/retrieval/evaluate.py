@@ -24,6 +24,9 @@ STAGES = {
     "BM25": lambda retriever, query: retriever.clause_ids(retriever.lexical(query)),
     "RRF": lambda retriever, query: retriever.clause_ids(retriever.fused(query)),
     "RRF + reranker": lambda retriever, query: [
+        hit.clause_id for hit in retriever.search(query, k=RERANK_POOL, rewrite=False)
+    ],
+    "RRF + reranker + rewrite": lambda retriever, query: [
         hit.clause_id for hit in retriever.search(query, k=RERANK_POOL)
     ],
 }

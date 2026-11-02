@@ -145,6 +145,37 @@ def test_blank_query_returns_nothing(retriever, query):
     assert retriever.search(query) == []
 
 
+def test_with_no_glossary_match_rewriting_changes_nothing(retriever):
+    query = "cataract limit per eye"
+    assert retriever.search(query, rewrite=True) == retriever.search(query, rewrite=False)
+
+
+def test_rewriting_uses_the_policy_wording_and_keeps_the_original(chunks, retriever):
+    query = "OT charges"
+    pool = retriever.fused(query, rewritten="operation theatre charges")
+    assert set(retriever.fused(query)) & set(pool)
+    assert f"clause::{PRODUCT}:4.1::part-001" in pool
+    assert retriever.search(query, rewrite=True) != retriever.search(query, rewrite=False)
+
+
+def test_reranker_sees_the_original_wording_as_well_as_the_rewrite(chunks, collection):
+    seen = []
+
+    def recording_rerank(query, texts):
+        seen.append(query)
+        return fake_rerank(query, texts)
+
+    retriever = HybridRetriever(chunks, collection, fake_embed, recording_rerank)
+    retriever.search("Medicines after discharge")
+    assert "after discharge" in seen[0]
+    assert "medicines and drugs" in seen[0]
+
+
+def test_conflicting_row_stays_out_when_rewriting(retriever):
+    hits = retriever.search(f"{CONFLICTING_ROW} OT charges", k=20, rewrite=True)
+    assert "12.5" not in {hit.clause_number for hit in hits}
+
+
 def test_bm25_leaves_out_chunks_that_match_no_query_word(retriever):
     assert retriever.lexical("zzzzqqqq") == []
 

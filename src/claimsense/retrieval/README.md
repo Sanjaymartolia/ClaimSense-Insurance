@@ -30,15 +30,22 @@ the embedding model have changed since it was built. Rebuild it after regenerati
 base.
 
 ## How a search runs
-1. Dense search takes the top 50 chunks from Chroma. BM25 takes up to 50 chunks that match a query
-   word. Only `searchable` chunks are in either one
+1. `rewrite.py` looks for bill-line terms in a fixed glossary, such as "OT" → "operation theatre
+   charges". The original query always stays in the search.
+2. For each wording, dense search takes the top 50 chunks from Chroma, and BM25 takes up to 50
+   chunks that match a query word. Only `searchable` chunks are in either one
    ([ADR-0004](../../../docs/adr/0004-wording-conflict-and-document-date.md)).
-2. Reciprocal Rank Fusion (k=60) merges the two lists and keeps the best 20.
-3. The cross-encoder scores those 20 chunks against the query.
-4. The best chunk of each clause is kept, so a split clause (`5`, `9.4`, `annexure-c`) is one hit.
+3. Reciprocal Rank Fusion (k=60) merges the lists and keeps the best 20.
+4. The cross-encoder scores those 20 chunks against the query and its rewrite together.
+5. The best chunk of each clause is kept, so a split clause (`5`, `9.4`, `annexure-c`) is one hit.
 
-`dense()`, `lexical()` and `fused()` expose the earlier stages so they can be measured separately.
-BM25 does not repair words the PDF splits, such as "ins ured" (57 occurrences).
+`dense()`, `lexical()` and `fused()` expose the earlier stages so they can be measured separately,
+and `search(query, rewrite=False)` skips the glossary. BM25 does not repair words the PDF splits,
+such as "ins ured" (57 occurrences).
+
+The glossary is not a model, because bill text is untrusted: it never reaches an LLM here, and a
+rewrite holds only the glossary's own wording. Add terms only from the dev claims and the policy
+wording, never from the `bill_line_other` labels, or `evaluate` can no longer show overfitting.
 
 ## What it returns
 `search` returns a list of `SearchHit`:
@@ -67,3 +74,5 @@ details.
 - Open the retriever once. On one CPU laptop, opening took about 30 s (mostly importing torch) and a
   search took about 2 s, nearly all of it in the reranker.
 - `search` raises nothing for a blank query; it returns `[]`. Wrap anything else in `ToolError`.
+- `search` rewrites bill-line terms itself, so `REWRITE` in `agents/coverage.py` can go once this is
+  wired in.
