@@ -1,6 +1,6 @@
 # RAG Architecture and Implementation
 
-**For:** Spandan and anyone building on policy search. **Written:** 2026-11-03, from the code on `shashank/t11-query-rewrite` (`94d31a8`) and `main` (`c6ecb69`). **Owner:** Knowledge & Memory.
+**For:** Spandan and anyone building on policy search. **Written:** 2026-11-03, from the code on `shashank/t11-query-rewrite` (`94d31a8`) and `main` (`688109b`). **Owner:** Knowledge & Memory.
 
 This describes what the code does today. Anything not built is labelled.
 
@@ -404,11 +404,11 @@ In stub mode (`CLAIMSENSE_LLM=stub`, or no `OPENROUTER_API_KEY`), `get_llm` retu
 | Arithmetic re-run | **Implemented** | The critic recalculates |
 | A person approves the exact worksheet | **Implemented** | `ApprovalToken` tied to `Worksheet.content_hash` |
 | Conflicting table row can't be retrieved | **Implemented** | `searchable: false` |
-| Bill text marked as data in the coverage prompt | **Not done** | `as_data` is used only in extraction (AGT-04) |
+| Bill text marked as data in the coverage prompt | **Not done** | Only extraction calls `as_data`. `wrap_as_data` in `guardrails.py` delegates to it, but nothing calls that (AGT-04) |
 | Citation to a page or chunk | **Partial** | `SearchHit` has both, but `RetrievedPassage` can't carry them until the contract PR |
 | "Not found" when nothing is relevant | **Not implemented** | No threshold (section 8) |
 | Rationale checked against the clause | **Not implemented** | The `judge` model isn't used |
-| Input and output guardrails package | **Planned** | `src/claimsense/guardrails/` and `hooks/` hold only a docstring |
+| Input and output guardrails package | **Partial**, on `main`, not wired | `src/claimsense/guardrails/guardrails.py` has input and output checks, but no tests and no callers. Not run for this document. `hooks/` holds only a docstring |
 
 ## 11. APIs, schemas, functions and file responsibilities
 **HTTP:** `src/claimsense/api/main.py` serves only `/health` and `/metrics`. No search endpoint exists. Case endpoints are planned in T37.
@@ -587,7 +587,9 @@ get_clause("new_india_arogya_sanjeevani:4.1")  # ToolError(error="not implemente
 | `policy-kb` (same server name) | `mcp_servers/policy_server.py`, on `main` | `policy_search`, `get_clause` (read) | **Partial.** Runs, but with the limits below. No tests, and no code uses it |
 | `tariff` | `mcp_servers/tariff.py` | `get_procedure_tariff`, `compare_bill_with_tariff` (read) | **Implemented.** No test in the repo, and not run for this document because `fastmcp` isn't installed here. Takes `tier` as an integer, while `Services.tariff_range` passes `"tier_1"` |
 | `adjudication-calc` | None | None | **Planned.** `calc/adjudication.py` also raises `NotImplementedError` (T15) |
-| `claims-db` | None | None | **Planned** (T18) |
+| `claims-db` | `mcp_servers/claims_db_server.py`, on `main` | `get_policy`, `claim_history` (read), `settle_claim` (write) | **Partial.** No tests, and no agent code uses it. Not run for this document. `record_repudiation` and `record_history` are functions, not tools yet |
+
+`approval_gate.py` and `approval_security.py`, on `main` in the same folder, are libraries for the approval step rather than servers. They have no tests, and search doesn't touch them.
 
 The commented wiring in `real_services()` (`agents/services.py:193`) calls `policy_kb.search`, which doesn't exist. The function is `search_wording`. `real_services()` still returns stub search and also needs the T15 calculator.
 

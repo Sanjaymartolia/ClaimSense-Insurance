@@ -1,6 +1,6 @@
 # Claims and Gold Set Fixes
 
-**Audit date:** 2026-11-03. **Code audited:** `shashank/t11-query-rewrite` (`94d31a8`) merged with `origin/main` (`c6ecb69`).
+**Audit date:** 2026-11-03. **Code audited:** `shashank/t11-query-rewrite` (`94d31a8`) merged with `origin/main` (`c6ecb69`). Rechecked at `688109b`, which only adds `guardrails.py`, `claims_db_server.py`, `approval_gate.py` and `approval_security.py`.
 **Owners of the fixes:** see each item. Nothing in `eval/`, `agents/` or `calc/` was changed by this audit.
 
 ## Summary
@@ -269,10 +269,10 @@ All counts are from the 20 dev claims. The set needs these before T39 is complet
 ### AGT-04: Untrusted bill text isn't marked as data in the coverage prompt
 - **Priority:** High
 - **Where:** `_ask_model` at `src/claimsense/agents/coverage.py:147`.
-- **Issue:** `SYSTEM` tells the model that text in `<document>` tags is data, but `_ask_model` puts `line.description`, diagnosis, procedure and clause text in the prompt without those tags. `as_data` is used only in `agents/extraction.py`. The 6 bill-line red-team attacks reach this prompt. This weakens `CLAUDE.md` rule 2, although the calculator and approval gate still protect the money.
+- **Issue:** `SYSTEM` tells the model that text in `<document>` tags is data, but `_ask_model` puts `line.description`, diagnosis, procedure and clause text in the prompt without those tags. Only `agents/extraction.py` calls `as_data`. `wrap_as_data` in `guardrails.py` delegates to it, but nothing calls that. The 6 bill-line red-team attacks reach this prompt. This weakens `CLAUDE.md` rule 2, although the calculator and approval gate still protect the money.
 - **Expected:** All outside text is wrapped as data.
 - **Fix:** Use `as_data` for each bill line and candidate.
-- **Depends on:** Guardrails owner, who may replace `as_data`.
+- **Depends on:** Guardrails owner, if `wrap_as_data` should be used instead of `as_data`.
 
 ### AGT-05: `REWRITE` in `coverage.py` conflicts with real search
 - **Priority:** High
