@@ -328,7 +328,7 @@ All counts are from the 20 dev claims. The set needs these before T39 is complet
 - **Issue:** `search_wording` and `get_clause` both return a "not implemented" `ToolError`. The search they need now exists. See AGT-14 for the second server on `main`.
 - **Expected:** Both call `HybridRetriever` and return structured errors.
 - **Fix:** Implement T16. See `docs/RAG_ARCHITECTURE_AND_IMPLEMENTATION.md`.
-- **Depends on:** AGT-12; merging the RAG branches. Owner: Tools & Security.
+- **Depends on:** AGT-12. Owner: Tools & Security.
 
 ### AGT-12: The policy contract can't carry what search returns
 - **Priority:** High
@@ -346,7 +346,7 @@ All counts are from the 20 dev claims. The set needs these before T39 is complet
 - **Fix:** Add `context_text` to `FullClause`. Until then, use the interim adapter in the RAG handoff.
 - **Depends on:** Nothing. Owner: Knowledge & Memory.
 
-### AGT-14: `policy_server.py` bypasses hybrid search and breaks ADR-0004 once merged
+### AGT-14: `policy_server.py` bypasses hybrid search and breaks ADR-0004
 - **Priority:** High
 - **Where:** `src/claimsense/mcp_servers/policy_server.py` (on `main`, commit `c6ecb69`), `PolicyKnowledgeBase`, `_load_jsonl`, `_repo_root`.
 - **Issue:** This second `policy-kb` server was written before hybrid search reached `main`. Tested on a scratch copy of `main` merged with the RAG branches:
@@ -358,7 +358,7 @@ All counts are from the 20 dev claims. The set needs these before T39 is complet
   - **Not connected.** No code or test uses it. `load_policy_kb` mentions a `role4_services` module that doesn't exist.
 - **Expected:** One `policy-kb` server that serves `HybridRetriever`, honours `searchable`, returns whole clauses and finds its data by default.
 - **Fix:** One option is to keep this file's tool names, contract mapping and `ToolError` wrappers, replace its search with `HybridRetriever`, and remove the `policy_kb.py` stub. Add tests. `Clause.text` also has the same missing-headings problem as AGT-13.
-- **Depends on:** Tools & Security to decide; merging the RAG branches; AGT-12.
+- **Depends on:** Tools & Security to decide; AGT-12.
 
 ---
 

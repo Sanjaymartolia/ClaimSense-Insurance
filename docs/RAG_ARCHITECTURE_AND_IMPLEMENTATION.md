@@ -12,16 +12,16 @@ This describes what the code does today. Anything not built is labelled.
 | **Planned** | No code yet |
 
 ## Start here
-**Search works, and you can build against it now.** It is a Python library, not a service: no MCP tool or HTTP endpoint serves it yet, and it isn't merged to `main`. A separate, keyword-only policy server was added to `main` on 2026-11-03. It doesn't use this search, so read [the comparison](#two-policy-servers-and-the-search-library) before wiring it in.
+**Search works, and you can build against it now.** It is a Python library, not a service: no MCP tool or HTTP endpoint serves it yet. A separate, keyword-only policy server was added to `main` on 2026-11-03. It doesn't use this search, so read [the comparison](#two-policy-servers-and-the-search-library) before wiring it in.
 
 If you only read one part, read [section 14](#14-rag-to-agents-handoff). To try it now:
 
 ```bash
-git fetch origin
+git switch main
 ```
 
 ```bash
-git switch shashank/rag-handoff-docs
+git pull
 ```
 
 ```bash
@@ -41,8 +41,6 @@ for hit in retriever.search("OT charges", k=5):
 ```
 
 Run these from the repository root, because `config/models.yaml` is found relative to the current folder. The first run downloads two models from Hugging Face. The index and search steps were run in this repo's existing environment. The `pip install` line wasn't tested in a clean one, and that environment doesn't have `langgraph` from the `agents` extra.
-
-This branch stacks T09 to T11 and these docs, and it doesn't include the latest `main`. Paths marked "on `main`" in these docs, such as `src/claimsense/reflexion/cases.py`, need `git merge origin/main`. A trial merge was clean, and the product tests pass on the merged code.
 
 ## 1. Overall architecture and project structure
 The pipeline has two halves. An offline half turns the policy PDF into a committed JSONL knowledge base and a local index. An online half answers a query from that index.
@@ -476,9 +474,9 @@ The shared contracts differ. `RetrievedPassage` in `src/claimsense/contracts/pol
 | `tests/ingestion/test_policy_knowledge_base.py` | 16 | Chunks, conflict handling, fresh-build match, labels |
 | `tests/ingestion/test_policy_clause_pipeline.py` | 13 | Clause boundaries, annexures, List I check |
 
-**Latest results:** 83 passed on the RAG tests. On a scratch copy of this branch merged with `main`, the product suite gave 121 passed and 4 skipped.
+**Latest results:** 83 passed on the RAG tests. On a scratch copy of these branches merged with `main`, the product suite gave 121 passed and 4 skipped.
 
-**CI gap:** CI installs `.[dev]` only, so `tests/retrieval/test_hybrid_index.py` skips through `importorskip`. CI runs `ruff check .`, which reports 122 errors on the merged code, all outside `retrieval/` and `ingestion/`. Those two folders are clean, but a PR's CI run will still fail until the rest are fixed.
+**CI gap:** CI installs `.[dev]` only, so `tests/retrieval/test_hybrid_index.py` skips through `importorskip`. CI runs `ruff check .`, which reports 175 errors on the merged code, all outside `retrieval/` and `ingestion/`. Those two folders are clean, but a PR's CI run will still fail until the rest are fixed.
 
 ### Search scores
 `eval/golden_dev/retrieval_queries.jsonl` has 47 rows, each with `qid`, `status`, `kind`, `query` and `clauses`. The `clauses` field is the answer key: search receives only `query`, then `evaluate.py` compares the results with `clauses`. In product code, only `evaluate.py` and a test read this file, and the course kit's scoring script and test also read it. No agent code reads it, so agents never see the answers.
@@ -525,7 +523,7 @@ python -m claimsense.retrieval.evaluate --label <name>
 
 | Item | Owner | Status |
 |---|---|---|
-| Merge T09 to T11 (branches pushed, no PRs yet) | Knowledge & Memory | Pending |
+| Merge T09 to T11 | Knowledge & Memory | Done, without review, in PRs #2 to #5 |
 | `policy-kb` MCP tools (T16), including reconciling `policy_kb.py` and `policy_server.py` | Tools & Security | Stub, plus a separate keyword-only server |
 | Contract PR: optional `effective_date`, add `chunk_id` and pages | Two roles | Not started |
 | Label verification | Domain lead | Draft |
@@ -594,7 +592,7 @@ get_clause("new_india_arogya_sanjeevani:4.1")  # ToolError(error="not implemente
 The commented wiring in `real_services()` (`agents/services.py:193`) calls `policy_kb.search`, which doesn't exist. The function is `search_wording`. `real_services()` still returns stub search and also needs the T15 calculator.
 
 ### Two policy servers and the search library
-`policy_server.py` arrived in commit `c6ecb69` while this document was being written. It was built before hybrid search was on `main`, against the old 167-chunk knowledge base, so these are integration gaps rather than coding mistakes. Each row below was tested on a scratch copy of `main` merged with these branches.
+`policy_server.py` arrived in commit `c6ecb69` while this document was being written. It was built before hybrid search was on `main`, against the old 167-chunk knowledge base, so these are integration gaps rather than coding mistakes. Each row below was tested on a scratch copy of `main` merged with the RAG branches.
 
 | | `policy_kb.py` | `policy_server.py` | `HybridRetriever` |
 |---|---|---|---|
