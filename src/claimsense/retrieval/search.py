@@ -10,6 +10,8 @@ from typing import Any
 
 from pydantic import BaseModel
 
+from claimsense.retrieval.rewrite import rewrite_query
+
 RRF_K = 60
 CANDIDATES = 50  # chunks taken from each of dense search and BM25
 RERANK_POOL = 20  # best fused chunks that the cross-encoder scores
@@ -100,18 +102,25 @@ class HybridRetriever:
         matches.sort(key=lambda i: (-scores[i], self._ids[i]))
         return [self._ids[i] for i in matches[:n]]
 
-    def fused(self, query: str, n: int = RERANK_POOL) -> list[str]:
-        return reciprocal_rank_fusion([self.dense(query), self.lexical(query)])[:n]
+    def fused(self, query: str, n: int = RERANK_POOL, rewritten: str | None = None) -> list[str]:
+        """Merge the rankings. A rewrite adds to the original, so it can't lose what that found."""
+        rankings = [self.dense(query), self.lexical(query)]
+        if rewritten:
+            rankings += [self.dense(rewritten), self.lexical(rewritten)]
+        return reciprocal_rank_fusion(rankings)[:n]
 
     def clause_ids(self, chunk_ids: Iterable[str]) -> list[str]:
         """Clause IDs in order, with a split clause counted once at its best position."""
         return list(dict.fromkeys(self._searchable[i]["clause_id"] for i in chunk_ids))
 
-    def search(self, query: str, k: int = 5) -> list[SearchHit]:
+    def search(self, query: str, k: int = 5, rewrite: bool = True) -> list[SearchHit]:
         if not query.strip() or k < 1:
             return []
-        pool = self.fused(query)
-        scores = self._rerank(query, [self._searchable[i]["text"] for i in pool])
+        rewritten = rewrite_query(query) if rewrite else None
+        pool = self.fused(query, rewritten=rewritten)
+        # Score against both wordings: the rewrite alone loses meaning, like "after discharge".
+        rerank_query = f"{query} {rewritten}" if rewritten else query
+        scores = self._rerank(rerank_query, [self._searchable[i]["text"] for i in pool])
         hits: dict[str, SearchHit] = {}
         for chunk_id, score in sorted(zip(pool, scores, strict=True), key=lambda p: (-p[1], p[0])):
             chunk = self._searchable[chunk_id]
