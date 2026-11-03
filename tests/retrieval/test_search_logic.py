@@ -1,6 +1,13 @@
 """Pure search logic, no search dependencies needed. These retrieval tests run in CI."""
 
-from claimsense.retrieval.evaluate import first_hit_rank, mean_reciprocal_rank, recall_at_k
+from claimsense.retrieval.evaluate import (
+    KINDS,
+    first_hit_rank,
+    load_queries,
+    mean_reciprocal_rank,
+    recall_at_k,
+    summarise,
+)
 from claimsense.retrieval.index import fingerprint
 from claimsense.retrieval.search import merge_parts, reciprocal_rank_fusion, tokenize
 
@@ -71,3 +78,25 @@ def test_recall_counts_only_ranks_within_k():
 
 def test_mean_reciprocal_rank_scores_a_miss_as_zero():
     assert mean_reciprocal_rank([1, 2, None, None]) == 0.375
+
+
+def test_summarise_scores_each_kind_and_the_whole_set():
+    summary = summarise({"Dense": [1, 2, None]}, [{"kind": "a"}, {"kind": "a"}, {"kind": "b"}])
+    assert summary["a"]["Dense"] == {"recall": 1.0, "mrr": 0.75}
+    assert summary["b"]["Dense"] == {"recall": 0.0, "mrr": 0.0}
+    assert summary["all"]["Dense"]["mrr"] == 0.5
+
+
+def test_label_set_is_big_enough_and_uses_every_known_kind():
+    queries = load_queries()
+    assert len(queries) >= 30
+    assert {query["kind"] for query in queries} == set(KINDS)
+    assert len({query["qid"] for query in queries}) == len(queries)
+    assert all(query["status"] == "draft_domain_lead_to_verify" for query in queries)
+
+
+def test_labels_keep_their_any_of_clauses():
+    labels = {query["query"]: query["clauses"] for query in load_queries()}
+    product = "new_india_arogya_sanjeevani"
+    assert labels["Hysterectomy"] == [f"{product}:4.1", f"{product}:6.2.6"]
+    assert labels["Caesarean section"] == [f"{product}:7.15"]

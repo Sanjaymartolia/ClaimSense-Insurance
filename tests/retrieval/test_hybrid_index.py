@@ -190,7 +190,8 @@ def test_rank_by_stage_scores_every_stage_on_any_listed_clause(retriever):
 def test_plot_stages_writes_the_chart(tmp_path):
     pytest.importorskip("matplotlib")
     out = tmp_path / "chart.png"
-    plot_stages({stage: [1, 2, None] for stage in STAGES}, out)
+    queries = [{"kind": "question"}, {"kind": "question"}, {"kind": "bill_line_dev"}]
+    plot_stages({stage: [1, 2, None] for stage in STAGES}, queries, out)
     assert out.stat().st_size > 0
 
 
