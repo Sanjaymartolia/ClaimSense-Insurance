@@ -3,6 +3,14 @@
 **Audit date:** 2026-11-03. **Code audited:** `shashank/t11-query-rewrite` (`94d31a8`) merged with `origin/main` (`c6ecb69`). Rechecked at `688109b`, which only adds `guardrails.py`, `claims_db_server.py`, `approval_gate.py` and `approval_security.py`.
 **Owners of the fixes:** see each item. Nothing in `eval/`, `agents/` or `calc/` was changed by this audit.
 
+**2026-11-04 update:** GOLD-01, GOLD-04 and part of GOLD-07 are fixed in `eval/golden_dev/` (see
+each item below and `eval/README.md`). GOLD-02, GOLD-03, GOLD-05, GOLD-06, GOLD-08 and DEC-01 to
+DEC-04 are unchanged and still need a ruling. The GOLD-01 fix also surfaced a new, small gap:
+`src/claimsense/reflexion/cases.py::CLAIM_REASONS` has no entry for the new
+`maternity_childbirth_exclusion` reason code, so `load_cases()` now raises on CLM-0018 until
+Agents & Orchestration adds one (plus a clause-7.15 constant in `agents/clauses.py`). Not fixed
+here because both files are outside `eval/`.
+
 ## Summary
 **The JSONL files are well formed, and the gold's arithmetic is right. The problem is the rules behind the gold.** The gold was generated from a demo ruleset (`data/README.md`) that disagrees with the policy wording in several places. A wrong answer can therefore score as correct: the real-model run paid CLM-0018, a Caesarean the policy excludes, at ₹111,406.50, and that counted as a ₹0.50 rounding difference.
 
@@ -10,10 +18,12 @@ This doesn't block agent building, because no agent code reads these files. It d
 
 | Priority | Fix first | IDs |
 |---|---|---|
-| Critical | Wrong payouts in gold and the agent gaps that hide them | GOLD-01, GOLD-02, GOLD-03, AGT-01, AGT-02, DEC-01 |
-| High | Missing test cases, unverified labels, no evaluation harness | GOLD-04, GOLD-05, GOLD-07, CLAIM-01, CLAIM-03, RET-01, RET-02, EVAL-01, AGT-03 to AGT-07, AGT-10, AGT-11, AGT-12, AGT-14, DEC-02, DEC-04 |
+| Critical | Wrong payouts in gold and the agent gaps that hide them | ~~GOLD-01~~ (fixed 2026-11-04), GOLD-02, GOLD-03, AGT-01, AGT-02, DEC-01 |
+| High | Missing test cases, unverified labels, no evaluation harness | ~~GOLD-04~~ (fixed 2026-11-04), GOLD-05, ~~GOLD-07~~ (partially fixed 2026-11-04), CLAIM-01, CLAIM-03, RET-01, RET-02, EVAL-01, AGT-03 to AGT-07, AGT-10, AGT-11, AGT-12, AGT-14, DEC-02, DEC-04 |
 | Medium | Consistency and accuracy | GOLD-06, GOLD-08, CLAIM-02, CLAIM-04, RET-03, RET-04, RET-05, EVAL-02, AGT-08, AGT-09, AGT-13, DEC-03, REC-01 to REC-04 |
 | Low | Tidying | REC-05, REC-06, REC-07 |
+
+See the "2026-11-04 update" note above for exactly what changed and the one new follow-up it created.
 
 ### How this was verified
 - A read-only script parsed every row and recalculated the gold from `data/README.md`.
@@ -47,13 +57,15 @@ Each item was reproduced from the data or code.
 
 ## Gold worksheet data
 
-### GOLD-01: CLM-0018 pays a Caesarean the policy excludes
+### GOLD-01: CLM-0018 pays a Caesarean the policy excludes — **Fixed 2026-11-04**
 - **Priority:** Critical
 - **Where:** `eval/golden_dev/gold_worksheets.jsonl`, CLM-0018. Two red-team cases inherit it.
 - **Issue:** Gold says `admissible` and pays ₹111,406. Clause 7.15 excludes treatment traceable to childbirth, "including complicated deliveries and caesarean sections", except ectopic pregnancy. The claim shows no ectopic pregnancy.
 - **Expected:** ₹0, with an exclusion reason citing clause 7.15.
 - **Fix:** Relabel the claim, add an exclusion reason code, and map that code in `CLAIM_REASONS` in `src/claimsense/reflexion/cases.py` (on `main`). Rerun `python eval/redteam/build_cases.py`.
-- **Depends on:** Domain lead sign-off; AGT-02, so the pipeline can reach the same answer.
+- **Done:** Relabelled to `not_admissible_under_demo_exclusion_rule`, reason code `maternity_childbirth_exclusion`, every line's deduction cites `new_india_arogya_sanjeevani:7.15`, settlement ₹0. Red-team rebuilt.
+- **Still open:** `CLAIM_REASONS` in `src/claimsense/reflexion/cases.py` has no entry for `maternity_childbirth_exclusion` yet, so `load_cases()` raises on CLM-0018. That file and `agents/clauses.py` (needs a 7.15 constant) are outside `eval/`, owned by Agents & Orchestration — not changed here.
+- **Depends on:** Domain lead sign-off on this relabel (not yet obtained — applied here directly from clause 7.15's text, which this audit already read as unambiguous; still worth a second look); AGT-02, so the pipeline can reach the same answer.
 
 ### GOLD-02: The room-rent cut is applied to the wrong lines
 - **Priority:** Critical
@@ -79,13 +91,15 @@ Each item was reproduced from the data or code.
 - **Fix:** Add the rule to the ruleset, relabel the claims, and add a clear specific-wait test case.
 - **Depends on:** CLAIM-01, DEC-02, DEC-03, AGT-02.
 
-### GOLD-04: CLM-0016 pays an ICU day above the ICU limit
+### GOLD-04: CLM-0016 pays an ICU day above the ICU limit — **Partially fixed 2026-11-04**
 - **Priority:** High
 - **Where:** `claims.jsonl` and `gold_worksheets.jsonl`, CLM-0016; 2 red-team cases.
 - **Issue:** "ICU inpatient day (excluding procedure)" is ₹24,466 for one day, and gold pays it in full. Clause 4.1(b) and the demo ruleset both limit ICU to ₹10,000 a day at this sum insured. The line is filed as `procedure`, so no ICU rule runs. The claim also bills 6 ward nights plus an ICU day for a 6-night stay.
 - **Expected:** The line is category `icu`, capped at ₹10,000, with Note 4.1.1(b) applied to the other charges.
 - **Fix:** Re-file the line, resolve the overlapping day, recalculate.
-- **Depends on:** Domain lead; the calculator's ICU rule (T15).
+- **Done:** `claims.jsonl` L01 category changed `procedure` → `icu`. Gold: L01 now allowed ₹10,000 / deducted ₹14,466, reason `icu_daily_cap`, clause `new_india_arogya_sanjeevani:4.1`. Room rent was already within its ₹5,000/day cap (no breach), so no proportional cut applies to the other lines under Note 4.1.1(b). Settlement ₹73,089 → ₹59,346. Red-team rebuilt. This also gives CLM-0016 a real sub-limit deduction, closing its half of GOLD-05.
+- **Still open:** The "6 ward nights plus 1 ICU day for a 6-night stay" overlap is **not resolved** — nobody has decided whether the ICU day is one of the 6 nights (so room nights should drop to 5) or an additional day. Left as billed.
+- **Depends on:** Domain lead, specifically for the overlapping-day question above; the calculator's ICU rule (T15).
 
 ### GOLD-05: The `sub_limit` scenario tests no sub-limit
 - **Priority:** High
@@ -103,13 +117,15 @@ Each item was reproduced from the data or code.
 - **Fix:** Generate flags from the reason codes.
 - **Depends on:** T39, T41.
 
-### GOLD-07: Gold has no clause IDs
+### GOLD-07: Gold has no clause IDs — **Partially fixed 2026-11-04**
 - **Priority:** High
 - **Where:** `gold_worksheets.jsonl`; `gold_from_fixture` in `src/claimsense/reflexion/cases.py` (on `main`).
 - **Issue:** No gold row contains a clause ID, but `eval/README.md` lists clause grounding as a metric. The loader infers `gold_clause_choices` from reason codes through the constants in `agents/clauses.py`, four of which are placeholders (AGT-01). Lines with no deduction default to `C.HOSPITALISATION`.
 - **Expected:** Each deduction in the gold cites the clause a person chose.
 - **Fix:** Add `clause_id` to each deduction during T39.
-- **Depends on:** AGT-01; RET-02.
+- **Done:** Added a `clause_id` field directly on every gold deduction where the mapping is unambiguous from this document and ADR-0004/AGT-01: `initial_waiting_period_not_elapsed` → `6.3` (all 6 claims), `room_rent_daily_cap`/`room_rent_proportional_reduction` → `4.1` (CLM-0004, 0011, 0012, 0014), `non_payable_item_demo_rule` → `annexure-a.list-i` (CLM-0006, 0008, 0020), `icu_daily_cap` → `4.1` (CLM-0016), `maternity_childbirth_exclusion` → `7.15` (CLM-0018). This field is informational in the gold file itself; `gold_from_fixture` still derives its own clause choice from `CLAIM_REASONS`/`LINE_REASONS` in `cases.py`, which is unchanged here.
+- **Still open:** `duplicate_line` deductions (CLM-0005, 0009, 0010, 0015) have no `clause_id` — that is DEC-04, not a lookup gap. CLM-0013's `admission_or_discharge_outside_policy_period` gate also has none: no clause number for policy-period validity has been confirmed anywhere in the docs reviewed. AGT-01's four placeholder constants in `agents/clauses.py` are also still unresolved (outside `eval/`).
+- **Depends on:** AGT-01; RET-02; DEC-04 (duplicate lines); a confirmed policy-period clause (CLM-0013).
 
 ### GOLD-08: Gold uses whole rupees, the calculator uses paise
 - **Priority:** Medium

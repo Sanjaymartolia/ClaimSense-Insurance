@@ -1,5 +1,99 @@
 # Evaluation (L13, L15). Owner: Eval & Red-Team
 
+This folder holds the evaluation **data** (`golden_dev/`, `redteam/`) and the evaluation
+**harness** that scores against it.
+
+## Run it
+
+One command runs everything and checks each result against the outcome the report records. It
+needs no API key, makes no model call, and takes a few seconds:
+
+```bash
+python -m eval.harness.suite
+```
+
+| Row | Composite | Means |
+|---|---|---|
+| `ceiling-dev` / `ceiling-redteam` | 0.975 / 0.990 | The harness scores a known-correct answer as correct. |
+| `floor-dev` | 0.130 | Sending everything to a human is safe but earns almost nothing. |
+| `gate-*` (4 rows) | 0.000–0.450 | Each catastrophic gate fires when it should. |
+| `real-dev` / `real-redteam` | 0.220 / 0.327 | The actual agents. Fails on defect AGT-01. |
+
+Exit code is 0 only if every row matches. **A `gate-*` mismatch is the most serious kind**: a
+safety gate that silently stops firing would not show up in a score table at all.
+
+Single runs, for when you are debugging one piece:
+
+```bash
+python -m eval.harness.run --adapter gold-replay --split dev --label ceiling   # do this first
+python -m eval.harness.run --adapter claimsense  --split dev --label real-dev  # the real agents
+python -m eval.harness.run --help                                             # all adapters/faults
+pytest eval/tests -q                                                          # 112 tests
+```
+
+Full documentation, including the measured results and every open limitation:
+**`docs/EVAL_HARNESS_REPORT.md`** (and its DOCX). Section 10 is the procedures.
+
+## Layout
+
+| Path | What |
+|---|---|
+| `harness/suite.py` | Runs every row at once, with its expected outcome. Start here. |
+| `harness/run.py` | The CLI for one run. `eval/run.py` is a shim so `python -m eval.run` works, which is what the CI gate calls. |
+| `harness/loader.py` | Reads the sets and strips every answer-revealing field. |
+| `harness/adapters.py` | Three fixtures: `null` (floor), `gold-replay` (ceiling), `perturbed` (fault injection). |
+| `harness/claimsense_adapter.py` | Runs the real agents. No LangGraph and no key needed. |
+| `harness/reference_metrics.py` | route, amounts, flags, citations, against the human gold. |
+| `harness/trajectory_metrics.py` | Did the agent call the tools the claim needed. |
+| `harness/safety_metrics.py` | The six catastrophic gates. |
+| `harness/efficiency_metrics.py` | Latency, tokens, cost. Reported, never gated. |
+| `harness/llm_judge_metrics.py` | RAGAS faithfulness per rationale. Opt-in, needs a key, costs money. |
+| `harness/scorecard.py` + `.yaml` | Weighted composite plus gates. The YAML is the whole policy in 50 lines. |
+| `calibration/` | Cohen's kappa workflow for the judge. See its own README. |
+| `tools/build_report_docx.py` | Builds the report DOCX from its Markdown source. |
+| `tests/` | 112 tests. Not in the default `pytest` run; use `pytest eval/tests`. |
+
+## Two things to know before you trust a number
+
+**The gold is partly wrong.** See the next section. A high score means "agrees with today's gold",
+not "correct under the policy wording".
+
+**The judge is not calibrated, and has nothing real to score yet.** `choose_clauses` in
+`src/claimsense/agents/coverage.py` discards the per-line `rationale` the model writes, so the
+harness can only judge a placeholder sentence. Its weight is 0.00 and it is off by default. See
+section 9.4 of the report.
+
+## Gold-set status (2026-11-04)
+
+A full audit of `golden_dev/` found the gold arithmetic correct but several gold *labels* wrong
+against the policy wording (full list: `docs/CLAIMS_AND_GOLD_SET_FIXES.md`, items GOLD-01 to
+GOLD-08). Three clear-cut items, which didn't depend on an open policy decision, are fixed as of
+this date:
+
+| ID | Claim(s) | Fix |
+|---|---|---|
+| GOLD-01 | CLM-0018 | Caesarean section is excluded under clause 7.15 (no ectopic pregnancy declared). Relabelled from `admissible` / ₹111,406 to `not_admissible_under_demo_exclusion_rule` / ₹0. |
+| GOLD-04 | CLM-0016 | The ICU line was filed as `procedure` and paid uncapped. Re-filed as `icu` (also in `claims.jsonl`) and capped at ₹10,000/day under clause 4.1(b): settlement ₹73,089 → ₹59,346. |
+| GOLD-07 (partial) | all 20 | Added `clause_id` to every gold deduction **where the mapping is already unambiguous** from the project's own docs (waiting period → `6.3`, room/ICU cap → `4.1`, non-payable items → `annexure-a.list-i`, this maternity exclusion → `7.15`). `duplicate_line` deductions (CLM-0005, 0009, 0010, 0015) and the policy-period gate (CLM-0013) are left without a `clause_id`: the first needs DEC-04, the second needs a confirmed clause number nobody has identified yet. |
+
+`eval/redteam/claims.jsonl` and `gold.jsonl` were rebuilt (`python eval/redteam/build_cases.py`)
+so the red-team set matches the corrected dev gold (REC-03).
+
+**Still open, left untouched because they depend on a ruling nobody has made yet** (see
+`docs/CLAIMS_AND_GOLD_SET_FIXES.md` for detail): GOLD-02 (room-rent cut scope, needs DEC-01),
+GOLD-03 (24-month specific waiting period never enforced, needs DEC-02/DEC-03), GOLD-05 (no real
+sub-limit test case for CLM-0019; CLM-0016 is now one, incidentally, via the GOLD-04 fix),
+GOLD-06 (review flags don't cover every fired rule), GOLD-08 (gold is whole rupees, calculator is
+paise).
+
+**New follow-up this fix exposes:** `src/claimsense/reflexion/cases.py::load_cases()` raises
+`unmapped gold reason code 'maternity_childbirth_exclusion'` on CLM-0018 now, because its
+`CLAIM_REASONS` table (Agents & Orchestration's mapping from gold reason code to clause) has no
+entry for the new exclusion. It needs one more entry there, plus a clause-7.15 constant in
+`src/claimsense/agents/clauses.py` (that file is outside `eval/`, so this fix does not add it —
+flagging it for whoever owns `reflexion/` and `agents/clauses.py` next). CLM-0016's new
+`icu_daily_cap` code was already mapped, so it loads fine.
+
 - `golden_dev/` — 20 development claims (`claims.jsonl`) and their reference outcomes
   (`gold_worksheets.jsonl`), from the starter pack (ADR-0002). The gold uses the demo ruleset in
   `data/README.md`, which isn't authoritative yet. Re-check it by hand before scoring against it.
