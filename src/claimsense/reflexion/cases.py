@@ -80,6 +80,7 @@ CLAIM_REASONS: dict[str, tuple[DeductionReason, str]] = {
         DeductionReason.EXCLUSION,
         "policy_schedule:period",
     ),
+    "maternity_childbirth_exclusion": (DeductionReason.EXCLUSION, C.MATERNITY_EXCLUSION),
 }
 ADMISSIBILITY_GATE = "claim_level_admissibility_gate"
 

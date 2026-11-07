@@ -13,6 +13,7 @@ OTHER_EXPENSES = P + "4.1.1"  # cataract sub-limit (a) + Note b: proportional de
 ROOM_RENT_LIMIT = P + "12.1"  # table of benefits: 2% SI, max 5,000/day
 ICU_LIMIT = P + "12.2"  # 5% SI, max 10,000/day (+ cataract row in the same chunk)
 CO_PAY = P + "9.5"  # 5% on every claim
+MATERNITY_EXCLUSION = P + "7.15"  # 7.15 Maternity Expenses (Code - Excl18): childbirth, caesarean
 
 # TODO(day 1): look these up in the knowledge base and replace.
 INITIAL_WAITING_PERIOD = P + "TODO-initial-30-day-waiting-period"
