@@ -33,23 +33,29 @@ ServicesFactory = Callable[[DevCase], Services]
 ApproveFn = Callable[[Lesson], tuple[bool, str, str | None]]
 
 
-def local_run_fn(services_factory: ServicesFactory) -> RunFn:
+def local_run_fn(services_factory: ServicesFactory, tool_hooks: bool = False) -> RunFn:
+    """tool_hooks=True runs every case under the tool hooks, with a fresh budget per case."""
     from claimsense.graph import LocalRunner
 
+    extra = {"tool_hooks": True} if tool_hooks else {}
+
     def run(case, playbook, reviewer):
-        return LocalRunner(Team(services_factory(case), playbook=playbook)).run(
-            case.packet, reviewer
-        )
+        team = Team(services_factory(case), playbook=playbook)
+        return LocalRunner(team, **extra).run(case.packet, reviewer)
 
     return run
 
 
-def langgraph_run_fn(services_factory: ServicesFactory) -> RunFn:
+def langgraph_run_fn(services_factory: ServicesFactory, tool_hooks: bool = False) -> RunFn:
     from claimsense.graph import build_graph, memory_checkpointer, run_claim
+
+    extra = {"tool_hooks": True} if tool_hooks else {}
 
     def run(case, playbook, reviewer):
         app = build_graph(
-            Team(services_factory(case), playbook=playbook), checkpointer=memory_checkpointer()
+            Team(services_factory(case), playbook=playbook),
+            checkpointer=memory_checkpointer(),
+            **extra,
         )
         return run_claim(app, case.packet, reviewer, thread_id=f"{case.case_id}-{id(playbook)}")
 

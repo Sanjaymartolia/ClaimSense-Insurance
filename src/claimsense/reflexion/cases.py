@@ -74,9 +74,8 @@ LINE_REASONS: dict[str, tuple[DeductionReason, str]] = {
 NO_CLAUSE_CHOICE = {"duplicate_line"}
 
 #: Clause 7.15, maternity / childbirth exclusion. The gold-set audit of 2026-11-04 (GOLD-01)
-#: relabelled CLM-0018 with it. Defined here rather than in `agents/clauses.py`, which belongs to
-#: the orchestration owner; the id is the one the gold file itself now carries.
-MATERNITY_EXCLUSION = C.P + "7.15"
+#: relabelled CLM-0018 with it; `agents/clauses.py` defines the id, re-exported here for the tests.
+MATERNITY_EXCLUSION = C.MATERNITY_EXCLUSION
 
 #: gold claim-level reason code -> deduction applied to every line through the admissibility gate.
 #: "policy_schedule:period" is the same id `CoverageAgent.check_admissibility` cites.

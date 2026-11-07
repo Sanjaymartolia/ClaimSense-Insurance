@@ -20,10 +20,11 @@ graph/ or agents/ should change when you do.
 from __future__ import annotations
 
 import hashlib
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import date
 from decimal import ROUND_HALF_UP, Decimal
-from typing import Any, Callable
+from typing import Any
 
 from pydantic import BaseModel, Field
 
@@ -143,40 +144,77 @@ def reference_calculate(
         deds: list[Deduction] = []
         days = Decimal(line.days or claim.nights or 1)
         if chosen in FULLY_DEDUCTED:
-            deds.append(Deduction(reason=FULLY_DEDUCTED[chosen], amount=line.amount,
-                                  clause_id=chosen, explanation="Not payable under this clause."))
+            deds.append(
+                Deduction(
+                    reason=FULLY_DEDUCTED[chosen],
+                    amount=line.amount,
+                    clause_id=chosen,
+                    explanation="Not payable under this clause.",
+                )
+            )
         elif line.category == LineCategory.ROOM and line.amount > room_cap * days:
             amt = rupees(line.amount - room_cap * days)
-            deds.append(Deduction(reason=DeductionReason.ROOM_RENT_CAP, amount=amt,
-                                  clause_id=C.ROOM_RENT_LIMIT,
-                                  explanation=f"Room capped at Rs {rupees(room_cap)}/day x {days}."))
+            deds.append(
+                Deduction(
+                    reason=DeductionReason.ROOM_RENT_CAP,
+                    amount=amt,
+                    clause_id=C.ROOM_RENT_LIMIT,
+                    explanation=f"Room capped at Rs {rupees(room_cap)}/day x {days}.",
+                )
+            )
         elif line.category == LineCategory.ICU and line.amount > icu_cap * days:
             amt = rupees(line.amount - icu_cap * days)
-            deds.append(Deduction(reason=DeductionReason.ICU_CAP, amount=amt,
-                                  clause_id=C.ICU_LIMIT,
-                                  explanation=f"ICU capped at Rs {rupees(icu_cap)}/day x {days}."))
+            deds.append(
+                Deduction(
+                    reason=DeductionReason.ICU_CAP,
+                    amount=amt,
+                    clause_id=C.ICU_LIMIT,
+                    explanation=f"ICU capped at Rs {rupees(icu_cap)}/day x {days}.",
+                )
+            )
         elif line.category in LINKED and ratio < 1:
             amt = rupees(line.amount * (1 - ratio))
-            deds.append(Deduction(reason=DeductionReason.PROPORTIONAL_CUT, amount=amt,
-                                  clause_id=C.OTHER_EXPENSES,
-                                  explanation=f"Proportional cut, factor {ratio:.4f}."))
+            deds.append(
+                Deduction(
+                    reason=DeductionReason.PROPORTIONAL_CUT,
+                    amount=amt,
+                    clause_id=C.OTHER_EXPENSES,
+                    explanation=f"Proportional cut, factor {ratio:.4f}.",
+                )
+            )
         payable = line.amount - sum((d.amount for d in deds), Decimal("0"))
-        out.append(WorksheetLine(line_id=line.line_id, claimed=line.amount,
-                                 deductions=deds, payable=payable))
+        out.append(
+            WorksheetLine(
+                line_id=line.line_id, claimed=line.amount, deductions=deds, payable=payable
+            )
+        )
 
     gross = sum((l.payable for l in out), Decimal("0"))
     co = rupees(gross * Decimal("0.05"))
-    co_pay = Deduction(reason=DeductionReason.CO_PAY, amount=co, clause_id=C.CO_PAY,
-                       explanation="5% co-pay on the admissible amount.") if co > 0 else None
+    co_pay = (
+        Deduction(
+            reason=DeductionReason.CO_PAY,
+            amount=co,
+            clause_id=C.CO_PAY,
+            explanation="5% co-pay on the admissible amount.",
+        )
+        if co > 0
+        else None
+    )
     return Worksheet(
-        claim_id=claim.claim_id, version=version, lines=out, co_pay=co_pay,
+        claim_id=claim.claim_id,
+        version=version,
+        lines=out,
+        co_pay=co_pay,
         total_claimed=sum((l.claimed for l in out), Decimal("0")),
-        total_payable=gross - co, fraud_flags=list(fraud_flags or []),
+        total_payable=gross - co,
+        fraud_flags=list(fraud_flags or []),
     )
 
 
-def real_calculate(claim: Claim, clause_choices: dict[str, str], version: int = 1,
-                   fraud_flags=None, **_) -> Worksheet:
+def real_calculate(
+    claim: Claim, clause_choices: dict[str, str], version: int = 1, fraud_flags=None, **_
+) -> Worksheet:
     """Adapter onto the team calculator (T15). Swap it into Services.calculate on day 3."""
     from claimsense.calc.adjudication import PolicyRules, adjudicate
 
@@ -186,18 +224,26 @@ def real_calculate(claim: Claim, clause_choices: dict[str, str], version: int = 
 
 
 def real_services() -> Services:
-    """TODO(day 3): replace each stub with the MCP client call your teammates expose.
-    Keep the keyword names: the agents call them by name through their ToolBelt."""
-    svc = make_stub_services()
-    svc.calculate = real_calculate
-    # svc.policy_search = lambda query, category=None, k=5: policy_kb.search(query, k=k)
-    # svc.get_clause    = lambda clause_id: policy_kb.get_clause(clause_id)
-    # svc.tariff_range  = lambda procedure, city_tier: tariff.range(procedure, city_tier)
-    # svc.get_policy    = lambda policy_number: PolicyInfo(**claims_db.policy(policy_number))
-    # svc.claim_history = lambda policy_number: [PastClaim(**c) for c in claims_db.history(...)]
-    # svc.settle_claim  = claims_db.settle_claim   # gate checks tokens server-side
-    # svc.record_history= memory.update_claim_history
-    return svc
+    """Services bound to the teammates' plain-Python tool callables (no stubs left).
+
+    Imports are lazy so the stub path and the unit tests never need retrieval or MCP deps.
+    settle_claim / record_repudiation verify approvals against claims_db.get_db().approval_store,
+    so the review gate must issue tokens into that same store (see graph/build.py).
+    """
+    from claimsense.mcp_servers import approvals, claims_db, policy_kb, tariff
+
+    return Services(
+        policy_search=policy_kb.policy_search,
+        get_clause=policy_kb.get_clause,
+        calculate=real_calculate,
+        tariff_range=tariff.tariff_range,
+        get_policy=claims_db.get_policy,
+        claim_history=claims_db.claim_history,
+        settle_claim=claims_db.settle_claim,
+        record_repudiation=claims_db.record_repudiation,
+        record_history=claims_db.record_history,
+        senior_threshold=approvals.senior_threshold_inr(),
+    )
 
 
 # --------------------------------------------------------------------------------------------
@@ -207,7 +253,7 @@ def real_services() -> Services:
 _CLAUSE_TEXT = {
     C.HOSPITALISATION: "4.1 Hospitalization ... room rent, ICU, surgeon fees, OT, medicines, diagnostics",
     C.OTHER_EXPENSES: "4.1.1 Note b: if room/ICU rate exceeds the limits, all other expenses except "
-                      "medicines are paid in the same proportion (proportional deduction).",
+    "medicines are paid in the same proportion (proportional deduction).",
     C.ROOM_RENT_LIMIT: "Room rent, boarding, nursing up to 2% of sum insured, max Rs 5000 per day.",
     C.ICU_LIMIT: "ICU charges up to 5% of sum insured, max Rs 10,000 per day.",
     C.CO_PAY: "9.5 Co-payment of 5% on each and every claim.",
@@ -217,12 +263,18 @@ _CLAUSE_TEXT = {
     C.SPECIFIC_WAITING_PERIOD: "Specified illness waiting period of 24/36 months.",
 }
 
+
 def stub_clause(clause_id: str, text: str) -> Clause:
     """A Clause with placeholder metadata, for stubs and tests only."""
-    return Clause(clause_id=clause_id, policy_name="Arogya Sanjeevani",
-                  insurer="The New India Assurance Co. Ltd.",
-                  section=clause_id.split(":")[-1], text=text, effective_date=date(2025, 3, 1),
-                  source_url="data/policy/new_india/policy_wording.pdf")
+    return Clause(
+        clause_id=clause_id,
+        policy_name="Arogya Sanjeevani",
+        insurer="The New India Assurance Co. Ltd.",
+        section=clause_id.split(":")[-1],
+        text=text,
+        effective_date=date(2025, 3, 1),
+        source_url="data/policy/new_india/policy_wording.pdf",
+    )
 
 
 _SEARCH = {
@@ -243,25 +295,35 @@ def make_stub_services(
     settled: list[dict] = []
 
     def policy_search(query: str, category: str | None = None, k: int = 5):
-        ids = _SEARCH.get(LineCategory(category) if category else None,
-                          [C.HOSPITALISATION, C.OTHER_EXPENSES])
-        return [RetrievedPassage(clause=stub_clause(i, _CLAUSE_TEXT[i]), score=1.0 - n / 10, rank=n + 1)
-                for n, i in enumerate(ids[:k])]
+        ids = _SEARCH.get(
+            LineCategory(category) if category else None, [C.HOSPITALISATION, C.OTHER_EXPENSES]
+        )
+        return [
+            RetrievedPassage(clause=stub_clause(i, _CLAUSE_TEXT[i]), score=1.0 - n / 10, rank=n + 1)
+            for n, i in enumerate(ids[:k])
+        ]
 
     def get_clause(clause_id: str):
         text = _CLAUSE_TEXT.get(clause_id)
         return stub_clause(clause_id, text) if text else None
 
-    def settle_claim(claim_id: str, worksheet: Worksheet, approvals: list[ApprovalToken],
-                     needs_senior: bool):
+    def settle_claim(
+        claim_id: str, worksheet: Worksheet, approvals: list[ApprovalToken], needs_senior: bool
+    ):
         # The real tool (T&S) must do exactly these checks server-side.
-        if not any(a.level == ApprovalLevel.ADJUDICATOR and a.is_valid_for(worksheet) for a in approvals):
+        if not any(
+            a.level == ApprovalLevel.ADJUDICATOR and a.is_valid_for(worksheet) for a in approvals
+        ):
             raise PermissionError("no valid adjudicator approval for this worksheet version")
-        if needs_senior and not any(a.level == ApprovalLevel.SENIOR and a.is_valid_for(worksheet)
-                                    for a in approvals):
+        if needs_senior and not any(
+            a.level == ApprovalLevel.SENIOR and a.is_valid_for(worksheet) for a in approvals
+        ):
             raise PermissionError("senior approval required")
-        rec = {"claim_id": claim_id, "amount": str(worksheet.total_payable),
-               "worksheet_hash": worksheet.content_hash()}
+        rec = {
+            "claim_id": claim_id,
+            "amount": str(worksheet.total_payable),
+            "worksheet_hash": worksheet.content_hash(),
+        }
         settled.append(rec)
         return {"status": "settled", **rec}
 
@@ -274,8 +336,13 @@ def make_stub_services(
     def record_history(claim: Claim, worksheet: Worksheet | None):
         fps = [line_fingerprint(claim, l.description, l.amount) for l in claim.bill_lines]
         history.setdefault(claim.policy_number, []).append(
-            PastClaim(claim_id=claim.claim_id, policy_number=claim.policy_number,
-                      bill_fingerprints=fps, admission_date=claim.admission_date))
+            PastClaim(
+                claim_id=claim.claim_id,
+                policy_number=claim.policy_number,
+                bill_fingerprints=fps,
+                admission_date=claim.admission_date,
+            )
+        )
 
     svc = Services(
         policy_search=policy_search,
