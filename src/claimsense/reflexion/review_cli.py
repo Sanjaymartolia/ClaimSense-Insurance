@@ -1,8 +1,8 @@
 """Adjudicator review of proposed lessons, and withdrawal of approved ones.
 
     python -m claimsense.reflexion.review_cli review   playbook.json --reviewer adj-07
-    python -m claimsense.reflexion.review_cli withdraw playbook.json LSN-1a2b3c4d --reviewer adj-07 \
-        --note "made sub-limit claims worse"
+    python -m claimsense.reflexion.review_cli withdraw playbook.json LSN-1a2b3c4d \
+        --reviewer adj-07 --note "made sub-limit claims worse"
     python -m claimsense.reflexion.review_cli list     playbook.json
 """
 
@@ -17,12 +17,16 @@ from .playbook import Playbook
 
 def console_approver(reviewer_id: str):
     """An ApproveFn for loop.learn(): asks a person at the terminal."""
+
     def ask(lesson: Lesson):
-        print(f"\n[{lesson.lesson_id}] from {lesson.source_case_id}\n  LESSON: {lesson.text}\n"
-              f"  APPLIES WHEN: {lesson.applies_when}\n  CLAUSES: {', '.join(lesson.clause_ids)}")
+        print(
+            f"\n[{lesson.lesson_id}] from {lesson.source_case_id}\n  LESSON: {lesson.text}\n"
+            f"  APPLIES WHEN: {lesson.applies_when}\n  CLAUSES: {', '.join(lesson.clause_ids)}"
+        )
         ans = input("approve? [y/n] ").strip().lower()
         note = None if ans == "y" else input("reason for rejecting: ").strip() or "rejected"
         return ans == "y", reviewer_id, note
+
     return ask
 
 
@@ -36,13 +40,16 @@ def main(argv=None):
     a = ap.parse_args(argv)
     pb = Playbook.load(a.path)
     if a.cmd == "list":
-        for l in pb.lessons.values():
-            print(f"{l.status.value:9} {l.lesson_id}  {l.text}")
+        for les in pb.lessons.values():
+            print(f"{les.status.value:9} {les.lesson_id}  {les.text}")
     elif a.cmd == "review":
         ask = console_approver(a.reviewer)
-        for l in pb.by_status(LessonStatus.PROPOSED):
-            ok, who, note = ask(l)
-            pb.approve(l.lesson_id, who, note) if ok else pb.reject(l.lesson_id, who, note)
+        for les in pb.by_status(LessonStatus.PROPOSED):
+            ok, who, note = ask(les)
+            if ok:
+                pb.approve(les.lesson_id, who, note)
+            else:
+                pb.reject(les.lesson_id, who, note)
         pb.save()
     else:
         pb.withdraw(a.lesson_id, a.reviewer, a.note or "withdrawn by reviewer")
