@@ -99,11 +99,18 @@ LINKED_CATEGORIES: frozenset[LineCategory] = frozenset(
 )
 
 # Selecting one of these clauses for a line makes the whole line non-payable (full deduction).
+# These are claim-exclusions / waiting-period / non-payable clauses the coverage analyst may assign
+# per line. The calculator receives only per-line clause choices (line_id -> clause_id); it has no
+# claim-level exclusion flag, so a *whole* claim reaches Rs 0 only when every line is assigned the
+# relevant clause upstream (coverage/orchestration).
 FULLY_DEDUCTED: dict[str, DeductionReason] = {
     C.NON_PAYABLE_ITEMS: DeductionReason.NON_PAYABLE,
     C.INITIAL_WAITING_PERIOD: DeductionReason.WAITING_PERIOD,
     C.PED_WAITING_PERIOD: DeductionReason.WAITING_PERIOD,
     C.SPECIFIC_WAITING_PERIOD: DeductionReason.WAITING_PERIOD,
+    # Maternity Expenses (clause 7.15, Code Excl18): childbirth/caesarean is excluded, so a line
+    # assigned to 7.15 is deducted in full with reason EXCLUSION (fixes CLM-0018 / GOLD-01).
+    C.MATERNITY_EXCLUSION: DeductionReason.EXCLUSION,
 }
 
 
