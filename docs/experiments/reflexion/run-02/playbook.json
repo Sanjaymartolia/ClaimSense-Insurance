@@ -1,0 +1,252 @@
+{
+  "frozen_hash": "b566637830ffd4f5204d56d4a894ae83693ef6cdce40f153c1eaa9a7ce3f8e25",
+  "lessons": [
+    {
+      "lesson_id": "LSN-f5250306",
+      "text": "Verify that procedure category claims are adjudicated under clause 4.1, not its sub-clauses like 4.1.1, as per the Arogya Sanjeevani policy.",
+      "applies_when": "When adjudicating procedure category bill lines under the Arogya Sanjeevani policy.",
+      "clause_ids": [
+        "new_india_arogya_sanjeevani:4.1"
+      ],
+      "source_case_id": "CLM-0004",
+      "status": "rejected",
+      "reviewer_id": "Dhruvi Ramani",
+      "review_note": "contradicts clause 4.1.1 Note b; encodes the gold demo rule",
+      "created_at": "2026-11-07T11:47:05.957162Z"
+    },
+    {
+      "lesson_id": "LSN-2e7f10fb",
+      "text": "Check for proportional deduction rules under clause 4.1.1 when room or ICU rates exceed policy limits before applying other expense coverage.",
+      "applies_when": "When adjudicating medicine bills under the Arogya Sanjeevani policy with room or ICU rates exceeding allowed limits.",
+      "clause_ids": [
+        "new_india_arogya_sanjeevani:4.1.1"
+      ],
+      "source_case_id": "CLM-0004",
+      "status": "rejected",
+      "reviewer_id": "Dhruvi Ramani",
+      "review_note": "omits the medicines exception in clause 4.1.1 Note b",
+      "created_at": "2026-11-07T11:49:38.546960Z"
+    },
+    {
+      "lesson_id": "LSN-e4fcd015",
+      "text": "Check the coverage applicability for the 'investigations' category under the Arogya Sanjeevani policy clauses before approving payment.",
+      "applies_when": "When adjudicating claim lines categorized as 'investigations' under the Arogya Sanjeevani policy.",
+      "clause_ids": [
+        "Arogya Sanjeevani Investigations Coverage Clause"
+      ],
+      "source_case_id": "CLM-0005",
+      "status": "rejected",
+      "reviewer_id": "Dhruvi Ramani",
+      "review_note": "vague, cites a non-existent clause id; duplicate line is a fraud finding, not a clause choice",
+      "created_at": "2026-11-07T11:51:32.032079Z"
+    },
+    {
+      "lesson_id": "LSN-bac41516",
+      "text": "Always confirm coverage applicability for the 'investigations' bill line category as specified in the Arogya Sanjeevani policy clauses before approving payment.",
+      "applies_when": "When adjudicating claims with bill line category 'investigations' under the Arogya Sanjeevani policy.",
+      "clause_ids": [
+        "Arogya Sanjeevani Investigations Coverage Clause"
+      ],
+      "source_case_id": "CLM-0009",
+      "status": "rejected",
+      "reviewer_id": "Dhruvi Ramani",
+      "review_note": "vague, cites a non-existent clause id; duplicate line is a fraud finding, not a clause choice",
+      "created_at": "2026-11-07T11:52:39.109593Z"
+    },
+    {
+      "lesson_id": "LSN-31e1e0e0",
+      "text": "Check the coverage applicability for the 'investigations' category as specified in the Arogya Sanjeevani policy clauses before approving any payment.",
+      "applies_when": "When adjudicating claim lines categorized under 'investigations' for Arogya Sanjeevani policy holders.",
+      "clause_ids": [
+        "Arogya Sanjeevani Investigations Coverage Clause"
+      ],
+      "source_case_id": "CLM-0010",
+      "status": "rejected",
+      "reviewer_id": "Dhruvi Ramani",
+      "review_note": "vague, cites a non-existent clause id; duplicate line is a fraud finding, not a clause choice",
+      "created_at": "2026-11-07T11:53:34.825360Z"
+    },
+    {
+      "lesson_id": "LSN-68244324",
+      "text": "Verify that the procedure category claims are adjudicated strictly under clause 4.1 as specified in the Arogya Sanjeevani policy before considering any sub-clauses.",
+      "applies_when": "When adjudicating procedure category claims under the Arogya Sanjeevani policy.",
+      "clause_ids": [
+        "new_india_arogya_sanjeevani:4.1"
+      ],
+      "source_case_id": "CLM-0011",
+      "status": "rejected",
+      "reviewer_id": "Dhruvi Ramani",
+      "review_note": "contradicts clause 4.1.1 Note b; encodes the gold demo rule",
+      "created_at": "2026-11-07T11:54:51.947130Z"
+    },
+    {
+      "lesson_id": "LSN-b6b2fc66",
+      "text": "Check for proportional deduction rules under clause 4.1.1 when room or ICU rates exceed policy limits before applying other expense coverage.",
+      "applies_when": "When adjudicating medicine expenses alongside room/ICU charges that exceed policy limits under the Arogya Sanjeevani policy.",
+      "clause_ids": [
+        "new_india_arogya_sanjeevani:4.1.1"
+      ],
+      "source_case_id": "CLM-0011",
+      "status": "rejected",
+      "reviewer_id": "Dhruvi Ramani",
+      "review_note": "omits the medicines exception in clause 4.1.1 Note b",
+      "created_at": "2026-11-07T11:55:49.451003Z"
+    },
+    {
+      "lesson_id": "LSN-ce8639a3",
+      "text": "Verify that procedure category claims are adjudicated under clause 4.1 as specified in the Arogya Sanjeevani policy before considering any sub-clauses.",
+      "applies_when": "When adjudicating procedure category bill lines under the Arogya Sanjeevani policy.",
+      "clause_ids": [
+        "new_india_arogya_sanjeevani:4.1"
+      ],
+      "source_case_id": "CLM-0012",
+      "status": "rejected",
+      "reviewer_id": "Dhruvi Ramani",
+      "review_note": "contradicts clause 4.1.1 Note b; encodes the gold demo rule",
+      "created_at": "2026-11-07T11:56:48.992094Z"
+    },
+    {
+      "lesson_id": "LSN-94d962cc",
+      "text": "Check if room or ICU rates exceed policy limits and apply proportional deduction to all expenses except medicines as per clause 4.1.1 Note b.",
+      "applies_when": "When adjudicating medicine bill lines under the Arogya Sanjeevani policy with room or ICU rates exceeding limits.",
+      "clause_ids": [
+        "new_india_arogya_sanjeevani:4.1.1"
+      ],
+      "source_case_id": "CLM-0012",
+      "status": "approved",
+      "reviewer_id": "Dhruvi Ramani",
+      "review_note": null,
+      "created_at": "2026-11-07T11:59:08.555034Z"
+    },
+    {
+      "lesson_id": "LSN-e0679e78",
+      "text": "Verify that procedure category claims are adjudicated under clause 4.1, not its sub-clauses like 4.1.1, as per the Arogya Sanjeevani policy.",
+      "applies_when": "When adjudicating procedure category bill lines under the Arogya Sanjeevani policy.",
+      "clause_ids": [
+        "new_india_arogya_sanjeevani:4.1"
+      ],
+      "source_case_id": "CLM-0014",
+      "status": "rejected",
+      "reviewer_id": "Dhruvi Ramani",
+      "review_note": "contradicts clause 4.1.1 Note b; encodes the gold demo rule",
+      "created_at": "2026-11-07T12:00:09.561225Z"
+    },
+    {
+      "lesson_id": "LSN-f53d8fe9",
+      "text": "Confirm that the investigations category is excluded from coverage under the Arogya Sanjeevani policy before approving payment (clause related to investigations exclusion).",
+      "applies_when": "When adjudicating claims with bill lines categorized as investigations under the Arogya Sanjeevani policy.",
+      "clause_ids": [
+        "investigations_exclusion_clause"
+      ],
+      "source_case_id": "CLM-0015",
+      "status": "rejected",
+      "reviewer_id": "Dhruvi Ramani",
+      "review_note": "false: investigations are covered under 4.1; invented clause id; duplicate line is a fraud finding",
+      "created_at": "2026-11-07T12:01:12.280233Z"
+    },
+    {
+      "lesson_id": "LSN-7e83a7ff",
+      "text": "For nursing category claims, apply the coverage rules under clause 4.1 rather than any sub-clauses like 4.1.1.",
+      "applies_when": "When adjudicating claims with bill line category 'nursing' under the Arogya Sanjeevani policy.",
+      "clause_ids": [
+        "new_india_arogya_sanjeevani:4.1"
+      ],
+      "source_case_id": "CLM-0016",
+      "status": "rejected",
+      "reviewer_id": "Dhruvi Ramani",
+      "review_note": "ICU-breach proportional cut awaits a domain ruling; lesson encodes the gold's no-cut reading",
+      "created_at": "2026-11-07T12:02:34.871923Z"
+    },
+    {
+      "lesson_id": "LSN-ec7bd6d7",
+      "text": "For investigations under the Arogya Sanjeevani policy, apply clause 4.1 rather than any sub-clauses like 4.1.1 to ensure correct coverage.",
+      "applies_when": "When adjudicating claims with bill line category 'investigations' under the Arogya Sanjeevani policy.",
+      "clause_ids": [
+        "new_india_arogya_sanjeevani:4.1"
+      ],
+      "source_case_id": "CLM-0016",
+      "status": "rejected",
+      "reviewer_id": "Dhruvi Ramani",
+      "review_note": "ICU-breach proportional cut awaits a domain ruling; lesson encodes the gold's no-cut reading",
+      "created_at": "2026-11-07T12:03:36.362821Z"
+    },
+    {
+      "lesson_id": "LSN-c3b3ef85",
+      "text": "For procedure category claims under the Arogya Sanjeevani policy, verify that clause 7.15 is applied as per policy guidelines.",
+      "applies_when": "When adjudicating procedure category bill lines under the Arogya Sanjeevani policy.",
+      "clause_ids": [
+        "new_india_arogya_sanjeevani:7.15"
+      ],
+      "source_case_id": "CLM-0018",
+      "status": "rejected",
+      "reviewer_id": "Dhruvi Ramani",
+      "review_note": "ICU-breach proportional cut awaits a domain ruling; lesson encodes the gold's no-cut reading",
+      "created_at": "2026-11-07T12:10:35.963415Z"
+    },
+    {
+      "lesson_id": "LSN-944d94bf",
+      "text": "For room category claims under the Arogya Sanjeevani policy, verify and apply clause 7.15 as the governing clause before adjudication.",
+      "applies_when": "When adjudicating room category bill lines under the Arogya Sanjeevani policy.",
+      "clause_ids": [
+        "new_india_arogya_sanjeevani:7.15"
+      ],
+      "source_case_id": "CLM-0018",
+      "status": "rejected",
+      "reviewer_id": "Dhruvi Ramani",
+      "review_note": "admissibility is deterministic code, not a clause choice; exclusion check is AGT-02",
+      "created_at": "2026-11-07T12:12:12.851235Z"
+    },
+    {
+      "lesson_id": "LSN-7397efdb",
+      "text": "For nursing category claims, always apply clause 7.15 as specified in the Arogya Sanjeevani policy.",
+      "applies_when": "When adjudicating nursing category bill lines under the Arogya Sanjeevani policy.",
+      "clause_ids": [
+        "new_india_arogya_sanjeevani:7.15"
+      ],
+      "source_case_id": "CLM-0018",
+      "status": "rejected",
+      "reviewer_id": "Dhruvi Ramani",
+      "review_note": "admissibility is deterministic code, not a clause choice; exclusion check is AGT-02",
+      "created_at": "2026-11-07T12:16:10.454495Z"
+    },
+    {
+      "lesson_id": "LSN-67834e9d",
+      "text": "For medicines category claims, always apply clause 7.15 as specified in the Arogya Sanjeevani policy.",
+      "applies_when": "When adjudicating claims under the medicines bill line category in the Arogya Sanjeevani policy.",
+      "clause_ids": [
+        "new_india_arogya_sanjeevani:7.15"
+      ],
+      "source_case_id": "CLM-0018",
+      "status": "rejected",
+      "reviewer_id": "Dhruvi Ramani",
+      "review_note": "admissibility is deterministic code, not a clause choice; exclusion check is AGT-02",
+      "created_at": "2026-11-07T12:17:06.155628Z"
+    },
+    {
+      "lesson_id": "LSN-5e17eac9",
+      "text": "For investigations category claims, always apply clause 7.15 of the Arogya Sanjeevani policy as the governing clause.",
+      "applies_when": "When adjudicating bill lines categorized under investigations in the Arogya Sanjeevani policy.",
+      "clause_ids": [
+        "new_india_arogya_sanjeevani:7.15"
+      ],
+      "source_case_id": "CLM-0018",
+      "status": "rejected",
+      "reviewer_id": "Dhruvi Ramani",
+      "review_note": "admissibility is deterministic code, not a clause choice; exclusion check is AGT-02",
+      "created_at": "2026-11-07T12:17:54.951997Z"
+    },
+    {
+      "lesson_id": "LSN-e338d6c8",
+      "text": "Verify claim admissibility criteria as specified in the Arogya Sanjeevani policy before approving any claim.",
+      "applies_when": "All health insurance claims under the Arogya Sanjeevani policy.",
+      "clause_ids": [
+        "Admissibility Criteria"
+      ],
+      "source_case_id": "CLM-0018",
+      "status": "rejected",
+      "reviewer_id": "Dhruvi Ramani",
+      "review_note": "vague, applies to everything, invented clause id; admissibility is deterministic code",
+      "created_at": "2026-11-07T12:18:39.955097Z"
+    }
+  ]
+}

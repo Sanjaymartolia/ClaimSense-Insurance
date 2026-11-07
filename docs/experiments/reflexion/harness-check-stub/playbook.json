@@ -1,8 +1,8 @@
 {
-  "frozen_hash": "04349f400380f8cd1f5a6118fdb6a9ddf08b5f99797a3303b402e1a340ae80e0",
+  "frozen_hash": "b10b6eb16ee8cac166e7af7c2b3bb472a3ddac9bed24ca258de398337943d6d3",
   "lessons": [
     {
-      "lesson_id": "LSN-1c523724",
+      "lesson_id": "LSN-5fb19c80",
       "text": "For procedure lines, check clause new_india_arogya_sanjeevani:4.1 before new_india_arogya_sanjeevani:4.1.",
       "applies_when": "procedure line on the bill",
       "clause_ids": [
@@ -13,10 +13,10 @@
       "status": "approved",
       "reviewer_id": "AUTO-harness-check",
       "review_note": "auto-approved (harness check)",
-      "created_at": "2026-11-01T13:38:23.050702Z"
+      "created_at": "2026-11-07T10:43:30.607432Z"
     },
     {
-      "lesson_id": "LSN-2c44a77f",
+      "lesson_id": "LSN-05148f18",
       "text": "For medicines lines, check clause new_india_arogya_sanjeevani:4.1.1 before new_india_arogya_sanjeevani:4.1.",
       "applies_when": "medicines line on the bill",
       "clause_ids": [
@@ -27,21 +27,63 @@
       "status": "approved",
       "reviewer_id": "AUTO-harness-check",
       "review_note": "auto-approved (harness check)",
-      "created_at": "2026-11-01T13:38:23.050723Z"
+      "created_at": "2026-11-07T10:43:30.607455Z"
     },
     {
-      "lesson_id": "LSN-579e6248",
-      "text": "For investigations lines, check clause new_india_arogya_sanjeevani:4.1.1 before new_india_arogya_sanjeevani:4.1.1.",
-      "applies_when": "investigations line on the bill",
+      "lesson_id": "LSN-4f4c8530",
+      "text": "For medicines lines, check clause new_india_arogya_sanjeevani:4.1.1 before new_india_arogya_sanjeevani:4.1.1.",
+      "applies_when": "medicines line on the bill",
       "clause_ids": [
         "new_india_arogya_sanjeevani:4.1.1",
         "new_india_arogya_sanjeevani:4.1.1"
       ],
-      "source_case_id": "CLM-0004",
+      "source_case_id": "CLM-0011",
       "status": "approved",
       "reviewer_id": "AUTO-harness-check",
       "review_note": "auto-approved (harness check)",
-      "created_at": "2026-11-01T13:38:23.050740Z"
+      "created_at": "2026-11-07T10:43:30.619541Z"
+    },
+    {
+      "lesson_id": "LSN-f81330a3",
+      "text": "For procedure lines, check clause new_india_arogya_sanjeevani:7.15 before new_india_arogya_sanjeevani:4.1.",
+      "applies_when": "procedure line on the bill",
+      "clause_ids": [
+        "new_india_arogya_sanjeevani:7.15",
+        "new_india_arogya_sanjeevani:4.1"
+      ],
+      "source_case_id": "CLM-0018",
+      "status": "approved",
+      "reviewer_id": "AUTO-harness-check",
+      "review_note": "auto-approved (harness check)",
+      "created_at": "2026-11-07T10:43:30.628748Z"
+    },
+    {
+      "lesson_id": "LSN-aaafa599",
+      "text": "For room lines, check clause new_india_arogya_sanjeevani:7.15 before new_india_arogya_sanjeevani:12.1.",
+      "applies_when": "room line on the bill",
+      "clause_ids": [
+        "new_india_arogya_sanjeevani:7.15",
+        "new_india_arogya_sanjeevani:12.1"
+      ],
+      "source_case_id": "CLM-0018",
+      "status": "approved",
+      "reviewer_id": "AUTO-harness-check",
+      "review_note": "auto-approved (harness check)",
+      "created_at": "2026-11-07T10:43:30.628765Z"
+    },
+    {
+      "lesson_id": "LSN-e93d88f7",
+      "text": "For medicines lines, check clause new_india_arogya_sanjeevani:7.15 before new_india_arogya_sanjeevani:4.1.1.",
+      "applies_when": "medicines line on the bill",
+      "clause_ids": [
+        "new_india_arogya_sanjeevani:7.15",
+        "new_india_arogya_sanjeevani:4.1.1"
+      ],
+      "source_case_id": "CLM-0018",
+      "status": "approved",
+      "reviewer_id": "AUTO-harness-check",
+      "review_note": "auto-approved (harness check)",
+      "created_at": "2026-11-07T10:43:30.628793Z"
     }
   ]
 }

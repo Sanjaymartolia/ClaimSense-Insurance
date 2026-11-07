@@ -22,6 +22,10 @@ Guard rails, all enforced here or in `claimsense.reflexion`:
 
 Outputs land in `--out`: `playbook.json` (frozen, with its hash), `baseline.json/.md`,
 `report.md`, `report.json`. Nothing outside `--out` is written.
+
+`--tolerance-rs 1` makes the simulated adjudicator treat a line within Rs 1 of the gold as
+agreeing (the dev gold is whole rupees, the calculator keeps paise). Rupee error is still reported
+exactly; the tolerance is printed in the banner and stored with every result.
 """
 
 from __future__ import annotations
@@ -30,6 +34,7 @@ import argparse
 import os
 import sys
 from datetime import UTC, datetime
+from decimal import Decimal
 from pathlib import Path
 
 from claimsense.agents import make_stub_services
@@ -67,7 +72,7 @@ HELDOUT_MARKERS = ("heldout", "held-out", "held_out")
 def mode_banner(args) -> str:
     return (
         f"mode: {mode_label()} | executor: {args.executor} | calculator: {args.calculator} | "
-        f"approval: {args.approve.upper()}"
+        f"tolerance: Rs {args.tolerance_rs} | approval: {args.approve.upper()}"
         + (" (harness check only, NOT for the report)" if args.approve == "auto" else "")
     )
 
@@ -98,7 +103,7 @@ def load_dev_cases(args):
 def stage_baseline(args) -> list[CaseResult]:
     cases = load_dev_cases(args)
     run_fn = build_run_fn(args)
-    results = evaluate(run_fn, cases, None)
+    results = evaluate(run_fn, cases, None, args.tolerance_rs)
     summary = summarize(results)
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
@@ -177,18 +182,18 @@ def stage_experiment(args) -> None:
 
     print(mode_banner(args))
     print(f"\n[1/6] baseline on {len(cases)} development claims")
-    baseline_results = evaluate(run_fn, cases, None)
+    baseline_results = evaluate(run_fn, cases, None, args.tolerance_rs)
     baseline = summarize(baseline_results)
     print(to_json(baseline))
 
     print("\n[2/6] learning pass: each mistake -> one lesson -> your decision")
-    proposed = learn(run_fn, cases, pb, approve_fn, get_clause_text)
+    proposed = learn(run_fn, cases, pb, approve_fn, get_clause_text, args.tolerance_rs)
     approved = pb.by_status(LessonStatus.APPROVED)
     rejected = pb.by_status(LessonStatus.REJECTED)
     print(f"proposed {len(proposed)}, approved {len(approved)}, rejected {len(rejected)}")
 
     print("\n[3/6] ablation: leave one lesson out at a time")
-    ablation = ablate(run_fn, cases, pb)
+    ablation = ablate(run_fn, cases, pb, args.tolerance_rs)
     for row in ablation:
         print(
             f"  {row['lesson_id']} harmful={row['harmful']} dRs={row['error_increase_rs']} "
@@ -209,7 +214,7 @@ def stage_experiment(args) -> None:
     print(f"\n[5/6] after pass, {args.after_runs} run(s)")
     after_runs = []
     for i in range(args.after_runs):
-        results = evaluate(run_fn, cases, pb)
+        results = evaluate(run_fn, cases, pb, args.tolerance_rs)
         after_runs.append(results)
         print(f"  run {i + 1}: {to_json(summarize(results))}")
 
@@ -225,6 +230,7 @@ def stage_experiment(args) -> None:
         mode_banner(args),
         "",
         f"- development cases: {len(cases)} from `{args.cases}`",
+        f"- rounding tolerance: Rs {args.tolerance_rs} (0 = strict; rupee error is exact either way)",
         f"- lessons proposed {len(proposed)}, approved {len(approved)}, rejected {len(rejected)}, "
         f"withdrawn after ablation {len(withdrawn)}",
         f"- generated {datetime.now(UTC).isoformat()}",
@@ -278,6 +284,7 @@ def stage_experiment(args) -> None:
         to_json(
             {
                 "mode": mode_banner(args),
+                "tolerance_rs": args.tolerance_rs,
                 "baseline": baseline,
                 "after_runs": [summarize(r) for r in after_runs],
                 "ablation": ablation,
@@ -328,9 +335,18 @@ def main(argv=None):
         "--calculator",
         choices=["reference", "team"],
         default="reference",
-        help="'team' uses claimsense.calc.adjudicate once T15 lands",
+        help="'team' uses the team calculator through agents.services.real_calculate",
+    )
+    ap.add_argument(
+        "--tolerance-rs",
+        type=Decimal,
+        default=Decimal("0"),
+        help="treat a line within this many rupees of the gold as agreeing (gold is whole "
+        "rupees, the calculator keeps paise); 0 = strict",
     )
     args = ap.parse_args(argv)
+    if args.tolerance_rs < 0:
+        sys.exit("--tolerance-rs must be 0 or positive")
     {"baseline": stage_baseline, "experiment": stage_experiment, "status": stage_status}[
         args.stage
     ](args)

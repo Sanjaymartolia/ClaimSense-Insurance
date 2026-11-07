@@ -13,6 +13,12 @@ Three rules, all checked rather than assumed:
 
 Known disagreements between the demo-rule gold and the reference calculator are listed in
 `RULE_DISAGREEMENTS` and reported, not papered over.
+
+Gold-set history this loader follows: the 2026-11-04 audit (`docs/CLAIMS_AND_GOLD_SET_FIXES.md`)
+relabelled CLM-0018 (clause 7.15 exclusion, new reason code `maternity_childbirth_exclusion`),
+re-filed CLM-0016's ICU line (`icu_daily_cap`) and added `clause_id` to most gold deductions. The
+reason-code tables below stay the source of truth for the clause a gold deduction is taken to
+cite; the gold's own `clause_id` is coarser (`4.1` for both caps and the proportional cut).
 """
 
 from __future__ import annotations
@@ -67,6 +73,11 @@ LINE_REASONS: dict[str, tuple[DeductionReason, str]] = {
 }
 NO_CLAUSE_CHOICE = {"duplicate_line"}
 
+#: Clause 7.15, maternity / childbirth exclusion. The gold-set audit of 2026-11-04 (GOLD-01)
+#: relabelled CLM-0018 with it. Defined here rather than in `agents/clauses.py`, which belongs to
+#: the orchestration owner; the id is the one the gold file itself now carries.
+MATERNITY_EXCLUSION = C.P + "7.15"
+
 #: gold claim-level reason code -> deduction applied to every line through the admissibility gate.
 #: "policy_schedule:period" is the same id `CoverageAgent.check_admissibility` cites.
 CLAIM_REASONS: dict[str, tuple[DeductionReason, str]] = {
@@ -80,20 +91,35 @@ CLAIM_REASONS: dict[str, tuple[DeductionReason, str]] = {
         DeductionReason.EXCLUSION,
         "policy_schedule:period",
     ),
+    "maternity_childbirth_exclusion": (DeductionReason.EXCLUSION, MATERNITY_EXCLUSION),
 }
 ADMISSIBILITY_GATE = "claim_level_admissibility_gate"
 
 #: Where the demo-rule gold and the reference calculator are known to disagree. Each one shows up
 #: as a baseline error that no playbook lesson can remove, so the report must say so.
 RULE_DISAGREEMENTS = [
-    "Gold applies the room-rent proportional cut to pharmacy lines (room_linked=true); the "
-    "calculator exempts medicines, following clause 4.1.1 Note (b). Affects every admissible "
-    "room_rent_breach case.",
+    "Gold applies the room-rent proportional cut to pharmacy lines (room_linked=true) and not to "
+    "the procedure line; the calculator does the opposite, following clause 4.1.1 Note (b). "
+    "CLM-0004, 0011, 0012, 0014. Decision (lead, Nov 2026 walkthrough): the gold is not "
+    "relabelled for now because a relabel affects every other owner's scores; the mapping stays, "
+    "the gap is reported.",
     "Gold deducts an in-bill duplicate line in full (duplicate_line); the fraud agent only "
-    "checks claim history and a fraud flag never changes an amount. Affects every admissible "
-    "duplicate_bill case.",
-    "Gold rounds each cut line to whole rupees; the calculator keeps paise. Cut lines can differ "
-    "by up to Rs 0.50, which the simulated adjudicator counts as an edit.",
+    "checks claim history and a fraud flag never changes an amount. CLM-0005, 0009, 0010, 0015. "
+    "Decision (lead, Nov 2026 walkthrough): a duplicate stays a fraud flag for the human "
+    "adjudicator; no clause pays it at zero.",
+    "Gold rounds each cut line to whole rupees; the calculator keeps paise. Cut lines differ by up "
+    "to Rs 0.50 and count as a miss unless the evaluator is run with a tolerance "
+    "(--tolerance-rs). Decision (lead, Nov 2026 walkthrough): the tolerance lives in the Reflexion "
+    "evaluator, the gold is not changed.",
+    "Gold (2026-11-04 audit, GOLD-01) repudiates CLM-0018, a caesarean section, under clause 7.15; "
+    "the coverage analyst's admissibility check has no exclusion rule yet (AGT-02, orchestration "
+    "owner), so the pipeline still pays it. Admissibility is deterministic code, not a clause "
+    "choice, so no lesson can fix this.",
+    "Gold (2026-11-04 audit, GOLD-04) caps CLM-0016's ICU day at Rs 10,000 but applies no "
+    "proportional cut to the other lines because the room rent itself is within its cap; the "
+    "calculator applies clause 4.1.1 Note (b) to an ICU breach as well, so it cuts investigations "
+    "and nursing. Both cap the ICU line identically. Needs a domain ruling: does Note (b) follow "
+    "an ICU breach or only a room-rent breach?",
 ]
 
 

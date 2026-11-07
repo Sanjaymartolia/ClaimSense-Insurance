@@ -1,59 +1,81 @@
 {
-  "mode": "mode: STUB (deterministic, no model) | executor: local | calculator: reference | approval: AUTO (harness check only, NOT for the report)",
+  "mode": "mode: STUB (deterministic, no model) | executor: local | calculator: reference | tolerance: Rs 1 | approval: AUTO (harness check only, NOT for the report)",
+  "tolerance_rs": "1",
   "baseline": {
     "cases": 20,
-    "settlement_error_total_rs": "65989.27",
-    "settlement_error_mean_rs": "3299.46",
-    "exact_match_rate": 0.3,
-    "edit_rate": 0.2,
+    "settlement_error_total_rs": "186368.94",
+    "settlement_error_mean_rs": "9318.45",
+    "exact_match_rate": 0.5,
+    "edit_rate": 0.3,
     "critic_rejection_rate": 0.0
   },
   "after_runs": [
     {
       "cases": 20,
-      "settlement_error_total_rs": "65989.27",
-      "settlement_error_mean_rs": "3299.46",
-      "exact_match_rate": 0.3,
-      "edit_rate": 0.2,
+      "settlement_error_total_rs": "186368.94",
+      "settlement_error_mean_rs": "9318.45",
+      "exact_match_rate": 0.5,
+      "edit_rate": 0.3,
       "critic_rejection_rate": 0.0
     },
     {
       "cases": 20,
-      "settlement_error_total_rs": "65989.27",
-      "settlement_error_mean_rs": "3299.46",
-      "exact_match_rate": 0.3,
-      "edit_rate": 0.2,
+      "settlement_error_total_rs": "186368.94",
+      "settlement_error_mean_rs": "9318.45",
+      "exact_match_rate": 0.5,
+      "edit_rate": 0.3,
       "critic_rejection_rate": 0.0
     }
   ],
   "ablation": [
     {
-      "lesson_id": "LSN-1c523724",
+      "lesson_id": "LSN-5fb19c80",
       "text": "For procedure lines, check clause new_india_arogya_sanjeevani:4.1 before new_india_arogya_sanjeevani:4.1.",
       "error_increase_rs": "0.00",
       "edit_rate_increase": 0.0,
       "harmful": false
     },
     {
-      "lesson_id": "LSN-2c44a77f",
+      "lesson_id": "LSN-05148f18",
       "text": "For medicines lines, check clause new_india_arogya_sanjeevani:4.1.1 before new_india_arogya_sanjeevani:4.1.",
       "error_increase_rs": "0.00",
       "edit_rate_increase": 0.0,
       "harmful": false
     },
     {
-      "lesson_id": "LSN-579e6248",
-      "text": "For investigations lines, check clause new_india_arogya_sanjeevani:4.1.1 before new_india_arogya_sanjeevani:4.1.1.",
+      "lesson_id": "LSN-4f4c8530",
+      "text": "For medicines lines, check clause new_india_arogya_sanjeevani:4.1.1 before new_india_arogya_sanjeevani:4.1.1.",
+      "error_increase_rs": "0.00",
+      "edit_rate_increase": 0.0,
+      "harmful": false
+    },
+    {
+      "lesson_id": "LSN-f81330a3",
+      "text": "For procedure lines, check clause new_india_arogya_sanjeevani:7.15 before new_india_arogya_sanjeevani:4.1.",
+      "error_increase_rs": "0.00",
+      "edit_rate_increase": 0.0,
+      "harmful": false
+    },
+    {
+      "lesson_id": "LSN-aaafa599",
+      "text": "For room lines, check clause new_india_arogya_sanjeevani:7.15 before new_india_arogya_sanjeevani:12.1.",
+      "error_increase_rs": "0.00",
+      "edit_rate_increase": 0.0,
+      "harmful": false
+    },
+    {
+      "lesson_id": "LSN-e93d88f7",
+      "text": "For medicines lines, check clause new_india_arogya_sanjeevani:7.15 before new_india_arogya_sanjeevani:4.1.1.",
       "error_increase_rs": "0.00",
       "edit_rate_increase": 0.0,
       "harmful": false
     }
   ],
   "withdrawn": [],
-  "frozen_hash": "04349f400380f8cd1f5a6118fdb6a9ddf08b5f99797a3303b402e1a340ae80e0",
+  "frozen_hash": "b10b6eb16ee8cac166e7af7c2b3bb472a3ddac9bed24ca258de398337943d6d3",
   "lessons": [
     {
-      "lesson_id": "LSN-1c523724",
+      "lesson_id": "LSN-5fb19c80",
       "text": "For procedure lines, check clause new_india_arogya_sanjeevani:4.1 before new_india_arogya_sanjeevani:4.1.",
       "applies_when": "procedure line on the bill",
       "clause_ids": [
@@ -64,10 +86,10 @@
       "status": "approved",
       "reviewer_id": "AUTO-harness-check",
       "review_note": "auto-approved (harness check)",
-      "created_at": "2026-11-01T13:38:23.050702Z"
+      "created_at": "2026-11-07T10:43:30.607432Z"
     },
     {
-      "lesson_id": "LSN-2c44a77f",
+      "lesson_id": "LSN-05148f18",
       "text": "For medicines lines, check clause new_india_arogya_sanjeevani:4.1.1 before new_india_arogya_sanjeevani:4.1.",
       "applies_when": "medicines line on the bill",
       "clause_ids": [
@@ -78,21 +100,63 @@
       "status": "approved",
       "reviewer_id": "AUTO-harness-check",
       "review_note": "auto-approved (harness check)",
-      "created_at": "2026-11-01T13:38:23.050723Z"
+      "created_at": "2026-11-07T10:43:30.607455Z"
     },
     {
-      "lesson_id": "LSN-579e6248",
-      "text": "For investigations lines, check clause new_india_arogya_sanjeevani:4.1.1 before new_india_arogya_sanjeevani:4.1.1.",
-      "applies_when": "investigations line on the bill",
+      "lesson_id": "LSN-4f4c8530",
+      "text": "For medicines lines, check clause new_india_arogya_sanjeevani:4.1.1 before new_india_arogya_sanjeevani:4.1.1.",
+      "applies_when": "medicines line on the bill",
       "clause_ids": [
         "new_india_arogya_sanjeevani:4.1.1",
         "new_india_arogya_sanjeevani:4.1.1"
       ],
-      "source_case_id": "CLM-0004",
+      "source_case_id": "CLM-0011",
       "status": "approved",
       "reviewer_id": "AUTO-harness-check",
       "review_note": "auto-approved (harness check)",
-      "created_at": "2026-11-01T13:38:23.050740Z"
+      "created_at": "2026-11-07T10:43:30.619541Z"
+    },
+    {
+      "lesson_id": "LSN-f81330a3",
+      "text": "For procedure lines, check clause new_india_arogya_sanjeevani:7.15 before new_india_arogya_sanjeevani:4.1.",
+      "applies_when": "procedure line on the bill",
+      "clause_ids": [
+        "new_india_arogya_sanjeevani:7.15",
+        "new_india_arogya_sanjeevani:4.1"
+      ],
+      "source_case_id": "CLM-0018",
+      "status": "approved",
+      "reviewer_id": "AUTO-harness-check",
+      "review_note": "auto-approved (harness check)",
+      "created_at": "2026-11-07T10:43:30.628748Z"
+    },
+    {
+      "lesson_id": "LSN-aaafa599",
+      "text": "For room lines, check clause new_india_arogya_sanjeevani:7.15 before new_india_arogya_sanjeevani:12.1.",
+      "applies_when": "room line on the bill",
+      "clause_ids": [
+        "new_india_arogya_sanjeevani:7.15",
+        "new_india_arogya_sanjeevani:12.1"
+      ],
+      "source_case_id": "CLM-0018",
+      "status": "approved",
+      "reviewer_id": "AUTO-harness-check",
+      "review_note": "auto-approved (harness check)",
+      "created_at": "2026-11-07T10:43:30.628765Z"
+    },
+    {
+      "lesson_id": "LSN-e93d88f7",
+      "text": "For medicines lines, check clause new_india_arogya_sanjeevani:7.15 before new_india_arogya_sanjeevani:4.1.1.",
+      "applies_when": "medicines line on the bill",
+      "clause_ids": [
+        "new_india_arogya_sanjeevani:7.15",
+        "new_india_arogya_sanjeevani:4.1.1"
+      ],
+      "source_case_id": "CLM-0018",
+      "status": "approved",
+      "reviewer_id": "AUTO-harness-check",
+      "review_note": "auto-approved (harness check)",
+      "created_at": "2026-11-07T10:43:30.628793Z"
     }
   ],
   "per_case_baseline": [
@@ -105,7 +169,8 @@
       "lines_edited": 0,
       "critic_rejections": 0,
       "lessons_used": [],
-      "status": "repudiated"
+      "status": "repudiated",
+      "tolerance_rs": "1"
     },
     {
       "case_id": "CLM-0002",
@@ -116,7 +181,8 @@
       "lines_edited": 0,
       "critic_rejections": 0,
       "lessons_used": [],
-      "status": "repudiated"
+      "status": "repudiated",
+      "tolerance_rs": "1"
     },
     {
       "case_id": "CLM-0003",
@@ -127,7 +193,8 @@
       "lines_edited": 0,
       "critic_rejections": 0,
       "lessons_used": [],
-      "status": "repudiated"
+      "status": "repudiated",
+      "tolerance_rs": "1"
     },
     {
       "case_id": "CLM-0004",
@@ -138,7 +205,8 @@
       "lines_edited": 2,
       "critic_rejections": 0,
       "lessons_used": [],
-      "status": "settled"
+      "status": "settled",
+      "tolerance_rs": "1"
     },
     {
       "case_id": "CLM-0005",
@@ -149,7 +217,8 @@
       "lines_edited": 0,
       "critic_rejections": 0,
       "lessons_used": [],
-      "status": "settled"
+      "status": "settled",
+      "tolerance_rs": "1"
     },
     {
       "case_id": "CLM-0006",
@@ -160,7 +229,8 @@
       "lines_edited": 0,
       "critic_rejections": 0,
       "lessons_used": [],
-      "status": "settled"
+      "status": "settled",
+      "tolerance_rs": "1"
     },
     {
       "case_id": "CLM-0007",
@@ -171,7 +241,8 @@
       "lines_edited": 0,
       "critic_rejections": 0,
       "lessons_used": [],
-      "status": "repudiated"
+      "status": "repudiated",
+      "tolerance_rs": "1"
     },
     {
       "case_id": "CLM-0008",
@@ -182,7 +253,8 @@
       "lines_edited": 0,
       "critic_rejections": 0,
       "lessons_used": [],
-      "status": "settled"
+      "status": "settled",
+      "tolerance_rs": "1"
     },
     {
       "case_id": "CLM-0009",
@@ -193,7 +265,8 @@
       "lines_edited": 0,
       "critic_rejections": 0,
       "lessons_used": [],
-      "status": "settled"
+      "status": "settled",
+      "tolerance_rs": "1"
     },
     {
       "case_id": "CLM-0010",
@@ -204,7 +277,8 @@
       "lines_edited": 0,
       "critic_rejections": 0,
       "lessons_used": [],
-      "status": "settled"
+      "status": "settled",
+      "tolerance_rs": "1"
     },
     {
       "case_id": "CLM-0011",
@@ -215,7 +289,8 @@
       "lines_edited": 2,
       "critic_rejections": 0,
       "lessons_used": [],
-      "status": "settled"
+      "status": "settled",
+      "tolerance_rs": "1"
     },
     {
       "case_id": "CLM-0012",
@@ -226,7 +301,8 @@
       "lines_edited": 2,
       "critic_rejections": 0,
       "lessons_used": [],
-      "status": "settled"
+      "status": "settled",
+      "tolerance_rs": "1"
     },
     {
       "case_id": "CLM-0013",
@@ -237,7 +313,8 @@
       "lines_edited": 0,
       "critic_rejections": 0,
       "lessons_used": [],
-      "status": "repudiated"
+      "status": "repudiated",
+      "tolerance_rs": "1"
     },
     {
       "case_id": "CLM-0014",
@@ -248,7 +325,8 @@
       "lines_edited": 2,
       "critic_rejections": 0,
       "lessons_used": [],
-      "status": "settled"
+      "status": "settled",
+      "tolerance_rs": "1"
     },
     {
       "case_id": "CLM-0015",
@@ -259,18 +337,20 @@
       "lines_edited": 0,
       "critic_rejections": 0,
       "lessons_used": [],
-      "status": "settled"
+      "status": "settled",
+      "tolerance_rs": "1"
     },
     {
       "case_id": "CLM-0016",
-      "proposed_total": "73089.20",
-      "gold_total": "73089",
-      "abs_error": "0.20",
-      "edited": false,
-      "lines_edited": 0,
+      "proposed_total": "50372.13",
+      "gold_total": "59346",
+      "abs_error": "8973.87",
+      "edited": true,
+      "lines_edited": 2,
       "critic_rejections": 0,
       "lessons_used": [],
-      "status": "settled"
+      "status": "settled",
+      "tolerance_rs": "1"
     },
     {
       "case_id": "CLM-0017",
@@ -281,18 +361,20 @@
       "lines_edited": 0,
       "critic_rejections": 0,
       "lessons_used": [],
-      "status": "repudiated"
+      "status": "repudiated",
+      "tolerance_rs": "1"
     },
     {
       "case_id": "CLM-0018",
       "proposed_total": "111406.50",
-      "gold_total": "111406",
-      "abs_error": "0.50",
-      "edited": false,
-      "lines_edited": 0,
+      "gold_total": "0",
+      "abs_error": "111406.50",
+      "edited": true,
+      "lines_edited": 5,
       "critic_rejections": 0,
       "lessons_used": [],
-      "status": "settled"
+      "status": "settled",
+      "tolerance_rs": "1"
     },
     {
       "case_id": "CLM-0019",
@@ -303,7 +385,8 @@
       "lines_edited": 0,
       "critic_rejections": 0,
       "lessons_used": [],
-      "status": "settled"
+      "status": "settled",
+      "tolerance_rs": "1"
     },
     {
       "case_id": "CLM-0020",
@@ -314,7 +397,8 @@
       "lines_edited": 0,
       "critic_rejections": 0,
       "lessons_used": [],
-      "status": "settled"
+      "status": "settled",
+      "tolerance_rs": "1"
     }
   ],
   "per_case_after": [
@@ -328,7 +412,8 @@
         "lines_edited": 0,
         "critic_rejections": 0,
         "lessons_used": [],
-        "status": "repudiated"
+        "status": "repudiated",
+        "tolerance_rs": "1"
       },
       {
         "case_id": "CLM-0002",
@@ -339,7 +424,8 @@
         "lines_edited": 0,
         "critic_rejections": 0,
         "lessons_used": [],
-        "status": "repudiated"
+        "status": "repudiated",
+        "tolerance_rs": "1"
       },
       {
         "case_id": "CLM-0003",
@@ -350,7 +436,8 @@
         "lines_edited": 0,
         "critic_rejections": 0,
         "lessons_used": [],
-        "status": "repudiated"
+        "status": "repudiated",
+        "tolerance_rs": "1"
       },
       {
         "case_id": "CLM-0004",
@@ -361,11 +448,12 @@
         "lines_edited": 2,
         "critic_rejections": 0,
         "lessons_used": [
-          "LSN-2c44a77f",
-          "LSN-1c523724",
-          "LSN-579e6248"
+          "LSN-05148f18",
+          "LSN-4f4c8530",
+          "LSN-aaafa599"
         ],
-        "status": "settled"
+        "status": "settled",
+        "tolerance_rs": "1"
       },
       {
         "case_id": "CLM-0005",
@@ -376,11 +464,12 @@
         "lines_edited": 0,
         "critic_rejections": 0,
         "lessons_used": [
-          "LSN-2c44a77f",
-          "LSN-1c523724",
-          "LSN-579e6248"
+          "LSN-05148f18",
+          "LSN-4f4c8530",
+          "LSN-aaafa599"
         ],
-        "status": "settled"
+        "status": "settled",
+        "tolerance_rs": "1"
       },
       {
         "case_id": "CLM-0006",
@@ -391,11 +480,12 @@
         "lines_edited": 0,
         "critic_rejections": 0,
         "lessons_used": [
-          "LSN-2c44a77f",
-          "LSN-1c523724",
-          "LSN-579e6248"
+          "LSN-05148f18",
+          "LSN-4f4c8530",
+          "LSN-aaafa599"
         ],
-        "status": "settled"
+        "status": "settled",
+        "tolerance_rs": "1"
       },
       {
         "case_id": "CLM-0007",
@@ -406,7 +496,8 @@
         "lines_edited": 0,
         "critic_rejections": 0,
         "lessons_used": [],
-        "status": "repudiated"
+        "status": "repudiated",
+        "tolerance_rs": "1"
       },
       {
         "case_id": "CLM-0008",
@@ -417,11 +508,12 @@
         "lines_edited": 0,
         "critic_rejections": 0,
         "lessons_used": [
-          "LSN-2c44a77f",
-          "LSN-1c523724",
-          "LSN-579e6248"
+          "LSN-05148f18",
+          "LSN-4f4c8530",
+          "LSN-aaafa599"
         ],
-        "status": "settled"
+        "status": "settled",
+        "tolerance_rs": "1"
       },
       {
         "case_id": "CLM-0009",
@@ -432,11 +524,12 @@
         "lines_edited": 0,
         "critic_rejections": 0,
         "lessons_used": [
-          "LSN-2c44a77f",
-          "LSN-1c523724",
-          "LSN-579e6248"
+          "LSN-05148f18",
+          "LSN-4f4c8530",
+          "LSN-aaafa599"
         ],
-        "status": "settled"
+        "status": "settled",
+        "tolerance_rs": "1"
       },
       {
         "case_id": "CLM-0010",
@@ -447,11 +540,12 @@
         "lines_edited": 0,
         "critic_rejections": 0,
         "lessons_used": [
-          "LSN-2c44a77f",
-          "LSN-1c523724",
-          "LSN-579e6248"
+          "LSN-05148f18",
+          "LSN-4f4c8530",
+          "LSN-aaafa599"
         ],
-        "status": "settled"
+        "status": "settled",
+        "tolerance_rs": "1"
       },
       {
         "case_id": "CLM-0011",
@@ -462,11 +556,12 @@
         "lines_edited": 2,
         "critic_rejections": 0,
         "lessons_used": [
-          "LSN-2c44a77f",
-          "LSN-1c523724",
-          "LSN-579e6248"
+          "LSN-05148f18",
+          "LSN-4f4c8530",
+          "LSN-aaafa599"
         ],
-        "status": "settled"
+        "status": "settled",
+        "tolerance_rs": "1"
       },
       {
         "case_id": "CLM-0012",
@@ -477,11 +572,12 @@
         "lines_edited": 2,
         "critic_rejections": 0,
         "lessons_used": [
-          "LSN-2c44a77f",
-          "LSN-1c523724",
-          "LSN-579e6248"
+          "LSN-05148f18",
+          "LSN-4f4c8530",
+          "LSN-aaafa599"
         ],
-        "status": "settled"
+        "status": "settled",
+        "tolerance_rs": "1"
       },
       {
         "case_id": "CLM-0013",
@@ -492,7 +588,8 @@
         "lines_edited": 0,
         "critic_rejections": 0,
         "lessons_used": [],
-        "status": "repudiated"
+        "status": "repudiated",
+        "tolerance_rs": "1"
       },
       {
         "case_id": "CLM-0014",
@@ -503,11 +600,12 @@
         "lines_edited": 2,
         "critic_rejections": 0,
         "lessons_used": [
-          "LSN-2c44a77f",
-          "LSN-1c523724",
-          "LSN-579e6248"
+          "LSN-05148f18",
+          "LSN-4f4c8530",
+          "LSN-aaafa599"
         ],
-        "status": "settled"
+        "status": "settled",
+        "tolerance_rs": "1"
       },
       {
         "case_id": "CLM-0015",
@@ -518,26 +616,28 @@
         "lines_edited": 0,
         "critic_rejections": 0,
         "lessons_used": [
-          "LSN-2c44a77f",
-          "LSN-1c523724",
-          "LSN-579e6248"
+          "LSN-05148f18",
+          "LSN-4f4c8530",
+          "LSN-aaafa599"
         ],
-        "status": "settled"
+        "status": "settled",
+        "tolerance_rs": "1"
       },
       {
         "case_id": "CLM-0016",
-        "proposed_total": "73089.20",
-        "gold_total": "73089",
-        "abs_error": "0.20",
-        "edited": false,
-        "lines_edited": 0,
+        "proposed_total": "50372.13",
+        "gold_total": "59346",
+        "abs_error": "8973.87",
+        "edited": true,
+        "lines_edited": 2,
         "critic_rejections": 0,
         "lessons_used": [
-          "LSN-2c44a77f",
-          "LSN-1c523724",
-          "LSN-579e6248"
+          "LSN-05148f18",
+          "LSN-4f4c8530",
+          "LSN-5fb19c80"
         ],
-        "status": "settled"
+        "status": "settled",
+        "tolerance_rs": "1"
       },
       {
         "case_id": "CLM-0017",
@@ -548,22 +648,24 @@
         "lines_edited": 0,
         "critic_rejections": 0,
         "lessons_used": [],
-        "status": "repudiated"
+        "status": "repudiated",
+        "tolerance_rs": "1"
       },
       {
         "case_id": "CLM-0018",
         "proposed_total": "111406.50",
-        "gold_total": "111406",
-        "abs_error": "0.50",
-        "edited": false,
-        "lines_edited": 0,
+        "gold_total": "0",
+        "abs_error": "111406.50",
+        "edited": true,
+        "lines_edited": 5,
         "critic_rejections": 0,
         "lessons_used": [
-          "LSN-2c44a77f",
-          "LSN-1c523724",
-          "LSN-579e6248"
+          "LSN-05148f18",
+          "LSN-4f4c8530",
+          "LSN-aaafa599"
         ],
-        "status": "settled"
+        "status": "settled",
+        "tolerance_rs": "1"
       },
       {
         "case_id": "CLM-0019",
@@ -574,11 +676,12 @@
         "lines_edited": 0,
         "critic_rejections": 0,
         "lessons_used": [
-          "LSN-2c44a77f",
-          "LSN-1c523724",
-          "LSN-579e6248"
+          "LSN-05148f18",
+          "LSN-4f4c8530",
+          "LSN-aaafa599"
         ],
-        "status": "settled"
+        "status": "settled",
+        "tolerance_rs": "1"
       },
       {
         "case_id": "CLM-0020",
@@ -589,11 +692,12 @@
         "lines_edited": 0,
         "critic_rejections": 0,
         "lessons_used": [
-          "LSN-2c44a77f",
-          "LSN-1c523724",
-          "LSN-579e6248"
+          "LSN-05148f18",
+          "LSN-4f4c8530",
+          "LSN-aaafa599"
         ],
-        "status": "settled"
+        "status": "settled",
+        "tolerance_rs": "1"
       }
     ],
     [
@@ -606,7 +710,8 @@
         "lines_edited": 0,
         "critic_rejections": 0,
         "lessons_used": [],
-        "status": "repudiated"
+        "status": "repudiated",
+        "tolerance_rs": "1"
       },
       {
         "case_id": "CLM-0002",
@@ -617,7 +722,8 @@
         "lines_edited": 0,
         "critic_rejections": 0,
         "lessons_used": [],
-        "status": "repudiated"
+        "status": "repudiated",
+        "tolerance_rs": "1"
       },
       {
         "case_id": "CLM-0003",
@@ -628,7 +734,8 @@
         "lines_edited": 0,
         "critic_rejections": 0,
         "lessons_used": [],
-        "status": "repudiated"
+        "status": "repudiated",
+        "tolerance_rs": "1"
       },
       {
         "case_id": "CLM-0004",
@@ -639,11 +746,12 @@
         "lines_edited": 2,
         "critic_rejections": 0,
         "lessons_used": [
-          "LSN-2c44a77f",
-          "LSN-1c523724",
-          "LSN-579e6248"
+          "LSN-05148f18",
+          "LSN-4f4c8530",
+          "LSN-aaafa599"
         ],
-        "status": "settled"
+        "status": "settled",
+        "tolerance_rs": "1"
       },
       {
         "case_id": "CLM-0005",
@@ -654,11 +762,12 @@
         "lines_edited": 0,
         "critic_rejections": 0,
         "lessons_used": [
-          "LSN-2c44a77f",
-          "LSN-1c523724",
-          "LSN-579e6248"
+          "LSN-05148f18",
+          "LSN-4f4c8530",
+          "LSN-aaafa599"
         ],
-        "status": "settled"
+        "status": "settled",
+        "tolerance_rs": "1"
       },
       {
         "case_id": "CLM-0006",
@@ -669,11 +778,12 @@
         "lines_edited": 0,
         "critic_rejections": 0,
         "lessons_used": [
-          "LSN-2c44a77f",
-          "LSN-1c523724",
-          "LSN-579e6248"
+          "LSN-05148f18",
+          "LSN-4f4c8530",
+          "LSN-aaafa599"
         ],
-        "status": "settled"
+        "status": "settled",
+        "tolerance_rs": "1"
       },
       {
         "case_id": "CLM-0007",
@@ -684,7 +794,8 @@
         "lines_edited": 0,
         "critic_rejections": 0,
         "lessons_used": [],
-        "status": "repudiated"
+        "status": "repudiated",
+        "tolerance_rs": "1"
       },
       {
         "case_id": "CLM-0008",
@@ -695,11 +806,12 @@
         "lines_edited": 0,
         "critic_rejections": 0,
         "lessons_used": [
-          "LSN-2c44a77f",
-          "LSN-1c523724",
-          "LSN-579e6248"
+          "LSN-05148f18",
+          "LSN-4f4c8530",
+          "LSN-aaafa599"
         ],
-        "status": "settled"
+        "status": "settled",
+        "tolerance_rs": "1"
       },
       {
         "case_id": "CLM-0009",
@@ -710,11 +822,12 @@
         "lines_edited": 0,
         "critic_rejections": 0,
         "lessons_used": [
-          "LSN-2c44a77f",
-          "LSN-1c523724",
-          "LSN-579e6248"
+          "LSN-05148f18",
+          "LSN-4f4c8530",
+          "LSN-aaafa599"
         ],
-        "status": "settled"
+        "status": "settled",
+        "tolerance_rs": "1"
       },
       {
         "case_id": "CLM-0010",
@@ -725,11 +838,12 @@
         "lines_edited": 0,
         "critic_rejections": 0,
         "lessons_used": [
-          "LSN-2c44a77f",
-          "LSN-1c523724",
-          "LSN-579e6248"
+          "LSN-05148f18",
+          "LSN-4f4c8530",
+          "LSN-aaafa599"
         ],
-        "status": "settled"
+        "status": "settled",
+        "tolerance_rs": "1"
       },
       {
         "case_id": "CLM-0011",
@@ -740,11 +854,12 @@
         "lines_edited": 2,
         "critic_rejections": 0,
         "lessons_used": [
-          "LSN-2c44a77f",
-          "LSN-1c523724",
-          "LSN-579e6248"
+          "LSN-05148f18",
+          "LSN-4f4c8530",
+          "LSN-aaafa599"
         ],
-        "status": "settled"
+        "status": "settled",
+        "tolerance_rs": "1"
       },
       {
         "case_id": "CLM-0012",
@@ -755,11 +870,12 @@
         "lines_edited": 2,
         "critic_rejections": 0,
         "lessons_used": [
-          "LSN-2c44a77f",
-          "LSN-1c523724",
-          "LSN-579e6248"
+          "LSN-05148f18",
+          "LSN-4f4c8530",
+          "LSN-aaafa599"
         ],
-        "status": "settled"
+        "status": "settled",
+        "tolerance_rs": "1"
       },
       {
         "case_id": "CLM-0013",
@@ -770,7 +886,8 @@
         "lines_edited": 0,
         "critic_rejections": 0,
         "lessons_used": [],
-        "status": "repudiated"
+        "status": "repudiated",
+        "tolerance_rs": "1"
       },
       {
         "case_id": "CLM-0014",
@@ -781,11 +898,12 @@
         "lines_edited": 2,
         "critic_rejections": 0,
         "lessons_used": [
-          "LSN-2c44a77f",
-          "LSN-1c523724",
-          "LSN-579e6248"
+          "LSN-05148f18",
+          "LSN-4f4c8530",
+          "LSN-aaafa599"
         ],
-        "status": "settled"
+        "status": "settled",
+        "tolerance_rs": "1"
       },
       {
         "case_id": "CLM-0015",
@@ -796,26 +914,28 @@
         "lines_edited": 0,
         "critic_rejections": 0,
         "lessons_used": [
-          "LSN-2c44a77f",
-          "LSN-1c523724",
-          "LSN-579e6248"
+          "LSN-05148f18",
+          "LSN-4f4c8530",
+          "LSN-aaafa599"
         ],
-        "status": "settled"
+        "status": "settled",
+        "tolerance_rs": "1"
       },
       {
         "case_id": "CLM-0016",
-        "proposed_total": "73089.20",
-        "gold_total": "73089",
-        "abs_error": "0.20",
-        "edited": false,
-        "lines_edited": 0,
+        "proposed_total": "50372.13",
+        "gold_total": "59346",
+        "abs_error": "8973.87",
+        "edited": true,
+        "lines_edited": 2,
         "critic_rejections": 0,
         "lessons_used": [
-          "LSN-2c44a77f",
-          "LSN-1c523724",
-          "LSN-579e6248"
+          "LSN-05148f18",
+          "LSN-4f4c8530",
+          "LSN-5fb19c80"
         ],
-        "status": "settled"
+        "status": "settled",
+        "tolerance_rs": "1"
       },
       {
         "case_id": "CLM-0017",
@@ -826,22 +946,24 @@
         "lines_edited": 0,
         "critic_rejections": 0,
         "lessons_used": [],
-        "status": "repudiated"
+        "status": "repudiated",
+        "tolerance_rs": "1"
       },
       {
         "case_id": "CLM-0018",
         "proposed_total": "111406.50",
-        "gold_total": "111406",
-        "abs_error": "0.50",
-        "edited": false,
-        "lines_edited": 0,
+        "gold_total": "0",
+        "abs_error": "111406.50",
+        "edited": true,
+        "lines_edited": 5,
         "critic_rejections": 0,
         "lessons_used": [
-          "LSN-2c44a77f",
-          "LSN-1c523724",
-          "LSN-579e6248"
+          "LSN-05148f18",
+          "LSN-4f4c8530",
+          "LSN-aaafa599"
         ],
-        "status": "settled"
+        "status": "settled",
+        "tolerance_rs": "1"
       },
       {
         "case_id": "CLM-0019",
@@ -852,11 +974,12 @@
         "lines_edited": 0,
         "critic_rejections": 0,
         "lessons_used": [
-          "LSN-2c44a77f",
-          "LSN-1c523724",
-          "LSN-579e6248"
+          "LSN-05148f18",
+          "LSN-4f4c8530",
+          "LSN-aaafa599"
         ],
-        "status": "settled"
+        "status": "settled",
+        "tolerance_rs": "1"
       },
       {
         "case_id": "CLM-0020",
@@ -867,11 +990,12 @@
         "lines_edited": 0,
         "critic_rejections": 0,
         "lessons_used": [
-          "LSN-2c44a77f",
-          "LSN-1c523724",
-          "LSN-579e6248"
+          "LSN-05148f18",
+          "LSN-4f4c8530",
+          "LSN-aaafa599"
         ],
-        "status": "settled"
+        "status": "settled",
+        "tolerance_rs": "1"
       }
     ]
   ]

@@ -24,6 +24,7 @@ from __future__ import annotations
 import argparse
 import sys
 from datetime import UTC, datetime
+from decimal import Decimal
 from pathlib import Path
 
 from claimsense.reflexion import Playbook, evaluate, langgraph_run_fn, local_run_fn, run_heldout
@@ -64,8 +65,16 @@ def main(argv=None) -> None:
     ap.add_argument("--repeat", type=int, default=3, help="repeat the with-playbook run (brief: 3)")
     ap.add_argument("--executor", choices=["local", "langgraph"], default="local")
     ap.add_argument("--calculator", choices=["reference", "team"], default="reference")
+    ap.add_argument(
+        "--tolerance-rs",
+        type=Decimal,
+        default=Decimal("0"),
+        help="rounding tolerance in rupees, use the SAME value as the day-4 run; 0 = strict",
+    )
     ap.add_argument("--allow-inside-repo", action="store_true", help="tests only")
     args = ap.parse_args(argv)
+    if args.tolerance_rs < 0:
+        sys.exit("--tolerance-rs must be 0 or positive")
 
     heldout_dir, out = Path(args.heldout), Path(args.out)
     if not args.allow_inside_repo:
@@ -92,13 +101,15 @@ def main(argv=None) -> None:
 
     # run_heldout performs every guard (frozen, unchanged, no leaked lesson, no id overlap) and
     # the first before/after pass; the per-case tables and the repeats come from evaluate().
-    before, _after_first = run_heldout(run_fn, held, pb, dev)
-    before_results = evaluate(run_fn, held, None)
-    after_runs = [evaluate(run_fn, held, pb) for _ in range(args.repeat)]
+    tol = args.tolerance_rs
+    before, _after_first = run_heldout(run_fn, held, pb, dev, tol)
+    before_results = evaluate(run_fn, held, None, tol)
+    after_runs = [evaluate(run_fn, held, pb, tol) for _ in range(args.repeat)]
 
     banner = (
         f"mode: {mode_label()} | executor: {args.executor} | calculator: {args.calculator} | "
-        f"playbook hash: {pb.frozen_hash} | approved lessons: {playbook_counts(pb)['approved']}"
+        f"tolerance: Rs {tol} | playbook hash: {pb.frozen_hash} | "
+        f"approved lessons: {playbook_counts(pb)['approved']}"
     )
     out.mkdir(parents=True, exist_ok=True)
     md = [
@@ -136,6 +147,7 @@ def main(argv=None) -> None:
         to_json(
             {
                 "mode": banner,
+                "tolerance_rs": tol,
                 "playbook_hash": pb.frozen_hash,
                 "before": before,
                 "after_runs": [summarize(r) for r in after_runs],

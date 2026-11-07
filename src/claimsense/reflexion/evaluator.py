@@ -4,6 +4,13 @@ Three feedback sources, as the brief asks:
 1. adjudicator edits (on dev claims, a simulated adjudicator who knows the gold worksheet);
 2. critic rejections recorded in critic_history;
 3. the difference between the first worksheet shown to the adjudicator and the gold worksheet.
+
+Rounding tolerance (`tolerance_rs`, default 0 = strict): the development gold is recorded in whole
+rupees while the calculator keeps paise, so a correctly cut line can differ from the gold by up to
+Rs 0.50. With a tolerance, a line whose payable is within that many rupees of the gold counts as
+agreeing: the simulated adjudicator does not edit it and no `gold_diff` mistake is raised for it.
+Settlement error in rupees is always reported exactly; the tolerance only decides what counts as a
+mistake worth a lesson. Agreed with the lead (Nov 2026 walkthrough): it lives here, not in the gold.
 """
 
 from __future__ import annotations
@@ -16,7 +23,7 @@ from claimsense.contracts import ApprovalDecision, Worksheet
 
 
 class DevCase(BaseModel):
-    """One development or held-out case. TODO(day 4): write load_cases() for eval/'s format."""
+    """One development or held-out case. Built from `eval/golden_dev/` by `cases.load_cases()`."""
 
     case_id: str
     packet: dict
@@ -29,7 +36,11 @@ class DevCase(BaseModel):
         """Prefer explicit gold choices; otherwise infer from the gold deductions' clauses."""
         if self.gold_clause_choices or self.gold_worksheet is None:
             return dict(self.gold_clause_choices)
-        return {l.line_id: l.deductions[0].clause_id for l in self.gold_worksheet.lines if l.deductions}
+        return {
+            ln.line_id: ln.deductions[0].clause_id
+            for ln in self.gold_worksheet.lines
+            if ln.deductions
+        }
 
 
 class Mistake(BaseModel):
@@ -47,12 +58,22 @@ class SimulatedAdjudicator:
     """Plays the adjudicator on dev claims: corrects lines whose clause differs from gold, once,
     then approves. Records the FIRST worksheet it was shown: that is what we score."""
 
-    def __init__(self, case: DevCase, reviewer_id: str = "sim-adjudicator"):
+    def __init__(
+        self,
+        case: DevCase,
+        reviewer_id: str = "sim-adjudicator",
+        tolerance_rs: Decimal = Decimal("0"),
+    ):
         self.case, self.reviewer_id = case, reviewer_id
+        self.tolerance_rs = Decimal(tolerance_rs)
         self.first_payload: dict | None = None
         self.edits_made: list[dict] = []
         self.edited = False
         self.rounds = 0
+
+    def agrees(self, gold_payable: Decimal, payable: Decimal) -> bool:
+        """Within the rounding tolerance counts as the same amount."""
+        return abs(gold_payable - payable) <= self.tolerance_rs
 
     def __call__(self, payload: dict) -> dict:
         self.rounds += 1
@@ -62,57 +83,98 @@ class SimulatedAdjudicator:
         if payload["kind"] == "repudiation":
             ok = not self.case.gold_admissible
             self.edited = self.edited or not ok
-            return {**me, "decision": ApprovalDecision.APPROVE if ok else ApprovalDecision.EDIT,
-                    "edits": [], "note": None if ok else "claim is admissible"}
+            return {
+                **me,
+                "decision": ApprovalDecision.APPROVE if ok else ApprovalDecision.EDIT,
+                "edits": [],
+                "note": None if ok else "claim is admissible",
+            }
         if self.edits_made or self.case.gold_worksheet is None:
             return {**me, "decision": ApprovalDecision.APPROVE}
         gold = self.case.gold_choices()
         ws = Worksheet.model_validate(payload["worksheet"])
-        gold_lines = {l.line_id: l for l in self.case.gold_worksheet.lines}
+        gold_lines = {ln.line_id: ln for ln in self.case.gold_worksheet.lines}
         edits = []
         for line in ws.lines:
             g = gold_lines.get(line.line_id)
-            if g is None or g.payable == line.payable:
+            if g is None or self.agrees(g.payable, line.payable):
                 continue
             got = line.deductions[0].clause_id if line.deductions else None
             want = gold.get(line.line_id)
             if want and want != got:
-                edits.append({"line_id": line.line_id, "clause_id": want,
-                              "reason": f"should be governed by {want}, not {got}"})
+                edits.append(
+                    {
+                        "line_id": line.line_id,
+                        "clause_id": want,
+                        "reason": f"should be governed by {want}, not {got}",
+                    }
+                )
         if not edits:
             return {**me, "decision": ApprovalDecision.APPROVE}
         self.edits_made, self.edited = edits, True
         return {**me, "decision": ApprovalDecision.EDIT, "edits": edits}
 
 
-def mistakes_from_run(case: DevCase, final_state: dict, adjudicator: SimulatedAdjudicator) -> list[Mistake]:
+def mistakes_from_run(
+    case: DevCase, final_state: dict, adjudicator: SimulatedAdjudicator
+) -> list[Mistake]:
     out: list[Mistake] = []
     claim = final_state.get("claim")
-    cat = {l.line_id: l.category.value for l in claim.bill_lines} if claim else {}
+    cat = {ln.line_id: ln.category.value for ln in claim.bill_lines} if claim else {}
     first = adjudicator.first_payload or {}
     proposed = Worksheet.model_validate(first["worksheet"]) if first.get("worksheet") else None
 
     for e in final_state.get("edit_log", []):
-        out.append(Mistake(case_id=case.case_id, source="adjudicator_edit", line_id=e["line_id"],
-                           category=cat.get(e["line_id"]), got_clause=e.get("old_clause"),
-                           expected_clause=e.get("new_clause"), detail=e.get("reason", "")))
+        out.append(
+            Mistake(
+                case_id=case.case_id,
+                source="adjudicator_edit",
+                line_id=e["line_id"],
+                category=cat.get(e["line_id"]),
+                got_clause=e.get("old_clause"),
+                expected_clause=e.get("new_clause"),
+                detail=e.get("reason", ""),
+            )
+        )
     for rep in final_state.get("critic_history", []):
         for i in rep.issues:
-            out.append(Mistake(case_id=case.case_id, source="critic_rejection", line_id=i.line_id,
-                               category=cat.get(i.line_id or ""), detail=f"{i.kind}: {i.message}"))
+            out.append(
+                Mistake(
+                    case_id=case.case_id,
+                    source="critic_rejection",
+                    line_id=i.line_id,
+                    category=cat.get(i.line_id or ""),
+                    detail=f"{i.kind}: {i.message}",
+                )
+            )
     if proposed is not None and case.gold_worksheet is not None:
-        gold = {l.line_id: l for l in case.gold_worksheet.lines}
+        gold = {ln.line_id: ln for ln in case.gold_worksheet.lines}
         edited = {e["line_id"] for e in final_state.get("edit_log", [])}
-        for l in proposed.lines:
-            g = gold.get(l.line_id)
-            if g and g.payable != l.payable and l.line_id not in edited:
-                out.append(Mistake(case_id=case.case_id, source="gold_diff", line_id=l.line_id,
-                                   category=cat.get(l.line_id), rupee_error=abs(g.payable - l.payable),
-                                   got_clause=l.deductions[0].clause_id if l.deductions else None,
-                                   expected_clause=case.gold_choices().get(l.line_id),
-                                   detail=f"payable {l.payable} vs gold {g.payable}"))
-    if not case.gold_admissible and final_state.get("admissibility") and \
-            final_state["admissibility"].admissible:
-        out.append(Mistake(case_id=case.case_id, source="gold_diff",
-                           detail="claim should have been found not admissible"))
+        for ln in proposed.lines:
+            g = gold.get(ln.line_id)
+            if g and not adjudicator.agrees(g.payable, ln.payable) and ln.line_id not in edited:
+                out.append(
+                    Mistake(
+                        case_id=case.case_id,
+                        source="gold_diff",
+                        line_id=ln.line_id,
+                        category=cat.get(ln.line_id),
+                        rupee_error=abs(g.payable - ln.payable),
+                        got_clause=ln.deductions[0].clause_id if ln.deductions else None,
+                        expected_clause=case.gold_choices().get(ln.line_id),
+                        detail=f"payable {ln.payable} vs gold {g.payable}",
+                    )
+                )
+    if (
+        not case.gold_admissible
+        and final_state.get("admissibility")
+        and final_state["admissibility"].admissible
+    ):
+        out.append(
+            Mistake(
+                case_id=case.case_id,
+                source="gold_diff",
+                detail="claim should have been found not admissible",
+            )
+        )
     return out

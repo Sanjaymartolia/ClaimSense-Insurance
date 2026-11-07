@@ -1,103 +1,187 @@
-# Reflexion experiment (E3): plan day 4 and day 5
+# Reflexion experiment (signature challenge B, L12): how to run it and what is here
 
-Owner: Dhruvi Ramani (Agents & Orchestration, Reflexion part). Harness: Spandan's
-`src/claimsense/reflexion/`. This folder holds the run outputs and the write-up.
+Owner: Dhruvi Ramani (Agents & Orchestration, Reflexion part). The whole `src/claimsense/reflexion/`
+package is this part's code; the harness files in it (`evaluator.py`, `loop.py`, `playbook.py`,
+`reflector.py`, `metrics.py`, `review_cli.py`) started as Spandan Basu's boilerplate.
+This folder holds the run outputs and the write-up.
+
+If you are new to Reflexion, read `REPORT-SECTION.md` section 1 first: it explains the idea in plain
+words and how it differs from the adjudicator approval in the graph.
 
 | Read | For |
 |---|---|
-| `REPORT-SECTION.md` | the report section: method, results (PENDING slots for the reviewed run), design decisions, limitations |
-| `VIVA-NOTES.md` | plain-language explanation, file map, likely questions |
-| `harness-check-stub/` | a complete stub-mode run (auto-approved, stamped "HARNESS CHECK ONLY") proving the loop runs |
-| `run-01/` | the reviewed run, once it has been done with a real model |
+| `REPORT-SECTION.md` | the report section: what Reflexion is, the loop, method, results, every lesson with its review note, design decisions, what the brief asks and where it is answered, open items |
+| `run-01/` | the reviewed run of 1 Nov 2026: real model, human gate, frozen playbook (`playbook.json` is the playbook) |
+| `harness-check-stub/` | a complete stub-mode run, auto-approved, stamped "HARNESS CHECK ONLY", proving the loop runs on the current gold (rerun 7 Nov 2026) |
+| `langgraph-check/` | the real-model baseline run through the LangGraph executor instead of the local runner, same numbers |
+| `run-02/` | the reviewed run of 7 Nov 2026 on the gold as corrected by the 4 Nov 2026 audit, tolerance Rs 1: the current result |
 
-## What was added (no existing file changed)
+## Files of this part
 
 | File | What |
 |---|---|
-| `src/claimsense/reflexion/cases.py` | `load_cases()`: turns `eval/golden_dev/` into `DevCase` objects. Maps starter-pack categories and gold reason codes onto the contracts; raises on anything unmapped. Also `stub_services_factory()` and `RULE_DISAGREEMENTS`. |
-| `src/claimsense/reflexion/reporting.py` | Markdown/JSON rendering shared by both scripts: per-case tables, error breakdown, lesson and ablation tables, spread across repeats. |
+| `src/claimsense/reflexion/cases.py` | `load_cases()`: turns `eval/golden_dev/` into `DevCase` objects. Maps starter-pack categories and gold reason codes onto the contracts; raises on anything unmapped. Also `stub_services_factory()`, `MATERNITY_EXCLUSION` and `RULE_DISAGREEMENTS`. |
+| `src/claimsense/reflexion/evaluator.py` | the evaluator (code, no model): simulated adjudicator, critic rejections, difference from gold; rounding tolerance |
+| `src/claimsense/reflexion/reflector.py` | one model call per mistake → one lesson; blocks lessons that quote amounts or ids |
+| `src/claimsense/reflexion/playbook.py` | the playbook: lessons and their status, retrieval of approved lessons, freeze with SHA-256 |
+| `src/claimsense/reflexion/loop.py` | baseline → learn → ablate → withdraw → after → freeze; the held-out guards |
+| `src/claimsense/reflexion/metrics.py` | settlement error, exact-match rate, edit rate |
+| `src/claimsense/reflexion/review_cli.py` | the human gate at the terminal (`y`/`n` plus a reason) |
+| `src/claimsense/reflexion/reporting.py` | Markdown/JSON rendering shared by both scripts |
 | `scripts/run_reflexion_experiment.py` | Day 4: `baseline`, `experiment`, `status`. Writes `baseline.md/json`, `report.md/json`, `playbook.json` into `--out`. |
 | `scripts/run_reflexion_heldout.py` | Day 5, for the Evaluation owner: before/after on the held-out set with the frozen playbook, 3 repeats, spread. Refuses anything inside the repo. |
-| `tests/orchestration/test_cases.py` | 9 tests: loading, contract validity, gold reconciliation, reason-code mapping, unknown codes raise, stub dry run of all 20, both scripts end to end including every refusal. |
-| `docs/experiments/reflexion/` | this folder |
+| `tests/orchestration/test_cases.py` | 11 tests: loading, contract validity, gold reconciliation, reason-code mapping, the 4 Nov gold relabels, unknown codes raise, stub dry run of all 20, the tolerance, both scripts end to end including every refusal |
+| `tests/orchestration/test_reflexion.py` | 5 harness tests: learn → approve → improve → ablate → freeze on synthetic cases |
 
-The plan's day-1 text asked for `load_cases()` inside `evaluator.py`; it lives in `cases.py`
-instead so that no teammate file is touched. Import: `from claimsense.reflexion.cases import load_cases`.
+Nothing outside these files is touched by this part. `agents/coverage.py` reads the playbook
+(`CoverageAgent.lessons_for()`), but that hook already existed.
 
-## How to run day 4
+## 1. Run it without a model (stub mode, anyone, two minutes)
 
 ```bash
-source .venv/bin/activate            # macOS/Linux; Windows Git Bash: .venv/Scripts/activate
-pytest tests/orchestration -q        # 30 tests, stub mode, no key needed
+pip install -e ".[dev,agents]"       # once, inside your virtualenv
+pytest tests/orchestration -q        # 32 tests, no key, no network
 
-# 1. baseline with an empty playbook
-python scripts/run_reflexion_experiment.py baseline --out docs/experiments/reflexion/run-01
+# baseline with an empty playbook (what the system does before any lesson)
+python scripts/run_reflexion_experiment.py baseline --out /tmp/reflexion-check --tolerance-rs 1
 
-# 2. full experiment: a person answers y/n for every proposed lesson at the terminal
-python scripts/run_reflexion_experiment.py experiment --reviewer "<name>" \
-    --out docs/experiments/reflexion/run-01 --after-runs 2
-
-# 3. check the frozen playbook
-python scripts/run_reflexion_experiment.py status --out docs/experiments/reflexion/run-01
+# the whole loop with every lesson auto-approved: a harness check, NOT a result
+python scripts/run_reflexion_experiment.py experiment --approve auto --reviewer "<name>" \
+    --out /tmp/reflexion-check --after-runs 2 --tolerance-rs 1
 ```
 
-Stub mode is the default whenever `OPENROUTER_API_KEY` is absent or `CLAIMSENSE_LLM=stub`.
-For the reported run: put the key in `.env` (never commit it), run from a network that reaches
-`openrouter.ai`, use `--approve console`, and ideally have the domain lead be the reviewer.
-`--approve auto` exists only to check the harness and stamps the report as not reportable.
+Stub mode is on whenever `OPENROUTER_API_KEY` is not set, or when `CLAIMSENSE_LLM=stub`. The stub
+coverage analyst picks clauses deterministically and the stub reflector writes template lessons, so
+the numbers prove the loop runs, nothing more. `--approve auto` prints a warning and stamps
+`report.md` "HARNESS CHECK ONLY".
 
-## How to run day 5 (Evaluation owner)
+## 2. Run it with the real model (the reported run)
+
+Each team member uses their **own** OpenRouter key. Keys live only in your shell or in a local
+`.env` that git ignores. Never paste a key into a file that is committed, a chat, or a screenshot.
+
+**Step 1: network.** Use a network that reaches `openrouter.ai` (corporate proxies block it).
+
+**Step 2: key and models.** The course key does not allow `openai/gpt-4.1`, which is the
+reflector's default, so point the reflector at `gpt-4.1-mini` too.
+
+```powershell
+# Windows PowerShell (nothing here is saved to disk)
+$env:OPENROUTER_API_KEY = "<your own key>"
+$env:CLAIMSENSE_MODEL_REFLECTOR = "openai/gpt-4.1-mini"
+```
+
+```bash
+# macOS / Linux / Git Bash
+export OPENROUTER_API_KEY="<your own key>"
+export CLAIMSENSE_MODEL_REFLECTOR="openai/gpt-4.1-mini"
+```
+
+Other model ids can be overridden the same way (`CLAIMSENSE_MODEL_COVERAGE`, `_CRITIC`,
+`_FRAUD`, `_EXTRACTION`, `_SETTLEMENT`); the defaults are in `src/claimsense/agents/llm.py`.
+
+**Step 3: baseline.** Pick a new output folder; a folder with a frozen playbook is refused.
+
+```bash
+python scripts/run_reflexion_experiment.py baseline \
+    --out docs/experiments/reflexion/run-02 --tolerance-rs 1
+```
+
+The first line printed is the banner. Check it says `mode: REAL MODEL via OpenRouter`; if it says
+`STUB`, the key is not in the environment.
+
+**Step 4: the experiment.** A person sits at the terminal. For every proposed lesson the script
+prints the lesson, when it applies and the clauses it cites, and asks `approve? [y/n]`. On `n` it
+asks for the reason, which is stored with the lesson. Approve a lesson only if it restates the
+policy wording correctly and would help on a *different* claim; reject anything that encodes the
+gold file's demo rules against the wording, cites a clause id that does not exist, is vague, or
+duplicates an approved lesson.
+
+```bash
+python scripts/run_reflexion_experiment.py experiment --reviewer "<your name>" \
+    --out docs/experiments/reflexion/run-02 --after-runs 2 --tolerance-rs 1
+```
+
+Stages, printed as `[1/6]` to `[6/6]`: baseline → learning pass with the human gate → ablation
+(leave one approved lesson out at a time) → withdraw harmful lessons → after pass, twice → freeze.
+It writes `report.md`, `report.json`, `playbook.json` (frozen, with its hash) into `--out`.
+
+**Step 5: check the frozen playbook.**
+
+```bash
+python scripts/run_reflexion_experiment.py status --out docs/experiments/reflexion/run-02
+```
+
+**Step 6: report.** Copy the before/after table and the lesson counts from `report.md` into
+`REPORT-SECTION.md` section 4. Commit the `run-02/` folder (no key is ever written into it).
+
+Useful switches: `--executor langgraph` runs the real LangGraph graph instead of the local runner
+(same numbers, slower); `--calculator team` uses the team calculator through
+`agents.services.real_calculate`; `--tolerance-rs 0` is strict scoring.
+
+### What `--tolerance-rs` does
+
+The development gold is written in whole rupees; the calculator keeps paise. A correctly cut line
+can therefore differ from the gold by up to Rs 0.50, and strict scoring treats that as a mistake,
+which in `run-01` produced two "do not round prematurely" lessons that no clause choice can act on.
+With `--tolerance-rs 1`, a line within Rs 1 of the gold counts as agreeing: the simulated
+adjudicator does not edit it and no mistake is raised for it. Settlement error in rupees is always
+reported exactly; only `exact_match_rate` and the mistake list change. The tolerance is printed in
+the banner and stored in every result file. Agreed with the lead: this belongs in the evaluator,
+the gold is not changed.
+
+## 3. Day 5: held-out run (Evaluation owner only)
 
 ```bash
 python scripts/run_reflexion_heldout.py \
-    --playbook docs/experiments/reflexion/run-01/playbook.json \
+    --playbook docs/experiments/reflexion/run-02/playbook.json \
     --heldout ../claimsense-heldout \
-    --out ../claimsense-heldout-results/run-01 --repeat 3
+    --out ../claimsense-heldout-results/run-02 --repeat 3 --tolerance-rs 1
 ```
 
-It refuses to run if the playbook is not frozen, changed since freezing, contains a lesson learned
-from a held-out case, if a held-out id also appears in the dev set, or if the held-out directory or
-the output directory is inside the repository. Held-out files are expected in the `golden_dev`
-format. Paste its `heldout_report.md` tables into `REPORT-SECTION.md` section 4.3.
+Use the same `--tolerance-rs` as the day-4 run. It refuses to run if the playbook is not frozen,
+changed since freezing, contains a lesson learned from a held-out case, if a held-out id also
+appears in the dev set, or if the held-out directory or the output directory is inside the
+repository. Held-out files are expected in the `golden_dev` format. Paste its `heldout_report.md`
+tables into `REPORT-SECTION.md` section 4.4.
 
-## Reviewed run, 1 Nov 2026 (real model, human gate) — the reported result
+## 4. Results so far
 
-`run-01/`: real model (`openai/gpt-4.1-mini`; reflector overridden with
-`CLAIMSENSE_MODEL_REFLECTOR` because `openai/gpt-4.1` is not on the course key), reviewer
-Dhruvi Ramani at the console. Baseline Rs 65,989.27 / exact 0.3 / edit rate 0.2; after pass
-identical in both runs. 14 lessons proposed, 2 approved, 12 rejected with reasons, 0 withdrawn.
-Frozen hash `6b4c530d988ac0615a32c258af3968d54475de1bc0dcce98edb2e20de14559b7`. Full reading in
-`REPORT-SECTION.md` section 4.2.
+| Run | Gold | Model | Tolerance | Before → after | Lessons |
+|---|---|---|---|---|---|
+| `run-01/` (1 Nov 2026, reviewed) | pre-audit | `openai/gpt-4.1-mini`, reviewer Dhruvi Ramani at the console | 0 | Rs 65,989.27 / exact 0.30 / edit 0.20 → identical, both after runs | 14 proposed, 2 approved, 12 rejected with reasons, 0 withdrawn; frozen hash `6b4c530d…` |
+| `harness-check-stub/` (7 Nov 2026, not a result) | post-audit (4 Nov) | stub, auto-approved | Rs 1 | Rs 186,368.94 / exact 0.50 / edit 0.30 → identical | 6 template lessons, none harmful |
+| `run-02/` (7 Nov 2026, reviewed) | post-audit (4 Nov) | `openai/gpt-4.1-mini`, reviewer Dhruvi Ramani at the console | Rs 1 | Rs 186,368.94 / exact 0.50 / edit 0.30 → identical, both after runs | 19 proposed, 1 approved, 18 rejected with reasons, 0 withdrawn; frozen hash `b5666378…` |
 
-## Harness check, 1 Nov 2026 (stub mode, auto-approve, not a result)
+Why the stub baseline error grew from Rs 65,989 to Rs 186,369 between the two gold versions: the
+audit relabelled CLM-0018 (caesarean, excluded under clause 7.15, gold now Rs 0) and the pipeline
+has no exclusion check yet, and it re-filed CLM-0016's ICU line, where the calculator now applies
+the proportional cut to the other lines and the gold does not. Both are listed in
+`RULE_DISAGREEMENTS` and in `REPORT-SECTION.md` section 7. Full reading of `run-01` in
+`REPORT-SECTION.md` section 4.2 and of `run-02` in section 4.3.
 
-| metric | before | after |
-|---|---|---|
-| settlement_error_total_rs | 65989.27 | 65989.27 |
-| exact_match_rate | 0.3 | 0.3 |
-| edit_rate | 0.2 | 0.2 |
+## 5. Decisions taken with the lead (walkthrough, Nov 2026)
 
-6 cases exact, 6 within Rs 1 (rounding), 8 real misses, all of them gold-vs-calculator rule
-disagreements. Three lessons proposed, none harmful, none helpful. Full output in
-`harness-check-stub/`.
+1. **Pharmacy / procedure reading.** The gold is **not** relabelled now: a relabel changes every
+   owner's scores. The loader's mapping stays as it is and the disagreement is reported.
+2. **Duplicate bill lines.** Stay a fraud flag for the human adjudicator. No clause pays them at zero.
+3. **Rounding.** A tolerance in the Reflexion evaluator (`--tolerance-rs`), not a change to the gold.
+   The evaluator is part of this folder, so it was done here.
+4. Headroom, TODO clause ids in `agents/clauses.py`, and the team calculator are the lead's to look
+   at separately.
 
-## Findings to settle with Spandan and the domain lead
+## 6. Findings still open
 
-1. **Gold applies the proportional cut to pharmacy and not to the procedure line.** The reference
-   calculator does the opposite (exempts medicines per clause 4.1.1 Note b, cuts procedure).
-   CLM-0004, 0011, 0012, 0014. One reading must be chosen and the gold relabelled.
-2. **Gold deducts in-bill duplicate lines; the system only flags duplicates against history**, and
-   a flag never changes an amount. CLM-0005, 0009, 0010, 0015. Should a duplicate be payable 0,
-   under which clause?
-3. **Gold is whole rupees, the calculator is paise.** Cut lines differ by up to Rs 0.50 and the
-   simulated adjudicator counts that as an edit. Relabel gold to paise, or add a tolerance to the
-   evaluator (Spandan's file).
-4. **Headroom.** With the reference calculator, a clause choice changes an amount only for
-   non-payable or waiting-period clauses, which the pipeline already gets right here. E3 needs dev
-   cases where the clause choice decides the money, or the real model making a mistake the stub does not.
-5. `agents/clauses.py` has four `TODO` clause ids; lessons quote them verbatim.
-6. `calc/adjudication.py` is unimplemented (T15); `--calculator team` is ready for it.
+1. **ICU-breach proportional cut (CLM-0016).** The gold caps the ICU day but applies no proportional
+   cut because the room rent is within its cap; the calculator applies clause 4.1.1 Note (b) to an
+   ICU breach too. Needs a domain ruling.
+2. **Exclusions (CLM-0018).** The coverage analyst's admissibility check has no exclusion rule
+   (AGT-02 in the gold audit); until it does, CLM-0018 is a known baseline miss.
+3. **Headroom.** With the reference calculator a clause choice changes an amount only for
+   non-payable or waiting-period clauses, which the pipeline already gets right. A measurable
+   before/after needs dev cases where the clause choice decides the money.
+4. `agents/clauses.py` still has four `TODO` clause ids; lessons quote them verbatim.
 
-## Contribution-log row (paste into `CONTRIBUTIONS.md`)
+## Contribution-log rows
 
-| 2026-11-01 | Dhruvi Ramani | Reflexion day 4/5: eval-format case loader, day-4 experiment runner, day-5 held-out runner, shared reporting, 9 tests, stub harness check, report section and viva notes | `src/claimsense/reflexion/cases.py`, `reporting.py`, `scripts/run_reflexion_experiment.py`, `scripts/run_reflexion_heldout.py`, `tests/orchestration/test_cases.py`, `docs/experiments/reflexion/` | Loop runs end to end in stub mode; before == after because every remaining miss is a gold-vs-calculator rule disagreement (listed in README). AI-assisted implementation; findings and framing reviewed by Dhruvi. | In review | Reviewed run needs a real model off the corporate network; gold rule decisions with domain lead |
+Both rows are in `CONTRIBUTIONS.md` (1 Nov 2026 and 7 Nov 2026).

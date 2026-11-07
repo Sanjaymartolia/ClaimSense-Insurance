@@ -12,9 +12,10 @@ from pathlib import Path
 import pytest
 
 from claimsense.agents import clauses as C
-from claimsense.contracts import Claim, Worksheet
-from claimsense.reflexion import Playbook, evaluate, local_run_fn, summarize
+from claimsense.contracts import Claim, DeductionReason, Worksheet
+from claimsense.reflexion import Playbook, evaluate, local_run_fn, run_case, summarize
 from claimsense.reflexion.cases import (
+    MATERNITY_EXCLUSION,
     gold_from_fixture,
     load_cases,
     packet_from_fixture,
@@ -89,6 +90,8 @@ def test_gold_clause_choices_follow_the_reason_codes(cases, raw):
                 assert want == C.NON_PAYABLE_ITEMS
             elif "room_rent_daily_cap" in codes[line_id]:
                 assert want == C.ROOM_RENT_LIMIT and cats[line_id] == "room_rent"
+            elif "icu_daily_cap" in codes[line_id]:
+                assert want == C.ICU_LIMIT and cats[line_id] == "icu"
             elif "room_rent_proportional_reduction" in codes[line_id]:
                 assert want == C.OTHER_EXPENSES
             else:
@@ -97,6 +100,35 @@ def test_gold_clause_choices_follow_the_reason_codes(cases, raw):
         for line_id, cs in codes.items():
             if "duplicate_line" in cs:
                 assert line_id not in c.gold_choices()
+
+
+def test_gold_audit_relabels_are_mapped(cases, raw):
+    """The 2026-11-04 gold audit (docs/CLAIMS_AND_GOLD_SET_FIXES.md): CLM-0018 is a caesarean
+    excluded under clause 7.15 (GOLD-01); CLM-0016's ICU day is capped (GOLD-04)."""
+    _, golds = raw
+    by_id = {c.case_id: c for c in cases}
+
+    c18 = by_id["CLM-0018"]
+    assert golds["CLM-0018"]["reason_codes"] == ["maternity_childbirth_exclusion"]
+    assert not c18.gold_admissible
+    assert c18.gold_worksheet.total_payable == 0
+    assert MATERNITY_EXCLUSION == "new_india_arogya_sanjeevani:7.15"
+    for line in c18.gold_worksheet.lines:
+        assert line.payable == 0
+        assert line.deductions[0].reason == DeductionReason.EXCLUSION
+        assert line.deductions[0].clause_id == MATERNITY_EXCLUSION
+        # the gold file now carries the clause too; the mapping must agree with it
+        assert MATERNITY_EXCLUSION == next(
+            li["clause_id"]
+            for li in golds["CLM-0018"]["line_items"]
+            if li["line_id"] == line.line_id
+        )
+
+    c16 = by_id["CLM-0016"]
+    icu = next(line for line in c16.gold_worksheet.lines if line.line_id == "CLM-0016-L01")
+    assert icu.payable == Decimal("10000") and icu.deductions[0].reason == DeductionReason.ICU_CAP
+    assert c16.gold_choices()["CLM-0016-L01"] == C.ICU_LIMIT
+    assert c16.gold_worksheet.total_payable == Decimal("59346")
 
 
 def test_policy_record_comes_from_the_fixture(raw):
@@ -123,18 +155,58 @@ def test_unknown_reason_code_or_category_raises(raw):
         packet_from_fixture(fx)
 
 
+#: Gold repudiates these under an exclusion the coverage analyst's admissibility check does not
+#: implement yet (CLM-0018: caesarean, clause 7.15; GOLD-01 / AGT-02 in the gold audit). The
+#: pipeline pays them, so they are a known baseline miss. Remove an id here once the check exists:
+#: the test below then fails loudly if the id is still listed but no longer missed.
+KNOWN_UNIMPLEMENTED_EXCLUSIONS = {"CLM-0018"}
+
+
 def test_stub_dry_run_of_all_dev_claims_completes(cases):
     """The plan's day-1 dry run: every case ends settled or repudiated, nothing crashes, and the
-    not-admissible cases come out at Rs 0 like their gold."""
+    not-admissible cases come out at Rs 0 like their gold, except the documented exclusion gap."""
     results = evaluate(local_run_fn(stub_services_factory()), cases, None)
     assert len(results) == 20
     assert {r.status for r in results} <= {"settled", "repudiated"}
     for r, c in zip(results, cases, strict=True):
-        if not c.gold_admissible:
+        if c.case_id in KNOWN_UNIMPLEMENTED_EXCLUSIONS:
+            assert not c.gold_admissible and r.abs_error > 0, (
+                f"{c.case_id} is no longer missed: drop it from KNOWN_UNIMPLEMENTED_EXCLUSIONS"
+            )
+        elif not c.gold_admissible:
             assert r.abs_error == 0, (c.case_id, r.proposed_total, r.gold_total)
     s = summarize(results)
     assert s["cases"] == 20
     assert 0 <= s["exact_match_rate"] <= 1
+
+
+def test_rounding_tolerance_changes_what_counts_as_a_mistake_not_the_rupees(cases):
+    """Gold is whole rupees, the calculator keeps paise. With a Rs 1 tolerance a line that is
+    off by paise is not edited and raises no gold_diff mistake; the rupee error stays exact."""
+    run_fn = local_run_fn(stub_services_factory())
+    strict = evaluate(run_fn, cases, None)
+    loose = evaluate(run_fn, cases, None, Decimal("1"))
+    for a, b in zip(strict, loose, strict=True):
+        assert a.abs_error == b.abs_error, a.case_id  # rupee error never tolerated away
+        assert b.tolerance_rs == 1 and a.tolerance_rs == 0
+    s_strict, s_loose = summarize(strict), summarize(loose)
+    assert s_strict["settlement_error_total_rs"] == s_loose["settlement_error_total_rs"]
+    assert any(0 < r.abs_error < 1 for r in strict), "dev set should hold paise-only totals"
+    assert s_loose["exact_match_rate"] > s_strict["exact_match_rate"]
+    # line level: strict mode raises gold_diff mistakes for paise differences (these produced the
+    # "do not round prematurely" lessons in run-01); tolerant mode drops exactly those and keeps
+    # every real disagreement.
+    paise, kept = 0, 0
+    for case in cases:
+        _, strict_m = run_case(run_fn, case, None)
+        _, loose_m = run_case(run_fn, case, None, Decimal("1"))
+        strict_g = {(m.line_id, m.rupee_error) for m in strict_m if m.source == "gold_diff"}
+        loose_g = {(m.line_id, m.rupee_error) for m in loose_m if m.source == "gold_diff"}
+        assert loose_g <= strict_g, case.case_id
+        assert loose_g == {m for m in strict_g if not 0 < m[1] <= 1}, case.case_id
+        paise += len(strict_g - loose_g)
+        kept += len(loose_g)
+    assert paise > 0 and kept > 0
 
 
 # ---------------------------------------------------------------- the two scripts, end to end
@@ -154,6 +226,7 @@ def test_day4_experiment_script_runs_end_to_end_and_freezes(tmp_path, monkeypatc
     out = tmp_path / "run"
     exp.main(["baseline", "--out", str(out)])
     assert (out / "baseline.md").exists() and (out / "baseline.json").exists()
+    assert "tolerance: Rs 0" in (out / "baseline.md").read_text()
     exp.main(
         [
             "experiment",
@@ -165,17 +238,23 @@ def test_day4_experiment_script_runs_end_to_end_and_freezes(tmp_path, monkeypatc
             str(out),
             "--after-runs",
             "2",
+            "--tolerance-rs",
+            "1",
         ]
     )
     report = (out / "report.md").read_text()
     assert "HARNESS CHECK ONLY" in report  # auto-approve is stamped, never silent
     assert "Frozen playbook hash" in report and "Spread across the 2" in report
+    assert "tolerance: Rs 1" in report  # the tolerance used is always visible
+    assert json.loads((out / "report.json").read_text())["tolerance_rs"] == "1"
     pb = Playbook.load(out / "playbook.json")
     assert pb.frozen and pb.content_hash() == pb.frozen_hash
     with pytest.raises(SystemExit):  # a frozen playbook ends the experiment
         exp.main(["experiment", "--approve", "auto", "--out", str(out)])
     with pytest.raises(SystemExit):  # never learn from anything called held-out
         exp.main(["baseline", "--cases", "../claimsense-heldout", "--out", str(out)])
+    with pytest.raises(SystemExit):  # a negative tolerance makes no sense
+        exp.main(["baseline", "--out", str(out), "--tolerance-rs", "-1"])
 
 
 def _renamed_copy(src: str, dst: Path, old: str, new: str) -> None:
@@ -207,11 +286,13 @@ def test_day5_heldout_script_guards_and_runs(tmp_path, monkeypatch):
     pb.freeze()
     with pytest.raises(SystemExit, match="outside the repository"):
         ho.main(["--playbook", str(pb_path), "--heldout", DEV, "--out", str(tmp_path / "res")])
-    ho.main(args + ["--repeat", "2"])
+    ho.main(args + ["--repeat", "2", "--tolerance-rs", "1"])
     report = (tmp_path / "res" / "heldout_report.md").read_text()
     assert "held-out cases: 20" in report and "Spread across 2" in report
+    assert "tolerance: Rs 1" in report
     data = json.loads((tmp_path / "res" / "heldout_report.json").read_text())
     assert data["playbook_hash"] == pb.frozen_hash and len(data["after_runs"]) == 2
+    assert data["tolerance_rs"] == "1"
     # a lesson learned from a held-out case must be refused
     leaky = Playbook(path=tmp_path / "leak.json")
     lesson = leaky.propose("x lesson text", "room line", [C.ROOM_RENT_LIMIT], "HO-0001")

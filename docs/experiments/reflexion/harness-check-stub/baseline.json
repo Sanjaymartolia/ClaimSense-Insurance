@@ -1,12 +1,12 @@
 {
-  "generated_at": "2026-11-01T13:38:22.885556+00:00",
-  "mode": "mode: STUB (deterministic, no model) | executor: local | calculator: reference | approval: CONSOLE",
+  "generated_at": "2026-11-07T10:43:30.420353+00:00",
+  "mode": "mode: STUB (deterministic, no model) | executor: local | calculator: reference | tolerance: Rs 1 | approval: CONSOLE",
   "summary": {
     "cases": 20,
-    "settlement_error_total_rs": "65989.27",
-    "settlement_error_mean_rs": "3299.46",
-    "exact_match_rate": 0.3,
-    "edit_rate": 0.2,
+    "settlement_error_total_rs": "186368.94",
+    "settlement_error_mean_rs": "9318.45",
+    "exact_match_rate": 0.5,
+    "edit_rate": 0.3,
     "critic_rejection_rate": 0.0
   },
   "breakdown": {
@@ -21,8 +21,6 @@
     "rounding_only_under_1_rs": [
       "CLM-0006",
       "CLM-0008",
-      "CLM-0016",
-      "CLM-0018",
       "CLM-0019",
       "CLM-0020"
     ],
@@ -34,7 +32,9 @@
       "CLM-0011",
       "CLM-0012",
       "CLM-0014",
-      "CLM-0015"
+      "CLM-0015",
+      "CLM-0016",
+      "CLM-0018"
     ]
   },
   "per_case": [
@@ -47,7 +47,8 @@
       "lines_edited": 0,
       "critic_rejections": 0,
       "lessons_used": [],
-      "status": "repudiated"
+      "status": "repudiated",
+      "tolerance_rs": "1"
     },
     {
       "case_id": "CLM-0002",
@@ -58,7 +59,8 @@
       "lines_edited": 0,
       "critic_rejections": 0,
       "lessons_used": [],
-      "status": "repudiated"
+      "status": "repudiated",
+      "tolerance_rs": "1"
     },
     {
       "case_id": "CLM-0003",
@@ -69,7 +71,8 @@
       "lines_edited": 0,
       "critic_rejections": 0,
       "lessons_used": [],
-      "status": "repudiated"
+      "status": "repudiated",
+      "tolerance_rs": "1"
     },
     {
       "case_id": "CLM-0004",
@@ -80,7 +83,8 @@
       "lines_edited": 2,
       "critic_rejections": 0,
       "lessons_used": [],
-      "status": "settled"
+      "status": "settled",
+      "tolerance_rs": "1"
     },
     {
       "case_id": "CLM-0005",
@@ -91,7 +95,8 @@
       "lines_edited": 0,
       "critic_rejections": 0,
       "lessons_used": [],
-      "status": "settled"
+      "status": "settled",
+      "tolerance_rs": "1"
     },
     {
       "case_id": "CLM-0006",
@@ -102,7 +107,8 @@
       "lines_edited": 0,
       "critic_rejections": 0,
       "lessons_used": [],
-      "status": "settled"
+      "status": "settled",
+      "tolerance_rs": "1"
     },
     {
       "case_id": "CLM-0007",
@@ -113,7 +119,8 @@
       "lines_edited": 0,
       "critic_rejections": 0,
       "lessons_used": [],
-      "status": "repudiated"
+      "status": "repudiated",
+      "tolerance_rs": "1"
     },
     {
       "case_id": "CLM-0008",
@@ -124,7 +131,8 @@
       "lines_edited": 0,
       "critic_rejections": 0,
       "lessons_used": [],
-      "status": "settled"
+      "status": "settled",
+      "tolerance_rs": "1"
     },
     {
       "case_id": "CLM-0009",
@@ -135,7 +143,8 @@
       "lines_edited": 0,
       "critic_rejections": 0,
       "lessons_used": [],
-      "status": "settled"
+      "status": "settled",
+      "tolerance_rs": "1"
     },
     {
       "case_id": "CLM-0010",
@@ -146,7 +155,8 @@
       "lines_edited": 0,
       "critic_rejections": 0,
       "lessons_used": [],
-      "status": "settled"
+      "status": "settled",
+      "tolerance_rs": "1"
     },
     {
       "case_id": "CLM-0011",
@@ -157,7 +167,8 @@
       "lines_edited": 2,
       "critic_rejections": 0,
       "lessons_used": [],
-      "status": "settled"
+      "status": "settled",
+      "tolerance_rs": "1"
     },
     {
       "case_id": "CLM-0012",
@@ -168,7 +179,8 @@
       "lines_edited": 2,
       "critic_rejections": 0,
       "lessons_used": [],
-      "status": "settled"
+      "status": "settled",
+      "tolerance_rs": "1"
     },
     {
       "case_id": "CLM-0013",
@@ -179,7 +191,8 @@
       "lines_edited": 0,
       "critic_rejections": 0,
       "lessons_used": [],
-      "status": "repudiated"
+      "status": "repudiated",
+      "tolerance_rs": "1"
     },
     {
       "case_id": "CLM-0014",
@@ -190,7 +203,8 @@
       "lines_edited": 2,
       "critic_rejections": 0,
       "lessons_used": [],
-      "status": "settled"
+      "status": "settled",
+      "tolerance_rs": "1"
     },
     {
       "case_id": "CLM-0015",
@@ -201,18 +215,20 @@
       "lines_edited": 0,
       "critic_rejections": 0,
       "lessons_used": [],
-      "status": "settled"
+      "status": "settled",
+      "tolerance_rs": "1"
     },
     {
       "case_id": "CLM-0016",
-      "proposed_total": "73089.20",
-      "gold_total": "73089",
-      "abs_error": "0.20",
-      "edited": false,
-      "lines_edited": 0,
+      "proposed_total": "50372.13",
+      "gold_total": "59346",
+      "abs_error": "8973.87",
+      "edited": true,
+      "lines_edited": 2,
       "critic_rejections": 0,
       "lessons_used": [],
-      "status": "settled"
+      "status": "settled",
+      "tolerance_rs": "1"
     },
     {
       "case_id": "CLM-0017",
@@ -223,18 +239,20 @@
       "lines_edited": 0,
       "critic_rejections": 0,
       "lessons_used": [],
-      "status": "repudiated"
+      "status": "repudiated",
+      "tolerance_rs": "1"
     },
     {
       "case_id": "CLM-0018",
       "proposed_total": "111406.50",
-      "gold_total": "111406",
-      "abs_error": "0.50",
-      "edited": false,
-      "lines_edited": 0,
+      "gold_total": "0",
+      "abs_error": "111406.50",
+      "edited": true,
+      "lines_edited": 5,
       "critic_rejections": 0,
       "lessons_used": [],
-      "status": "settled"
+      "status": "settled",
+      "tolerance_rs": "1"
     },
     {
       "case_id": "CLM-0019",
@@ -245,7 +263,8 @@
       "lines_edited": 0,
       "critic_rejections": 0,
       "lessons_used": [],
-      "status": "settled"
+      "status": "settled",
+      "tolerance_rs": "1"
     },
     {
       "case_id": "CLM-0020",
@@ -256,7 +275,8 @@
       "lines_edited": 0,
       "critic_rejections": 0,
       "lessons_used": [],
-      "status": "settled"
+      "status": "settled",
+      "tolerance_rs": "1"
     }
   ]
 }
