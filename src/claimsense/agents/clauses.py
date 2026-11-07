@@ -15,11 +15,11 @@ ICU_LIMIT = P + "12.2"  # 5% SI, max 10,000/day (+ cataract row in the same chun
 CO_PAY = P + "9.5"  # 5% on every claim
 MATERNITY_EXCLUSION = P + "7.15"  # 7.15 Maternity Expenses (Code - Excl18): childbirth, caesarean
 
-# TODO(day 1): look these up in the knowledge base and replace.
-INITIAL_WAITING_PERIOD = P + "TODO-initial-30-day-waiting-period"
-PED_WAITING_PERIOD = P + "TODO-pre-existing-disease-waiting-period"
-SPECIFIC_WAITING_PERIOD = P + "TODO-24-36-month-specified-illness"
-NON_PAYABLE_ITEMS = "excluded_items:TODO-annexure-item"  # List of excluded items PDF
+# Checked against the knowledge base 2026-11-07 (GOLD-07); still not_human_verified there.
+INITIAL_WAITING_PERIOD = P + "6.3"  # First Thirty Days Waiting Period (Code- Excl03)
+PED_WAITING_PERIOD = P + "6.1"  # Pre-Existing Diseases (Code- Excl01): 36 months
+SPECIFIC_WAITING_PERIOD = P + "6.2"  # Specific Waiting Period (Excl02); list in 6.2.x
+NON_PAYABLE_ITEMS = P + "annexure-a.list-i"  # Annexure-A List I: items not covered (ADR-0003)
 
 # Note: the wording (4.1.1 Note b) applies the proportional cut to "all other expenses ... with
 # the exception of cost of medicines". The data README says "room-linked charges". Agree ONE

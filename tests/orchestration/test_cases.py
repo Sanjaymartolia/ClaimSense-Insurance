@@ -89,6 +89,8 @@ def test_gold_clause_choices_follow_the_reason_codes(cases, raw):
                 assert want == C.NON_PAYABLE_ITEMS
             elif "room_rent_daily_cap" in codes[line_id]:
                 assert want == C.ROOM_RENT_LIMIT and cats[line_id] == "room_rent"
+            elif "icu_daily_cap" in codes[line_id]:
+                assert want == C.ICU_LIMIT and cats[line_id] == "icu"
             elif "room_rent_proportional_reduction" in codes[line_id]:
                 assert want == C.OTHER_EXPENSES
             else:

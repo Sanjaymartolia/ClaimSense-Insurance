@@ -6,7 +6,8 @@ dependency-free LocalRunner (local.py) used by the unit tests.
 
 from __future__ import annotations
 
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 from claimsense.agents import Team
 
@@ -30,22 +31,67 @@ EDGES: list[tuple[str, str]] = [
 
 def conditional(team: Team) -> dict[str, tuple[Callable, dict[str, str]]]:
     after_review = make_after_review(team)
-    review_map = {"apply_edits": "apply_edits", "senior_review": "senior_review",
-                  "settle": "settle", "repudiate": "repudiate", "end": "END"}
+    review_map = {
+        "apply_edits": "apply_edits",
+        "senior_review": "senior_review",
+        "settle": "settle",
+        "repudiate": "repudiate",
+        "end": "END",
+    }
     return {
-        "admissibility": (after_admissibility, {"coverage": "coverage", "human_review": "human_review"}),
-        "critic": (after_critic, {"human_review": "human_review", "revise": "revise",
-                                  "escalate": "escalate"}),
+        "admissibility": (
+            after_admissibility,
+            {"coverage": "coverage", "human_review": "human_review"},
+        ),
+        "critic": (
+            after_critic,
+            {"human_review": "human_review", "revise": "revise", "escalate": "escalate"},
+        ),
         "human_review": (after_review, review_map),
         "senior_review": (after_review, review_map),
     }
 
 
-def build_graph(team: Team, checkpointer: Any = None, interrupt_fn=None):
+def production_review_kwargs(identity_provider: Any = None) -> dict[str, Any]:
+    """Review-gate wiring for a real run: build_graph(team, cp, **production_review_kwargs()).
+
+    The gate must sign approvals into the same store claims_db.settle_claim verifies against, or
+    every settlement is refused. Needs CLAIMSENSE_APPROVAL_SECRET (SqliteApprovalStore enforces it).
+    DemoIdentityProvider is DEV/DEMO ONLY; the API layer should pass a real (SSO) provider.
+    """
+    from claimsense.mcp_servers import claims_db
+    from claimsense.mcp_servers.approvals import DemoIdentityProvider
+
+    return {
+        "identity_provider": identity_provider or DemoIdentityProvider(),
+        "approval_store": claims_db.get_db().approval_store,
+    }
+
+
+def build_graph(
+    team: Team,
+    checkpointer: Any = None,
+    interrupt_fn=None,
+    *,
+    identity_provider: Any = None,
+    approval_store: Any = None,
+    tool_hooks: bool = False,
+    hook_options: dict[str, Any] | None = None,
+):
+    """tool_hooks=True installs hooks.install_hooks once per claim with a fresh budget (see
+    Nodes). The hooks stay on the team while a claim is paused and are swapped for a fresh set when
+    the next claim id starts. Build one Team per concurrently running claim."""
     from langgraph.graph import END, START, StateGraph
 
     ends = {"START": START, "END": END}
-    nodes = Nodes(team, interrupt_fn)
+    nodes = Nodes(
+        team,
+        interrupt_fn,
+        identity_provider=identity_provider,
+        approval_store=approval_store,
+        tool_hooks=tool_hooks,
+        hook_options=hook_options,
+    )
     g = StateGraph(ClaimState)
     for name, fn in nodes.table().items():
         g.add_node(name, fn)
@@ -86,8 +132,13 @@ def resume(app, cfg: dict, decision: dict) -> dict:
     return app.invoke(Command(resume=decision), cfg)
 
 
-def run_claim(app, packet: dict, reviewer: Callable[[dict], dict], max_reviews: int = 8,
-              thread_id: str | None = None) -> dict:
+def run_claim(
+    app,
+    packet: dict,
+    reviewer: Callable[[dict], dict],
+    max_reviews: int = 8,
+    thread_id: str | None = None,
+) -> dict:
     """Run a claim to the end, answering every pause with `reviewer(payload) -> decision`.
     Used by the eval harness and Reflexion (reviewer = simulated adjudicator)."""
     out, cfg = start(app, packet, thread_id)

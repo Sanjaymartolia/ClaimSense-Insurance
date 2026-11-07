@@ -7,9 +7,13 @@ Usage (from repo root):
     python scripts/run_one.py <claim_id> --reviewer console
     python scripts/run_one.py <claim_id> --sqlite          # durable checkpointer
     python scripts/run_one.py <claim_id> --file eval/golden_dev/claims.jsonl
+    python scripts/run_one.py <claim_id> --real-tools      # policy-kb / claims-db / tariff
+    python scripts/run_one.py <claim_id> --no-tool-hooks   # skip the ACL/budget/audit hooks
 
-Agents use OpenRouter models (agents/llm.py). Tools are still stubs
-(make_stub_services) until agents/services.real_services() is filled in.
+Agents use OpenRouter models (agents/llm.py). Tools are stubs (make_stub_services) by default.
+--real-tools uses agents/services.real_services() and signs approvals into the claims-db approval
+store that settle_claim verifies against. It needs CLAIMSENSE_APPROVAL_SECRET set, the policy
+seeded (python -m claimsense.mcp_servers.seed_dev_policies) and the policy index built.
 """
 
 from __future__ import annotations
@@ -121,6 +125,14 @@ def main() -> None:
     ap.add_argument("--reviewer", choices=["auto", "console"], default="auto")
     ap.add_argument("--sqlite", action="store_true", help="use the durable SQLite checkpointer")
     ap.add_argument("--max-rounds", type=int, default=8)
+    ap.add_argument(
+        "--real-tools", action="store_true", help="real MCP-backed tools instead of stubs"
+    )
+    ap.add_argument(
+        "--no-tool-hooks",
+        action="store_true",
+        help="do not install the per-claim tool hooks (ACL, budget, audit)",
+    )
     args = ap.parse_args()
 
     if args.list:
@@ -138,30 +150,55 @@ def main() -> None:
         sys.exit("CLAIMSENSE_LLM=stub is set; run `unset CLAIMSENSE_LLM` first.")
     if not os.environ.get("OPENROUTER_API_KEY"):
         sys.exit("OPENROUTER_API_KEY not found (put it in .env or export it).")
+    if args.real_tools and not os.environ.get("CLAIMSENSE_APPROVAL_SECRET"):
+        sys.exit("--real-tools needs CLAIMSENSE_APPROVAL_SECRET (put it in .env or export it).")
 
     from langgraph.types import Command
 
     from claimsense.agents import PolicyInfo, Team, make_stub_services
     from claimsense.agents.llm import get_llm
-    from claimsense.graph.build import build_graph, memory_checkpointer, sqlite_checkpointer
+    from claimsense.agents.services import real_services
+    from claimsense.graph.build import (
+        build_graph,
+        memory_checkpointer,
+        production_review_kwargs,
+        sqlite_checkpointer,
+    )
+    from claimsense.graph.state import initial_state
 
     llm = get_llm("coverage")
     if llm is None:
         sys.exit("get_llm() returned None: still in stub mode. Check agents/llm.py.")
     print(f"LLM mode ON  (coverage model: {getattr(llm, 'model_name', '?')})")
 
-    # Same as reflexion.cases.stub_services_factory: policy record keyed by policy_number
     pol = PolicyInfo.model_validate(packet["fixture_policy"])
-    services = make_stub_services(policies={pol.policy_number: pol})
+    if args.real_tools:
+        services = real_services()
+        if services.get_policy(pol.policy_number) is None:
+            sys.exit(
+                f"Policy {pol.policy_number} is not in the claims DB. Seed it first:\n"
+                "    python -m claimsense.mcp_servers.seed_dev_policies"
+            )
+        # Approvals must land in the store claims_db.settle_claim verifies against.
+        review_kwargs = production_review_kwargs()
+    else:
+        # Same as reflexion.cases.stub_services_factory: policy record keyed by policy_number
+        services = make_stub_services(policies={pol.policy_number: pol})
+        review_kwargs = {}  # in-memory approval store; stub settle_claim checks hashes only
     team = Team(services)
+    print(f"Tools: {'REAL (real_services)' if args.real_tools else 'stubs'}")
 
     checkpointer = sqlite_checkpointer() if args.sqlite else memory_checkpointer()
-    app = build_graph(team, checkpointer)
+    # Tool hooks (hooks/hooks.py): installed once for this claim, with a fresh tool budget.
+    tool_hooks = not args.no_tool_hooks
+    print(f"Tool hooks: {'ON' if tool_hooks else 'off'}")
+    app = build_graph(team, checkpointer, tool_hooks=tool_hooks, **review_kwargs)
     cfg = {"configurable": {"thread_id": args.claim_id}}
     reviewer = console_reviewer if args.reviewer == "console" else auto_reviewer
 
     print(f"Running claim {args.claim_id} from {args.file}")
-    graph_input = {"claim_id": args.claim_id, "packet": packet}
+    # Full initial state: nodes read max_revisions, approvals, trace ... from the start.
+    graph_input = initial_state(packet)
 
     for _ in range(args.max_rounds):
         interrupt_payload = None
