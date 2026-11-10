@@ -32,8 +32,6 @@ pass@k vs pass^k starts to mean something (`--workers 8` to run claims in parall
 Output goes to `runs/agent_suite/<label>/`: `card.json`, `rows.csv` (one row per claim with
 every process metric), `traces.jsonl` (redacted, no claim text, rule 4) and `card.png`.
 
-The walk-through notebook `L13_claimsense_eval.ipynb` runs the same steps section by section.
-
 ## Map from the L13 notebook
 
 | L13 | Here | ClaimSense version |

@@ -162,9 +162,6 @@ prints what the run actually cost. The real-model cost has not been measured yet
 
 Exit code: **0** = gate passed, **1** = gate failed, **2** = cannot run (see Section 8).
 
-The walk-through notebook `eval/agent_suite/L13_claimsense_eval.ipynb` runs the same steps
-section by section.
-
 ---
 
 ## 3. How the L13 notebook maps to ClaimSense
