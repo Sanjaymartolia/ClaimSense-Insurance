@@ -5,7 +5,19 @@ This folder holds the evaluation **data** (`golden_dev/`, `redteam/`) and the ev
 
 ## Run it
 
-One command runs everything and checks each result against the outcome the report records. It
+**Every metric in one run** (harness + agent suite, one report, one gate, one exit code):
+
+```bash
+python -m eval.full --stub --label baseline          # free, deterministic, seconds
+python -m eval.full --label real-dev --splits dev    # real models (needs .[agents] + key; costs money)
+```
+
+It checks the harness first (ceiling, floor and gate rows), runs every claim once with a trace,
+scores those same outputs with both the harness and the agent suite, and passes only if all three
+hold. Output: `runs/full/<label>/`, with `rows.csv` holding both scorers' columns per claim.
+Details: [docs/AGENT_SUITE_REPORT.md](../docs/AGENT_SUITE_REPORT.md), section 9.
+
+The harness's own regression suite checks each result against the outcome the report records. It
 needs no API key, makes no model call, and takes a few seconds:
 
 ```bash
@@ -28,8 +40,19 @@ Single runs, for when you are debugging one piece:
 python -m eval.harness.run --adapter gold-replay --split dev --label ceiling   # do this first
 python -m eval.harness.run --adapter claimsense  --split dev --label real-dev  # the real agents
 python -m eval.harness.run --help                                             # all adapters/faults
-pytest eval/tests -q                                                          # 147 tests
+pytest eval/tests -q                                                          # 197 tests
 ```
+
+What did the agents *do*? The trace-based agent suite (L13 sections 1–7) records every node, tool
+call and model call per claim, and gates on outcome, process, safety and payload metrics:
+
+```bash
+python -m eval.agent_suite --label baseline                    # report + gate; exit 1 if it fails
+python -m eval.agent_suite --label cmp --variant v1,guarded    # compare configurations
+python -m eval.agent_suite --label x --show CLM-9001           # one claim's full trace
+```
+
+See [agent_suite/README.md](agent_suite/README.md).
 
 Full documentation, including the measured results and every open limitation:
 **`docs/EVAL_HARNESS_REPORT.md`** (and its DOCX). Section 10 is the procedures.
@@ -51,7 +74,9 @@ Full documentation, including the measured results and every open limitation:
 | `harness/scorecard.py` + `.yaml` | Weighted composite plus gates. The YAML is the whole policy in 50 lines. |
 | `calibration/` | Cohen's kappa workflow for the judge. See its own README. |
 | `tools/build_report_docx.py` | Builds the report DOCX from its Markdown source. |
-| `tests/` | 147 tests. Not in the default `pytest` run; use `pytest eval/tests`. |
+| `full.py` | `python -m eval.full`: harness self-check + one traced pipeline run scored by both the harness and the agent suite; combined gate. |
+| `agent_suite/` | Trace-based agent suite: spans per node/tool/model call, process metrics, pass@k, guardrail recall, payload checks, judge, gate (`gate.yaml`). |
+| `tests/` | 197 tests. Not in the default `pytest` run; use `pytest eval/tests`. |
 
 ## Two things to know before you trust a number
 

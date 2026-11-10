@@ -14,3 +14,6 @@ data/raw/
 .index/
 .cache/
 .state/
+
+# course reference material: contains API keys and large PDFs; never commit
+Reference_code_files/

@@ -32,6 +32,14 @@ Python 3.11+ · Pydantic v2 · LangGraph (+ SQLite checkpointer, store) · FastM
 · Chroma + rank-bm25 + cross-encoder reranker · FastAPI (streaming) · OpenRouter · pytest · ruff
 · Langfuse/LangSmith · Prometheus + Grafana · Docker Compose · GitHub Actions.
 Prompts and model IDs live only in `config/models.yaml` — never hard-code a model ID.
+Known drift from that rule: the agents take their model from `agents/llm.py::MODELS` (overridable
+with `CLAIMSENSE_MODEL_<ROLE>`), whose IDs differ from the YAML, and their prompts are inline
+`SYSTEM` strings (`config/prompts/` is empty). Today the YAML is read for embeddings, the judge and
+the senior-approval threshold. Do not add to the drift; do not "fix" it without the owner.
+
+**Stub mode.** With no `OPENROUTER_API_KEY`, or with `CLAIMSENSE_LLM=stub`, `get_llm()` returns
+`None` and every agent uses its deterministic fallback. Tests, Reflexion and the eval suite rely on
+this to run offline and free. `scripts/run_one.py` refuses to run in stub mode.
 
 ## Architecture (big picture)
 - **Claim flow** (`graph/build.py`): `plan → extract → admissibility →` (gate fails → `human_review`)
@@ -84,7 +92,8 @@ claim JSON does not match `contracts.claim.Claim` (ADR-0002).
 ## Commands
 ```bash
 python -m venv .venv && source .venv/Scripts/activate   # Windows Git Bash
-pip install -e ".[dev]"            # add ,agents,mcp,retrieval,course,docs as your area needs
+pip install -e ".[dev]"            # add ,agents,mcp,retrieval,course,docs,eval as your area needs
+                                   # (requirements.txt = everything; it mirrors pyproject.toml, which is the source)
 pytest                             # product tests only: testpaths = ["tests"] (CI runs these + ruff)
 pytest tests/calc/test_adjudication.py -k <name>   # one file / one test (or file::test_name)
 ruff check . && ruff format .      # lint + format (CI uses `ruff format --check`)
@@ -113,7 +122,14 @@ python -m eval.harness.run --adapter claimsense  --split dev,redteam --label X #
 python -m eval.harness.run --adapter perturbed --fault <name> --split dev      # fault injection; --help lists faults
 python -m eval.harness.run --split dev --judge --judge-limit 5                 # RAGAS judge: needs .[eval] + key, costs money
 pytest eval/tests -q                # eval tests are NOT in the default `pytest` run
+python -m eval.tools.rubric_score [--plan] [--insurance] [--json]              # framework rubric scorecard
 ```
+- The suite forces `CLAIMSENSE_LLM=stub`, so its `real-*` rows are the agents' deterministic
+  fallbacks, not a model run. Their composites are pinned in `suite.py::ROWS`; any agent change
+  moves them and fails the suite. Check with `--accept-pipeline`, then record the new value in
+  `ROWS`, `eval/README.md` and the report. Gate and pass/fail expectations are never waived.
+- `rubric_score` only parses `docs/FRAMEWORK_RUBRIC_SCORE.md` and recomputes the total; change
+  scores in that report, never in Python (`eval/tests/test_rubric_report.py` cross-checks them).
 - `python -m eval.run` is a shim for the (still commented-out) T48 CI gate in `.github/workflows/ci.yml`.
 - Exit code 0 only if all catastrophic gates hold and the composite meets `eval/harness/scorecard.yaml`.
   A `gate-*` row mismatch in the suite is the most serious failure (a gate silently stopped firing).
@@ -122,6 +138,14 @@ pytest eval/tests -q                # eval tests are NOT in the default `pytest`
   The judge is uncalibrated and weighted 0.00: `agents/coverage.py::choose_clauses` drops the model's rationale.
 Full how-to for teammates: `docs/TEAM_GUIDE.md` (also PDF and DOCX). Edit the Markdown, then rebuild;
 never edit the generated PDF/DOCX/HTML by hand.
+
+## Tooling that acts on its own
+- `.claude/settings.json` runs `ruff format .` and `ruff check --fix .` over the **whole repo**
+  after every Edit/Write, so a diff can contain files you did not touch; check `git status` before
+  committing. It also denies reading `.env` and `../claimsense-heldout/`.
+- CI (`.github/workflows/ci.yml`) is Python 3.12 with `.[dev]` only: `ruff check`,
+  `ruff format --check`, `pytest`. A test that needs another extra (langgraph, chromadb, ragas,
+  docx…) must start with `pytest.importorskip`, or CI breaks.
 
 ## How we work
 - **Write the least code that works.** No speculative features.

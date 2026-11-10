@@ -15,7 +15,24 @@ uvicorn claimsense.api.main:app --reload   # http://localhost:8000/health
 Full stack (needs Docker): `cp .env.example .env` then `docker compose up`.
 Grafana: http://localhost:3000 · Prometheus: http://localhost:9090
 
-Install extras for your area: `pip install -e ".[dev,agents,mcp,retrieval]"`.
+Install extras for your area: `pip install -e ".[dev,agents,mcp,retrieval]"` (others: `course`,
+`docs`, `eval`). Or install everything in one step: `pip install -r requirements.txt`.
+
+No API key is needed for the tests or the eval suite: without `OPENROUTER_API_KEY` (or with
+`CLAIMSENSE_LLM=stub`) the agents run on deterministic fallbacks. A real model run needs the key
+in `.env`.
+
+## Run and evaluate
+```bash
+python scripts/run_one.py --list                 # the dev claims
+python scripts/run_one.py <claim_id>             # one claim, real model, node-by-node trace
+
+python -m eval.harness.suite                     # whole eval suite vs expected outcomes; no key, seconds
+python -m eval.harness.run --adapter claimsense --split dev,redteam --label <name>   # one scored run
+python -m eval.tools.rubric_score                # framework rubric scorecard
+pytest eval/tests -q                             # eval tests (not part of the default `pytest`)
+```
+More in [eval/README.md](eval/README.md).
 
 ## Documentation
 - **[Team guide](docs/TEAM_GUIDE.md)**: workflow diagram, how each member sets up and runs the code, the
@@ -24,6 +41,11 @@ Install extras for your area: `pip install -e ".[dev,agents,mcp,retrieval]"`.
 - **[Technical workflow paper](docs/TECHNICAL_WORKFLOW.md)** — architecture, end-to-end request flow,
   money calculation, approval, playbook, security, evaluation, team workflow, plan
   ([PDF](docs/ClaimSense_Technical_Workflow.pdf))
+- **[Eval harness report](docs/EVAL_HARNESS_REPORT.md)**: what the harness measures, current results
+  and open limitations ([Word](docs/ClaimSense_Eval_Harness_Report.docx)) ·
+  [run guide](docs/EVAL_RUN_GUIDE.md) · [framework rubric score](docs/FRAMEWORK_RUBRIC_SCORE.md)
+- **[Claims and gold-set fixes](docs/CLAIMS_AND_GOLD_SET_FIXES.md)**: audit of the dev set, what is
+  fixed and what is still open
 - **Flow diagram:** [SVG](docs/diagrams/claimsense-flow.svg) · editable
   [Excalidraw](docs/diagrams/claimsense-flow.excalidraw) (open at excalidraw.com → Open)
 - Rebuild after editing: `python scripts/build_diagram.py && python scripts/build_pdf.py`
@@ -37,8 +59,10 @@ See `CLAUDE.md` for the folder → role map and the rules every contributor (and
 |---|---|
 | `src/claimsense/contracts/` | Shared Pydantic types: Claim, Worksheet, ApprovalToken, Lesson, Handoff |
 | `src/claimsense/calc/` | The adjudication calculator — all rupee maths |
-| `src/claimsense/mcp_servers/` | policy-kb, adjudication-calc, tariff, claims-db |
+| `src/claimsense/mcp_servers/` | MCP servers: policy-kb, tariff, claims-db (with the approval store) |
+| `src/claimsense/guardrails/`, `hooks/` | Input/output guardrails; per-claim tool ACL, budget and audit |
 | `src/claimsense/ingestion/` | Policy PDF → clauses → retrieval corpus ([README](src/claimsense/ingestion/README.md)) |
+| `src/claimsense/retrieval/` | Hybrid search over the clauses: Chroma + BM25 + reranker ([README](src/claimsense/retrieval/README.md)) |
 | `data/` | Synthetic starter pack: policy PDFs, tariffs, processed clauses, knowledge base ([README](data/README.md)) |
 | `src/claimsense/graph/`, `agents/`, `reflexion/` | LangGraph supervisor, specialists, playbook loop |
 | `eval/` | Harness, dev golden set, red-team suite (held-out set lives outside the repo) |
@@ -51,7 +75,7 @@ See `CLAUDE.md` for the folder → role map and the rules every contributor (and
 3. Review the plan, write the key test cases yourself, then let Claude implement.
 4. `/code-review` before opening a PR. One reviewer from another role.
 
-Project hooks (`.claude/settings.json`) auto-format with ruff after every edit and block reading `.env`.
+Project hooks (`.claude/settings.json`) auto-format with ruff after every edit and block reading `.env` and the held-out eval set.
 
 ## Claim workflow
 
