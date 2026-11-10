@@ -39,20 +39,28 @@ class FraudAgent:
         if dups:
             flags.append(f"duplicate bill lines already claimed: {', '.join(dups)}")
 
-        # 2. sub-limits already used this policy year (the calculator must also receive these)
+        # 2. sub-limits already used this policy year (the calculator must also receive these).
+        # Sub-limits reset at renewal, and renewals keep the policy number, so only past claims
+        # admitted inside the current period count. Duplicates (step 1) still use all history.
+        pol = self.belt.call("get_policy", policy_number=claim.policy_number)
         used: dict[str, Decimal] = {}
-        for past in history:
-            for k, v in past.sub_limits_used.items():
-                used[k] = used.get(k, Decimal("0")) + Decimal(v)
+        if pol is None:
+            if any(past.sub_limits_used for past in history):
+                flags.append("sub-limit usage not checked: policy period unknown")
+        else:
+            for past in history:
+                if not (pol.period_start <= past.admission_date <= pol.period_end):
+                    continue
+                for k, v in past.sub_limits_used.items():
+                    used[k] = used.get(k, Decimal("0")) + Decimal(v)
         if used:
             flags.append(
-                "sub-limits partly used earlier: "
+                "sub-limits partly used earlier this policy year: "
                 + ", ".join(f"{k} Rs {v}" for k, v in used.items())
             )
             # TODO(day 3): pass `used` to the calculator; agree the parameter with T15
 
         # 3. tariff outliers for the procedure line(s)
-        pol = self.belt.call("get_policy", policy_number=claim.policy_number)
         tier = pol.city_tier if pol else "tier_1"
         if claim.procedure:
             rng = self.belt.call("tariff_range", procedure=claim.procedure, city_tier=tier)
