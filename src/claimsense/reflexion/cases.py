@@ -63,6 +63,10 @@ CATEGORY_MAP: dict[str, LineCategory] = {
 #: gold line-level reason code -> (deduction reason, clause id the gold is taken to cite).
 #: `duplicate_line` has no policy clause: it is a fraud finding, so it gets a marker id and is
 #: left out of the gold clause choices (a human catches it; no clause choice "fixes" it).
+#: `sub_limit` is a generic demo-rule code, not the cataract limit: no current gold line carries
+#: it (it appears only in `expected_review_flags`, on non-cataract claims such as CLM-0016/0019),
+#: so this entry is never looked up today. The cataract sub-limit is `C.CATARACT` (clause 4.3,
+#: confirmed 2026-11-11); add a separate code for it once a gold case needs one.
 LINE_REASONS: dict[str, tuple[DeductionReason, str]] = {
     "room_rent_daily_cap": (DeductionReason.ROOM_RENT_CAP, C.ROOM_RENT_LIMIT),
     "icu_daily_cap": (DeductionReason.ICU_CAP, C.ICU_LIMIT),
@@ -110,10 +114,6 @@ RULE_DISAGREEMENTS = [
     "to Rs 0.50 and count as a miss unless the evaluator is run with a tolerance "
     "(--tolerance-rs). Decision (lead, Nov 2026 walkthrough): the tolerance lives in the Reflexion "
     "evaluator, the gold is not changed.",
-    "Gold (2026-11-04 audit, GOLD-01) repudiates CLM-0018, a caesarean section, under clause 7.15; "
-    "the coverage analyst's admissibility check has no exclusion rule yet (AGT-02, orchestration "
-    "owner), so the pipeline still pays it. Admissibility is deterministic code, not a clause "
-    "choice, so no lesson can fix this.",
     "Gold (2026-11-04 audit, GOLD-04) caps CLM-0016's ICU day at Rs 10,000 but applies no "
     "proportional cut to the other lines because the room rent itself is within its cap; the "
     "calculator applies clause 4.1.1 Note (b) to an ICU breach as well, so it cuts investigations "

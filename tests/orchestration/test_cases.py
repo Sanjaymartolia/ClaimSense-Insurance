@@ -131,6 +131,28 @@ def test_gold_audit_relabels_are_mapped(cases, raw):
     assert c16.gold_worksheet.total_payable == Decimal("59346")
 
 
+@pytest.mark.parametrize(
+    ("diagnosis", "excluded"),
+    [
+        ("Caesarean section", True),  # CLM-0018 as filed (GOLD-01)
+        ("LSCS for obstructed labour", True),
+        ("Normal delivery", True),
+        ("Ectopic pregnancy, laparoscopic salpingectomy", False),  # 7.15(a) carve-out
+        ("Pneumonia inpatient episode (non-ICU)", False),
+    ],
+)
+def test_admissibility_applies_the_maternity_exclusion(cases, diagnosis, excluded):
+    """Clause 7.15(a): childbirth (incl. caesarean) is excluded, ectopic pregnancy is not (AGT-02).
+    Only the diagnosis changes, so every other admissibility rule stays as CLM-0018 has it."""
+    from claimsense.agents.coverage import CoverageAgent
+
+    c18 = next(c for c in cases if c.case_id == "CLM-0018")
+    claim = Claim.model_validate({**c18.packet["claim"], "diagnosis": diagnosis})
+    adm = CoverageAgent(stub_services_factory()(c18)).check_admissibility(claim)
+    assert (MATERNITY_EXCLUSION in adm.clause_ids) is excluded
+    assert adm.admissible is not excluded
+
+
 def test_policy_record_comes_from_the_fixture(raw):
     claims, _ = raw
     fx = claims[0]
@@ -156,10 +178,11 @@ def test_unknown_reason_code_or_category_raises(raw):
 
 
 #: Gold repudiates these under an exclusion the coverage analyst's admissibility check does not
-#: implement yet (CLM-0018: caesarean, clause 7.15; GOLD-01 / AGT-02 in the gold audit). The
-#: pipeline pays them, so they are a known baseline miss. Remove an id here once the check exists:
-#: the test below then fails loudly if the id is still listed but no longer missed.
-KNOWN_UNIMPLEMENTED_EXCLUSIONS = {"CLM-0018"}
+#: implement yet. The pipeline pays them, so they are a known baseline miss. Remove an id here once
+#: the check exists: the test below then fails loudly if the id is still listed but no longer
+#: missed. CLM-0018 (caesarean, clause 7.15; GOLD-01 / AGT-02) was removed on 2026-11-11 when
+#: `check_admissibility` gained the maternity exclusion.
+KNOWN_UNIMPLEMENTED_EXCLUSIONS: set[str] = set()
 
 
 def test_stub_dry_run_of_all_dev_claims_completes(cases):
