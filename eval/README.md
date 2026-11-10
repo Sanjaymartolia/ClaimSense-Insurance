@@ -40,7 +40,7 @@ Single runs, for when you are debugging one piece:
 python -m eval.harness.run --adapter gold-replay --split dev --label ceiling   # do this first
 python -m eval.harness.run --adapter claimsense  --split dev --label real-dev  # the real agents
 python -m eval.harness.run --help                                             # all adapters/faults
-pytest eval/tests -q                                                          # 197 tests
+pytest eval/tests -q                                                          # 269 tests
 ```
 
 What did the agents *do*? The trace-based agent suite (L13 sections 1–7) records every node, tool
@@ -53,6 +53,17 @@ python -m eval.agent_suite --label x --show CLM-9001           # one claim's ful
 ```
 
 See [agent_suite/README.md](agent_suite/README.md).
+
+Is the pipeline healthy *right now*? Live monitoring (L13 section 8) sends fresh claims through it
+with a real Prometheus and Grafana, injects a tool outage and an injection burst, and checks that
+the right alerts fire:
+
+```bash
+python -m eval.monitoring setup                              # once: download + verify the servers
+python -m eval.monitoring run --stub --label drill --open    # ~6 min, free; exit 1 if the drill fails
+```
+
+See [monitoring/README.md](monitoring/README.md) and `docs/MONITORING_REPORT_CARD.md`.
 
 Full documentation, including the measured results and every open limitation:
 **`docs/EVAL_HARNESS_REPORT.md`** (and its DOCX). Section 10 is the procedures.
@@ -76,7 +87,8 @@ Full documentation, including the measured results and every open limitation:
 | `tools/build_report_docx.py` | Builds the report DOCX from its Markdown source. |
 | `full.py` | `python -m eval.full`: harness self-check + one traced pipeline run scored by both the harness and the agent suite; combined gate. |
 | `agent_suite/` | Trace-based agent suite: spans per node/tool/model call, process metrics, pass@k, guardrail recall, payload checks, judge, gate (`gate.yaml`). |
-| `tests/` | 197 tests. Not in the default `pytest` run; use `pytest eval/tests`. |
+| `monitoring/` | Live monitoring: metrics from traces, Prometheus alert rules, Grafana dashboard as code, live traffic with an A/B split, an incident drill, read-back and A/B tests. |
+| `tests/` | 269 tests. Not in the default `pytest` run; use `pytest eval/tests`. |
 
 ## Two things to know before you trust a number
 

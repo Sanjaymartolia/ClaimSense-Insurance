@@ -43,6 +43,8 @@ every process metric), `traces.jsonl` (redacted, no claim text, rule 4) and `car
 | 5 Unit tests + guardrail | `eval/tests/test_agent_trajectory.py`, `guardrail.py` | trajectory asserts; known defects as strict `xfail`; product guardrail recall / false alarms / attack rate with and without it |
 | 6 Judge | `judge.py` | code checks on the review payload first; structured judge (reasoning first) on the payload; swap-order pairwise; verbosity probe; kappa |
 | 7 Suite + gate | `suite.py`, `gate.yaml` | one card per variant, thresholds, exit code for CI |
+| 7.1 A teammate's PR | variant `lean-pr` | same outcome metrics as `v1`, but the fraud screen is skipped; only `path_complete` catches it |
+| 8 Monitoring | `eval/monitoring/` | live traffic, Prometheus, Grafana, alerts, A/B; see [its README](../monitoring/README.md) and [docs/MONITORING_REPORT_CARD.md](../../docs/MONITORING_REPORT_CARD.md) |
 
 What the judge reads: evaluation never settles a claim, so there is no letter. The text a person
 acts on is the **review payload** the approval gate shows the adjudicator (worksheet, deductions
@@ -55,6 +57,7 @@ with clause and explanation, admissibility, fraud flags, critic notes). It holds
 | `v1` | the pipeline as the harness adapter runs it, documents passed in |
 | `no-docs` | documents dropped, as the product loader does today (CLAIM-03) |
 | `guarded` | `claimsense.guardrails.scan_documents` in front of the graph; a flagged claim goes to a person and no agent runs. Nothing wires this in today; this measures what it would do |
+| `lean-pr` | L13 section 7.1's "teammate's PR": the fraud agent's three tool calls are skipped (`fraud_screen=False`). Exists to show what the gate catches; never a candidate to ship |
 
 ## First results (stub mode, 10 November 2026, `--label l13-baseline`)
 

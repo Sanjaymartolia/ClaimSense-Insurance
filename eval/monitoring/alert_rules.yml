@@ -1,0 +1,85 @@
+# L13 section 8.2: alert rules for the ClaimSense pipeline. Owner: Eval & Red-Team.
+#
+# Every rule has an expression, a `for:` (how long it must stay true before it fires, so one slow
+# or failed claim pages nobody), a summary and a runbook line that says what to check first.
+#
+# These thresholds are PROPOSED, like the ones in eval/agent_suite/gate.yaml. The gate and an alert
+# do different jobs:
+#   gate   offline, before a change ships: an absolute bar the pipeline must clear (0.85 correct)
+#   alert  online, after it ships: a move away from what is normal for this pipeline today
+# So `HandledCorrectlyDrop` sits below today's normal level, not at the gate's 0.85. Raising it to
+# the gate's bar now would make it fire all day and teach everyone to ignore it.
+#
+# The `for:` times and rate windows are short (seconds) so a four-minute demo shows them fire.
+# In production use minutes. Loaded by `eval.monitoring.stack`; every metric named here must exist
+# in `eval.monitoring.metrics` (eval/tests/test_monitoring.py checks that).
+groups:
+  - name: claimsense
+    rules:
+      - alert: ToolErrorRateHigh
+        expr: |
+          sum by (tool) (rate(claimsense_tool_calls_total{status="error"}[1m]))
+            / sum by (tool) (rate(claimsense_tool_calls_total[1m])) > 0.2
+        for: 15s
+        annotations:
+          summary: "{{ $labels.tool }} fails on {{ $value | humanizePercentage }} of calls"
+          runbook: >-
+            Check the server behind the failing tool first (tariff, policy-kb or claims-db MCP).
+            Then look at PipelineErrorRateHigh: an agent with no fallback turns each failed call
+            into a failed claim (MON-01).
+
+      - alert: PipelineErrorRateHigh
+        expr: |
+          sum(rate(claimsense_claims_total{outcome="error"}[1m]))
+            / sum(rate(claimsense_claims_total[1m])) > 0.05
+        for: 15s
+        annotations:
+          summary: "{{ $value | humanizePercentage }} of claims end in a pipeline error"
+          runbook: >-
+            These claims reach the adjudicator with no worksheet. Check tool error rates first,
+            then read the error span of a few failing traces to see which node crashed.
+
+      - alert: HandledCorrectlyDrop
+        expr: |
+          sum(rate(claimsense_correct_total[1m]))
+            / sum(rate(claimsense_scored_total[1m])) < 0.40
+        for: 20s
+        annotations:
+          summary: "only {{ $value | humanizePercentage }} of scored claims are handled correctly"
+          runbook: >-
+            Check tool errors and pipeline errors first, then guardrail trips. Then sample failing
+            claims and read their traces (python -m eval.agent_suite --show <claim id>).
+
+      - alert: GuardrailBurst
+        expr: |
+          sum(rate(claimsense_guardrail_trips_total[1m]))
+            / sum(rate(claimsense_claims_total[1m])) > 0.05
+        for: 10s
+        annotations:
+          summary: "{{ $value | humanizePercentage }} of claims tripped a guardrail"
+          runbook: >-
+            Sample the blocked claims and look for a new injection pattern; add it to
+            eval/redteam/attacks.jsonl. The guardrail misses some wording (RT-010, RT-012), so
+            also re-check claims that were cleared during the same minutes.
+
+      # Latency and cost: limits from the real-model run of 10 Nov 2026 (P95 10 s, $0.0008 per
+      # claim). 30 s is the gate's P95 limit; $0.005 is about six times today's cost.
+      - alert: LatencyP95High
+        expr: |
+          histogram_quantile(0.95, sum by (le) (rate(claimsense_latency_seconds_bucket[2m]))) > 30
+        for: 30s
+        annotations:
+          summary: "P95 latency is {{ $value | humanize }} s"
+          runbook: >-
+            Compare span durations before and after the last change: time per node first, then
+            tool calls, then model calls.
+
+      - alert: CostPerClaimHigh
+        expr: |
+          sum(rate(claimsense_cost_usd_total[2m]))
+            / sum(rate(claimsense_claims_total[2m])) > 0.005
+        for: 20s
+        annotations:
+          summary: 'cost per claim is ${{ $value | printf "%.4f" }}'
+          runbook: >-
+            Check model calls per claim. A critic-revise loop or a retry is the usual cause.

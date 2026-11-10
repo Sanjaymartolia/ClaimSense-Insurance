@@ -393,6 +393,18 @@ def _mode() -> str:
     return "stub" if stub_mode() else "llm"
 
 
+class _NoFraudScreen:
+    """Stands in for `FraudAgent` in the `lean-pr` variant (L13 section 7.1, the teammate's PR).
+
+    The fraud node still runs, but the screen makes no tool call: no claim history, no policy
+    period, no tariff range. It keeps the extraction notes exactly as `FraudAgent.run` appends
+    them, so those still reach the reviewer.
+    """
+
+    def run(self, claim: Any, extraction_issues: list[str] | None = None) -> list[str]:
+        return [f"extraction: {i}" for i in (extraction_issues or [])]
+
+
 def run_traced(
     case: EvalCase,
     *,
@@ -400,12 +412,21 @@ def run_traced(
     pass_documents: bool = True,
     guardrail: bool = False,
     calculator: str = "reference",
+    fraud_screen: bool = True,
+    prepare: Callable[[Any], None] | None = None,
 ) -> Trace:
     """Run one claim through the real pipeline and return its trace.
 
     guardrail=True puts the product's input guardrail (`claimsense.guardrails.scan_documents`) in
     front of the graph, the way L13 section 5.1 does: a flagged claim goes straight to a person and
     no agent runs. Nothing in the product wires it in today, so this measures what it *would* do.
+
+    fraud_screen=False is the change section 7.1 puts through the gate: the fraud agent's three
+    tool calls are skipped (see `_NoFraudScreen`). It exists to show what the gate catches.
+
+    prepare, if given, is called with this claim's `Services` before the tools are wrapped.
+    `eval.monitoring` uses it to make a tool fail (section 8.6); because the fault sits under the
+    tracing wrapper, it shows up in the trace as an `error` tool span, like a real outage would.
     """
     adapter = _adapter(calculator, pass_documents)
     imports = adapter._imports
@@ -444,8 +465,12 @@ def run_traced(
     services.calculate = (
         imports["reference_calculate"] if calculator == "reference" else imports["real_calculate"]
     )
+    if prepare is not None:
+        prepare(services)
     instrument_services(services, trace)
     team = imports["Team"](services)
+    if not fraud_screen:
+        team.fraud = _NoFraudScreen()
     runner = _runner_class()(team, trace)
 
     def reviewer(payload: dict) -> dict:

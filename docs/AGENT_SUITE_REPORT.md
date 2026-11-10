@@ -16,6 +16,9 @@ wrong, you can open its trace and see the exact step where it went wrong.
 
 The suite only **observes** the product. Nothing in `src/` is edited.
 
+The notebook's sections 7.1 to 8.9 (a teammate's PR through the gate, then live monitoring with
+Prometheus, Grafana, alerts and an A/B test) are in `docs/MONITORING_REPORT_CARD.md`.
+
 ---
 
 ## 2. Steps to run it in the terminal

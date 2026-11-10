@@ -27,6 +27,12 @@ difference in plain terms and gives the exact terminal steps for each.
 
 **One command runs both:** `python -m eval.full` (Section 6).
 
+**A third piece watches the pipeline live:** `python -m eval.monitoring run --stub --label drill`.
+Both suites grade fixed claims *before* a change ships. Monitoring sends a stream of fresh claims
+through the pipeline with a real Prometheus and Grafana, breaks a tool on purpose, and checks that
+the right alerts fire. It is the smoke alarm next to the referee and the flight recorder. See
+`docs/MONITORING_REPORT_CARD.md`.
+
 ---
 
 ## 2. What each suite measures
@@ -330,6 +336,7 @@ Check the first line says `mode: REAL MODELS via OpenRouter`.
 | find out why a claim is wrong | `python -m eval.agent_suite --stub --label look --show <CLAIM-ID>` |
 | compare two configurations | `python -m eval.agent_suite --stub --label cmp --variant v1,guarded` |
 | measure with real models | `python -m eval.full --label <name> --splits dev` (costs money) |
+| see the pipeline live, with an incident and alerts | `python -m eval.monitoring run --stub --label drill --open` (run `python -m eval.monitoring setup` once first) |
 
 ---
 
@@ -369,4 +376,4 @@ Exit codes for all three commands: **0** = passed, **1** = failed the gate, **2*
   "agrees with today's gold", not "correct under the policy wording".
 
 **More detail:** `docs/EVAL_HARNESS_REPORT.md` (harness) · `docs/AGENT_SUITE_REPORT.md` (agent
-suite and `eval.full`) · `eval/README.md`.
+suite and `eval.full`) · `docs/MONITORING_REPORT_CARD.md` (live monitoring) · `eval/README.md`.

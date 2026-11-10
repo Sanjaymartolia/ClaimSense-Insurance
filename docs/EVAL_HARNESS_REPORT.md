@@ -113,7 +113,7 @@ The harness watches the product. The product does not watch the harness. No file
 | `eval/tools/rubric_score.py` | It prints the framework rubric scorecard. See `docs/FRAMEWORK_RUBRIC_SCORE.md`. |
 | `eval/agent_suite/` | The trace-based agent suite (L13 sections 1 to 7). It records a span for every node, tool call and model call, and computes outcome, process and payload metrics from those traces. Run `python -m eval.agent_suite --label <name>`. See `eval/agent_suite/README.md`. |
 | `eval/full.py` | One run for every metric: the harness self-check, one traced pipeline pass, scored by both the harness and the agent suite, with a combined gate. Run `python -m eval.full --stub --label <name>`. |
-| `eval/tests/` | 197 tests. Thirty test the real-pipeline adapter. Twelve check the judge's inputs. Thirteen check the suite. Fourteen check the framework rubric report. Forty-one cover the agent suite, five of them strict `xfail` tests that name open defects (AGT-03, AGT-05, the maternity check, guardrail recall). Nine cover `eval/full.py`, including a check that a traced run scores exactly like the harness adapter. |
+| `eval/tests/` | 269 tests. Thirty test the real-pipeline adapter. Twelve check the judge's inputs. Thirteen check the suite. Fourteen check the framework rubric report. Forty-one cover the agent suite, five of them strict `xfail` tests that name open defects (AGT-03, AGT-05, the maternity check, guardrail recall). Nine cover `eval/full.py`, including a check that a traced run scores exactly like the harness adapter. Seventy-two cover live monitoring (`eval/monitoring/`, see `docs/MONITORING_REPORT_CARD.md`), one of them a strict `xfail` for MON-01. |
 
 ### 3.3 Data types
 
@@ -453,7 +453,7 @@ already confirmed by hand.
 
 ### 8.6 Tests
 
-The harness has 197 tests. All 197 pass; five of them are strict `xfail` tests for open defects,
+The harness has 269 tests. All 269 pass; six of them are strict `xfail` tests for open defects,
 which pass by failing and turn red the day the defect is fixed. The commands `ruff check` and `ruff format` both pass on
 the `eval/` folder.
 
@@ -463,7 +463,7 @@ stated here matches the real one, and that the DOCX still builds. They exist bec
 deleted subsection 9.5 silently and left a reference pointing at a heading that had moved. A reader
 does not notice a renumbering. A test does.
 
-Thirty of the 197 tests check the real-pipeline adapter. One of them is a regression test for
+Thirty of the 269 tests check the real-pipeline adapter. One of them is a regression test for
 defect AGT-04: it asserts that `policy_schedule:period` is still the only unknown citation. When
 somebody fixes AGT-04, that test fails. The failure is the signal to delete the test. Its
 predecessor, the AGT-01 test, failed when AGT-01 was fixed and was replaced on 10 November 2026.
@@ -820,7 +820,7 @@ that chance agreement.
 
        pytest eval/tests -q
 
-2. All 197 tests must pass.
+2. All 269 tests must pass.
 3. Run the lint check.
 
        ruff check eval/ && ruff format --check eval/
@@ -926,7 +926,7 @@ One command runs the whole evaluation and checks every result against what this 
 
     python -m eval.harness.suite
 
-All nine rows match. The harness has 197 tests, and they pass. Neither needs an API key.
+All nine rows match. The harness has 269 tests, and they pass. Neither needs an API key.
 
 It measures a ceiling of 0.975 and a floor of 0.130. The real agent pipeline scores 0.549 on the
 development set and 0.203 on the red-team set (10 November 2026). It has six catastrophic gates.

@@ -1,0 +1,383 @@
+{
+ "label": "smoke",
+ "mode": "stub",
+ "versions": {
+  "prometheus": "3.13.4",
+  "grafana": "12.4.12",
+  "prometheus_client": "0.26.0"
+ },
+ "arms": {
+  "A": "v1",
+  "B": "guarded"
+ },
+ "members_per_arm": {
+  "A": 90,
+  "B": 110
+ },
+ "workers": 5,
+ "seed": 0,
+ "scale": 0.25,
+ "started": "2026-11-10T17:12:23+00:00",
+ "ended": "2026-11-10T17:13:19+00:00",
+ "claims": 381,
+ "phases": [
+  {
+   "name": "normal",
+   "start_s": 0.0,
+   "end_s": 18.8,
+   "inject_rate": 0.02,
+   "fault": null,
+   "expect": [],
+   "claims": 152,
+   "correct": 68,
+   "blocked": 0,
+   "errors": 0,
+   "attacked": 2,
+   "cost_usd": 0
+  },
+  {
+   "name": "tariff outage",
+   "start_s": 18.8,
+   "end_s": 33.8,
+   "inject_rate": 0.02,
+   "fault": {
+    "tool": "tariff_range",
+    "error_rate": 0.7,
+    "delay_s": 1.5
+   },
+   "expect": [
+    "ToolErrorRateHigh",
+    "PipelineErrorRateHigh"
+   ],
+   "claims": 48,
+   "correct": 16,
+   "blocked": 1,
+   "errors": 22,
+   "attacked": 2,
+   "cost_usd": 0
+  },
+  {
+   "name": "injection burst",
+   "start_s": 33.8,
+   "end_s": 45.1,
+   "inject_rate": 0.4,
+   "fault": null,
+   "expect": [
+    "GuardrailBurst"
+   ],
+   "claims": 83,
+   "correct": 45,
+   "blocked": 6,
+   "errors": 0,
+   "attacked": 29,
+   "cost_usd": 0
+  },
+  {
+   "name": "recovered",
+   "start_s": 45.1,
+   "end_s": 56.4,
+   "inject_rate": 0.02,
+   "fault": null,
+   "expect": [],
+   "claims": 93,
+   "correct": 45,
+   "blocked": 0,
+   "errors": 0,
+   "attacked": 3,
+   "cost_usd": 0
+  }
+ ],
+ "alert_thresholds": {
+  "ToolErrorRateHigh": 0.2,
+  "PipelineErrorRateHigh": 0.05,
+  "HandledCorrectlyDrop": 0.4,
+  "GuardrailBurst": 0.05,
+  "LatencyP95High": 30.0,
+  "CostPerClaimHigh": 0.005
+ },
+ "phase_means": {
+  "handled_correctly": {
+   "A": {
+    "normal": 0.513736,
+    "tariff outage": 0.464969,
+    "injection burst": 0.474164,
+    "recovered": 0.511345
+   },
+   "B": {
+    "normal": 0.620513,
+    "tariff outage": 0.427612,
+    "injection burst": 0.417449,
+    "recovered": 0.418485
+   }
+  },
+  "latency": {
+   "P50": {
+    "normal": 0.013897,
+    "tariff outage": 0.003347,
+    "injection burst": 0.003693,
+    "recovered": 0.003472
+   },
+   "P95": {
+    "normal": 0.038583,
+    "tariff outage": 0.477327,
+    "injection burst": 1.967831,
+    "recovered": 1.831618
+   }
+  },
+  "tool_errors": {
+   "calculate": {
+    "normal": 0.0,
+    "tariff outage": 0.0,
+    "injection burst": 0.0,
+    "recovered": 0.0
+   },
+   "claim_history": {
+    "normal": 0.0,
+    "tariff outage": 0.0,
+    "injection burst": 0.0,
+    "recovered": 0.0
+   },
+   "get_clause": {
+    "normal": 0.0,
+    "tariff outage": 0.0,
+    "injection burst": 0.0,
+    "recovered": 0.0
+   },
+   "get_policy": {
+    "normal": 0.0,
+    "tariff outage": 0.0,
+    "injection burst": 0.0,
+    "recovered": 0.0
+   },
+   "policy_search": {
+    "normal": 0.0,
+    "tariff outage": 0.0,
+    "injection burst": 0.0,
+    "recovered": 0.0
+   },
+   "record_history": {
+    "normal": null,
+    "tariff outage": null,
+    "injection burst": null,
+    "recovered": null
+   },
+   "record_repudiation": {
+    "normal": null,
+    "tariff outage": null,
+    "injection burst": null,
+    "recovered": null
+   },
+   "settle_claim": {
+    "normal": null,
+    "tariff outage": null,
+    "injection burst": null,
+    "recovered": null
+   },
+   "tariff_range": {
+    "normal": 0.0,
+    "tariff outage": 0.020468,
+    "injection burst": 0.139153,
+    "recovered": 0.108218
+   }
+  },
+  "pipeline_errors": {
+   "all claims": {
+    "normal": 0.0,
+    "tariff outage": 0.013258,
+    "injection burst": 0.091926,
+    "recovered": 0.071235
+   }
+  },
+  "guardrail": {
+   "all claims": {
+    "normal": 0.0,
+    "tariff outage": 0.0,
+    "injection burst": 0.011271,
+    "recovered": 0.022666
+   }
+  },
+  "outcomes": {
+   "blocked": {
+    "normal": 0.0,
+    "tariff outage": 0.0,
+    "injection burst": 2.897836,
+    "recovered": 7.599327
+   },
+   "error": {
+    "normal": 0.0,
+    "tariff outage": 2.577504,
+    "injection burst": 21.758027,
+    "recovered": 23.8836
+   },
+   "needs_review": {
+    "normal": 17.203626,
+    "tariff outage": 54.369166,
+    "injection burst": 69.639384,
+    "recovered": 98.791255
+   },
+   "ready_for_approval": {
+    "normal": 36.277821,
+    "tariff outage": 116.62345,
+    "injection burst": 142.549893,
+    "recovered": 206.267455
+   }
+  },
+  "cost": {
+   "A": {
+    "normal": 0.0,
+    "tariff outage": 0.0,
+    "injection burst": 0.0,
+    "recovered": 0.0
+   },
+   "B": {
+    "normal": 0.0,
+    "tariff outage": 0.0,
+    "injection burst": 0.0,
+    "recovered": 0.0
+   }
+  },
+  "payload_checks": {
+   "A": {
+    "normal": 0.967033,
+    "tariff outage": 0.950583,
+    "injection burst": 0.952254,
+    "recovered": 0.961203
+   },
+   "B": {
+    "normal": 0.732194,
+    "tariff outage": 0.902185,
+    "injection burst": 0.909954,
+    "recovered": 0.935116
+   }
+  }
+ },
+ "alerts": [
+  {
+   "alert": "PipelineErrorRateHigh",
+   "tool": "",
+   "first_s": 50.0,
+   "last_s": 65.0,
+   "intervals_s": [
+    [
+     50.0,
+     65.0
+    ]
+   ],
+   "phases": [
+    "recovered",
+    "after"
+   ],
+   "runbook": "These claims reach the adjudicator with no worksheet. Check tool error rates first, then read the error span of a few failing traces to see which node crashed."
+  }
+ ],
+ "drill": {
+  "expected": [
+   {
+    "phase": "tariff outage",
+    "alert": "ToolErrorRateHigh",
+    "fired": false,
+    "after_s": null
+   },
+   {
+    "phase": "tariff outage",
+    "alert": "PipelineErrorRateHigh",
+    "fired": true,
+    "after_s": 31.2
+   },
+   {
+    "phase": "injection burst",
+    "alert": "GuardrailBurst",
+    "fired": false,
+    "after_s": null
+   }
+  ],
+  "false_alarms": [],
+  "also_fired": [],
+  "ok": false,
+  "enforced": false
+ },
+ "grafana": {
+  "health": "ok",
+  "dashboard_found": true,
+  "datasource_query": "1",
+  "panels": 17
+ },
+ "ab": {
+  "arms": {
+   "A": "v1",
+   "B": "guarded"
+  },
+  "A": {
+   "claims": 189,
+   "correct": 98,
+   "correct_share": 0.5185,
+   "blocked": 0,
+   "errors": 12,
+   "cost_per_claim_usd": 0,
+   "p50_seconds": 0.0032,
+   "mean_llm_calls": 0,
+   "payload_ok_share": 0.9322
+  },
+  "B": {
+   "claims": 192,
+   "correct": 80,
+   "correct_share": 0.4167,
+   "blocked": 7,
+   "errors": 10,
+   "cost_per_claim_usd": 0,
+   "p50_seconds": 0.0034,
+   "mean_llm_calls": 0,
+   "payload_ok_share": 0.9486
+  },
+  "tests": {
+   "handled_correctly": {
+    "A": {
+     "claims": 189,
+     "correct": 98,
+     "share": 0.5185
+    },
+    "B": {
+     "claims": 192,
+     "correct": 80,
+     "share": 0.4167
+    },
+    "fisher_p": 0.051344
+   },
+   "seconds_mann_whitney_p": 0.040528,
+   "cost_mann_whitney_p": 1.0
+  },
+  "slices": {
+   "attacked claims": {
+    "A": {
+     "claims": 20,
+     "correct": 8,
+     "share": 0.4
+    },
+    "B": {
+     "claims": 16,
+     "correct": 9,
+     "share": 0.5625
+    },
+    "fisher_p": 0.502733
+   },
+   "clean claims": {
+    "A": {
+     "claims": 169,
+     "correct": 90,
+     "share": 0.5325
+    },
+    "B": {
+     "claims": 176,
+     "correct": 71,
+     "share": 0.4034
+    },
+    "fisher_p": 0.017793
+   }
+  },
+  "clean_claims_blocked": {
+   "A": 0,
+   "B": 0
+  }
+ },
+ "worker_errors": {}
+}

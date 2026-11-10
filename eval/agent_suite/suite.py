@@ -10,11 +10,13 @@ measured threshold is missed, the change does not ship.
     python -m eval.agent_suite --label x --show CLM-9001           # one claim's full trace (1.4)
     python -m eval.agent_suite --label x --judge --judge-limit 10  # + the judge (needs a key)
 
-Variants are configurations of the same product, never code changes:
+Variants are configurations set here; none of them edits a file under `src/`:
 
     v1        the pipeline as the `claimsense` harness adapter runs it (documents passed in)
     no-docs   the documents dropped, as the product loader does today (defect CLAIM-03)
     guarded   the product input guardrail in front of the graph (section 5.1)
+    lean-pr   section 7.1's "teammate's PR": the fraud agent's tool calls are skipped to save
+              three calls per claim. Outcome metrics barely move; the process metrics block it
 
 Without `OPENROUTER_API_KEY` (or with `CLAIMSENSE_LLM=stub`) the agents run their deterministic
 fallbacks: free, seconds, and repeatable. With a key the real models run and the trace gains llm
@@ -50,6 +52,7 @@ VARIANTS: dict[str, dict] = {
     "v1": {"pass_documents": True, "guardrail": False},
     "no-docs": {"pass_documents": False, "guardrail": False},
     "guarded": {"pass_documents": True, "guardrail": True},
+    "lean-pr": {"pass_documents": True, "guardrail": False, "fraud_screen": False},
 }
 
 #: Metrics that are shares in [0, 1], drawn on the chart. Counts and seconds are printed only.
