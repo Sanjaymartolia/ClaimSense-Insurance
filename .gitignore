@@ -3,8 +3,10 @@ __pycache__/
 *.egg-info/
 .pytest_cache/
 .ruff_cache/
+# secrets: any env file, at any depth. Only the template (no real values) is tracked.
 .env
-.env.local
+.env.*
+!.env.example
 *.sqlite
 *.db
 chroma-data/
@@ -15,5 +17,8 @@ data/raw/
 .cache/
 .state/
 
-# course reference material: contains API keys and large PDFs; never commit
-Reference_code_files/
+# course reference material: its notebooks contain OpenRouter API keys; never commit.
+# Upper or lower case, so a teammate on Linux or macOS with another spelling is covered too.
+[Rr]eference_[Cc]ode_[Ff]iles/
+# Jupyter's autosave copies keep any key the notebook had
+.ipynb_checkpoints/
