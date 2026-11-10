@@ -5,7 +5,7 @@ policy (docs/memory-policy.md) and the tests (tests/memory/).
 
 | Memory                                  | Lives in                                       |
 |-----------------------------------------|------------------------------------------------|
-| Claim history: fingerprints, sub-limits | ``mcp_servers/claims_db_server.ClaimsDatabase`` |
+| Claim history: fingerprints, sub-limits | ``mcp_servers/claims_db.ClaimsDatabase``        |
 | Approved adjudicator lessons            | ``reflexion/playbook.Playbook``                |
 | One claim's working state               | the LangGraph checkpointer (``graph/build.py``) |
 """

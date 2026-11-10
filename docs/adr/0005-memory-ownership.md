@@ -9,7 +9,7 @@ L9 belongs to Knowledge & Memory, and `src/claimsense/memory/` was empty. Teamma
 each kind of memory the policy asks for, in their own folders:
 
 - **Claim history** (bill fingerprints, sub-limits used): `ClaimsDatabase.record_history` and
-  `claim_history` in `mcp_servers/claims_db_server.py` (Tools & Security). They store pseudonymised
+  `claim_history` in `mcp_servers/claims_db.py` (Tools & Security). They store pseudonymised
   ids, dates and hashed fingerprints only.
 - **Lessons:** `reflexion/playbook.py` (Agents & Orchestration): proposed → approved / rejected →
   withdrawn, frozen before the held-out run.
@@ -33,19 +33,15 @@ each kind of memory the policy asks for, in their own folders:
 
 ## Consequences
 - **Tools & Security (claims-db):**
-  1. `claims_db_server.py` does `import approval_security` as a top-level module, so
-     `import claimsense.mcp_servers.claims_db_server` raises `ModuleNotFoundError`. Use
-     `from claimsense.mcp_servers import approval_security`; then delete `tests/memory/conftest.py`'s
-     `sys.path` line.
-  2. `record_history` stores a `SUB_LIMIT` deduction's amount (what was cut) as `sub_limits_used`,
+  1. `record_history` stores a `SUB_LIMIT` deduction's amount (what was cut) as `sub_limits_used`,
      but the fraud agent reads it as what was used. Limit 40,000 on a 50,000 bill stores 10,000,
      not 40,000. Store the line's payable amount instead. `tests/memory` has this as a strict xfail;
      remove the marker when it's fixed.
-  3. Add `delete_history(claim_id)` so a wrongly recorded claim can be corrected. `record_history`
+  2. Add `delete_history(claim_id)` so a wrongly recorded claim can be corrected. `record_history`
      ignores a claim that is already recorded, so a corrected claim can't be re-recorded today.
-- **Agents & Orchestration:** bind `claim_history` and `record_history` in `real_services()` to the
-  claims-db instance. `fraud.py` says "sub-limits already used this policy year" but sums every year
-  in history; filter by the policy period (`PolicyInfo.period_start`, `period_end`).
+- **Agents & Orchestration:** `real_services()` already binds `claim_history` and `record_history`
+  to claims-db. `fraud.py` says "sub-limits already used this policy year" but sums every year in
+  history; filter by the policy period (`PolicyInfo.period_start`, `period_end`).
 - **Knowledge & Memory:** keep `docs/memory-policy.md` and `tests/memory/` current. If claim history
   ever moves, the new store must pass `tests/memory/` unchanged.
 
