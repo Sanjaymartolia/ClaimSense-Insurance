@@ -534,7 +534,7 @@ arrives.
 
 | ID | Finding | Owner | Suggested action |
 |---|---|---|---|
-| **MON-01** | `FraudAgent.run` calls `tariff_range` with no failure handling (`src/claimsense/agents/fraud.py:58`). The tariff check is advisory (it only adds a flag), yet one timeout ends the whole claim as a pipeline error with no worksheet. In the drill, 86 of 192 outage claims crashed | Agents & Orchestration | catch the failure, add a flag "tariff check unavailable", carry on; a test that injects the fault (the `prepare=` seam in `run_traced` does this) |
+| **MON-01** | `FraudAgent.run` calls `tariff_range` with no failure handling (`src/claimsense/agents/fraud.py:66`). The tariff check is advisory (it only adds a flag), yet one timeout ends the whole claim as a pipeline error with no worksheet. In the drill, 86 of 192 outage claims crashed | Agents & Orchestration | catch the failure, add a flag "tariff check unavailable", carry on; a test that injects the fault (the `prepare=` seam in `run_traced` does this) |
 | **MON-02** | The tool alert fired 55 s into a 60 s outage; the one-minute window dilutes the error share with the healthy minute before (Section 6.5) | Eval & Red-Team with Deploy & Ops | choose window, `for:` and an absolute-rate rule with a drill, before production |
 | MON-03 | Drill 1 lost 44 s to a frozen traffic generator; cause unknown, not reproduced | Eval & Red-Team | done: a stall now makes the run inconclusive (exit 3, rerun) |
 | (known) | The guardrail misses RT-010 and RT-012 | Tools & Security | already open under AGT-05; this drill confirms it online |

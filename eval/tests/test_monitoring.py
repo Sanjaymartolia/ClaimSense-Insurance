@@ -241,7 +241,7 @@ def test_a_failing_tool_becomes_an_error_span_and_a_pipeline_error(source):
 
 @pytest.mark.xfail(
     strict=True,
-    reason="MON-01: FraudAgent.run has no fallback when tariff_range fails (fraud.py:58)",
+    reason="MON-01: FraudAgent.run has no fallback when tariff_range fails (fraud.py:66)",
 )
 def test_mon_01_a_failed_tariff_lookup_does_not_crash_the_claim(source):
     """The tariff check only adds an advisory flag; losing it must not lose the worksheet."""
