@@ -9,9 +9,13 @@ from ids that policy-kb returned, and these constants are used for deterministic
 P = "new_india_arogya_sanjeevani:"
 
 HOSPITALISATION = P + "4.1"  # 4.1 a (room), b (ICU), c (doctors), d (OT, medicines, diagnostics)
-OTHER_EXPENSES = P + "4.1.1"  # cataract sub-limit (a) + Note b: proportional deduction
+OTHER_EXPENSES = P + "4.1.1"  # (a) cataract covered "subject to the sub limits" + Note b: prop. cut
+# Cataract sub-limit itself: 25% SI or 40,000, whichever is lower, per eye per policy year.
+# Confirmed with Knowledge & Memory 2026-11-11; table-of-benefits row is 12.3. Not yet used by the
+# calculator (calc/adjudication.py PolicyRules note) or by reflexion/cases.py "sub_limit" (4.1.1).
+CATARACT = P + "4.3"
 ROOM_RENT_LIMIT = P + "12.1"  # table of benefits: 2% SI, max 5,000/day
-ICU_LIMIT = P + "12.2"  # 5% SI, max 10,000/day (+ cataract row in the same chunk)
+ICU_LIMIT = P + "12.2"  # 5% SI, max 10,000/day
 CO_PAY = P + "9.5"  # 5% on every claim
 MATERNITY_EXCLUSION = P + "7.15"  # 7.15 Maternity Expenses (Code - Excl18): childbirth, caesarean
 
