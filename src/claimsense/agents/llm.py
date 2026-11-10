@@ -8,7 +8,7 @@ offline and for free; switch to a real model once the plumbing works.
 from __future__ import annotations
 
 import os
-from functools import lru_cache
+from functools import cache
 
 # role -> model. Strong model for judgement (coverage, critic), cheap one for text.
 MODELS = {
@@ -28,7 +28,7 @@ def stub_mode() -> bool:
     return not os.getenv("OPENROUTER_API_KEY")
 
 
-@lru_cache(maxsize=None)
+@cache
 def get_llm(role: str):
     """Return a LangChain chat model for this role, or None in stub mode."""
     if stub_mode():

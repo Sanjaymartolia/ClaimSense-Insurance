@@ -37,6 +37,7 @@ from pathlib import Path
 def _ensure_claimsense_on_path() -> None:
     try:
         import claimsense  # noqa: F401
+
         return
     except ModuleNotFoundError:
         pass
@@ -61,11 +62,23 @@ from claimsense.agents.llm import DATA_RULE, as_data  # noqa: E402
 from claimsense.contracts import Claim, Worksheet  # noqa: E402
 
 __all__ = [
-    "DATA_RULE", "GuardFinding", "GuardReport", "OutputGuardViolation",
-    "wrap_as_data", "scan_text", "scan_documents", "verify_spans",
-    "validate_claim_fields", "check_consistency", "validate_worksheet_arithmetic",
-    "check_letter", "assert_letter_ok", "screen_input", "screen_output",
-    "is_injection", "scrub",
+    "DATA_RULE",
+    "GuardFinding",
+    "GuardReport",
+    "OutputGuardViolation",
+    "wrap_as_data",
+    "scan_text",
+    "scan_documents",
+    "verify_spans",
+    "validate_claim_fields",
+    "check_consistency",
+    "validate_worksheet_arithmetic",
+    "check_letter",
+    "assert_letter_ok",
+    "screen_input",
+    "screen_output",
+    "is_injection",
+    "scrub",
 ]
 
 
@@ -77,7 +90,7 @@ class GuardFinding:
     """A single guardrail finding. Messages are PHI-free (ids/amounts/codes only)."""
 
     code: str
-    category: str          # "injection" | "input_validation" | "consistency" | "arithmetic" | "output"
+    category: str  # "injection" | "input_validation" | "consistency" | "arithmetic" | "output"
     message: str
     severity: str = "warn"  # "info" | "warn" | "block"
     location: str | None = None
@@ -153,9 +166,13 @@ def scan_text(text: str, *, source: str | None = None) -> list[GuardFinding]:
             if snippet not in seen:
                 seen.add(snippet)
                 findings.append(
-                    GuardFinding(code="prompt_injection", category="injection",
-                                 message=f"possible injected instruction: {snippet!r}",
-                                 severity="warn", location=source)
+                    GuardFinding(
+                        code="prompt_injection",
+                        category="injection",
+                        message=f"possible injected instruction: {snippet!r}",
+                        severity="warn",
+                        location=source,
+                    )
                 )
     return findings
 
@@ -165,8 +182,11 @@ def scan_documents(documents: dict[str, str]) -> list[GuardFinding]:
     findings: list[GuardFinding] = []
     # repo's cheap tripwire first (keeps parity with extraction's behaviour)
     for note in find_injections(documents or {}):
-        findings.append(GuardFinding(code="prompt_injection", category="injection",
-                                     message=note, severity="warn"))
+        findings.append(
+            GuardFinding(
+                code="prompt_injection", category="injection", message=note, severity="warn"
+            )
+        )
     repo_hits = {f.message for f in findings}
     for name, text in (documents or {}).items():
         for finding in scan_text(text, source=name):
@@ -177,9 +197,12 @@ def scan_documents(documents: dict[str, str]) -> list[GuardFinding]:
 
 def verify_spans(claim: Claim, documents: dict[str, str]) -> list[GuardFinding]:
     """Every bill-line value must trace to the uploaded text (delegates to ``extraction.verify_spans``)."""
-    return [GuardFinding(code="untraceable_span", category="input_validation", message=problem,
-                         severity="warn")
-            for problem in _verify_spans(claim, documents or {})]
+    return [
+        GuardFinding(
+            code="untraceable_span", category="input_validation", message=problem, severity="warn"
+        )
+        for problem in _verify_spans(claim, documents or {})
+    ]
 
 
 # --------------------------------------------------------------------------------------------
@@ -189,16 +212,32 @@ def validate_claim_fields(claim: Claim) -> list[GuardFinding]:
     """Validate the typed claim (the contract already enforces types; we add cross-field checks)."""
     findings: list[GuardFinding] = []
     if not claim.bill_lines:
-        findings.append(GuardFinding(code="no_bill_lines", category="input_validation",
-                                     message="claim has no bill lines", severity="block"))
+        findings.append(
+            GuardFinding(
+                code="no_bill_lines",
+                category="input_validation",
+                message="claim has no bill lines",
+                severity="block",
+            )
+        )
     if claim.sum_insured <= 0:
-        findings.append(GuardFinding(code="bad_sum_insured", category="input_validation",
-                                     message="sum insured must be positive", severity="block"))
+        findings.append(
+            GuardFinding(
+                code="bad_sum_insured",
+                category="input_validation",
+                message="sum insured must be positive",
+                severity="block",
+            )
+        )
     if not claim.total_matches_lines():
-        findings.append(GuardFinding(
-            code="bill_total_mismatch", category="consistency",
-            message=f"bill total {claim.bill_total} != sum of lines {claim.lines_total()}",
-            severity="warn"))
+        findings.append(
+            GuardFinding(
+                code="bill_total_mismatch",
+                category="consistency",
+                message=f"bill total {claim.bill_total} != sum of lines {claim.lines_total()}",
+                severity="warn",
+            )
+        )
     return findings
 
 
@@ -213,7 +252,7 @@ def _context_dates(text: str, keyword: str) -> list[str]:
     hits = []
     for m in _DATE_RE.finditer(text):
         start = max(0, m.start() - 40)
-        if keyword in text[start:m.start()].lower():
+        if keyword in text[start : m.start()].lower():
             hits.append(m.group(1))
     return hits
 
@@ -222,33 +261,52 @@ def check_consistency(claim: Claim, documents: dict[str, str] | None = None) -> 
     """Detect bill-total, date and patient-identity inconsistencies where the data supports it."""
     findings: list[GuardFinding] = []
     if not claim.total_matches_lines():
-        findings.append(GuardFinding(
-            code="bill_total_mismatch", category="consistency",
-            message=f"bill total {claim.bill_total} != sum of lines {claim.lines_total()}",
-            severity="warn"))
+        findings.append(
+            GuardFinding(
+                code="bill_total_mismatch",
+                category="consistency",
+                message=f"bill total {claim.bill_total} != sum of lines {claim.lines_total()}",
+                severity="warn",
+            )
+        )
 
     for name, text in (documents or {}).items():
         if not isinstance(text, str):
             continue
         for d in _context_dates(text, "discharge"):
             if d != claim.discharge_date.isoformat():
-                findings.append(GuardFinding(
-                    code="date_mismatch", category="consistency",
-                    message=f"discharge date in document ({d}) != claim ({claim.discharge_date.isoformat()})",
-                    severity="warn", location=name))
+                findings.append(
+                    GuardFinding(
+                        code="date_mismatch",
+                        category="consistency",
+                        message=f"discharge date in document ({d}) != claim ({claim.discharge_date.isoformat()})",
+                        severity="warn",
+                        location=name,
+                    )
+                )
         for d in _context_dates(text, "admiss"):
             if d != claim.admission_date.isoformat():
-                findings.append(GuardFinding(
-                    code="date_mismatch", category="consistency",
-                    message=f"admission date in document ({d}) != claim ({claim.admission_date.isoformat()})",
-                    severity="warn", location=name))
+                findings.append(
+                    GuardFinding(
+                        code="date_mismatch",
+                        category="consistency",
+                        message=f"admission date in document ({d}) != claim ({claim.admission_date.isoformat()})",
+                        severity="warn",
+                        location=name,
+                    )
+                )
         for m in _PATIENT_RE.finditer(text):
             ident = m.group(1)
             if ident and ident.lower() != claim.patient_pseudonym.lower():
-                findings.append(GuardFinding(
-                    code="patient_mismatch", category="consistency",
-                    message="document names a patient identifier that differs from the claim",
-                    severity="warn", location=name))
+                findings.append(
+                    GuardFinding(
+                        code="patient_mismatch",
+                        category="consistency",
+                        message="document names a patient identifier that differs from the claim",
+                        severity="warn",
+                        location=name,
+                    )
+                )
                 break
     return findings
 
@@ -262,21 +320,38 @@ def validate_worksheet_arithmetic(worksheet: Worksheet | dict) -> list[GuardFind
     try:
         ws = worksheet if isinstance(worksheet, Worksheet) else Worksheet.model_validate(worksheet)
     except Exception as exc:  # noqa: BLE001
-        return [GuardFinding(code="worksheet_invalid", category="arithmetic",
-                             message=f"worksheet failed validation: {type(exc).__name__}", severity="block")]
+        return [
+            GuardFinding(
+                code="worksheet_invalid",
+                category="arithmetic",
+                message=f"worksheet failed validation: {type(exc).__name__}",
+                severity="block",
+            )
+        ]
     for line in ws.lines:
         deducted = sum((d.amount for d in line.deductions), Decimal("0"))
         if line.claimed - deducted != line.payable:
-            findings.append(GuardFinding(
-                code="line_arithmetic", category="arithmetic",
-                message=f"line {line.line_id}: claimed-deductions != payable", severity="block",
-                location=line.line_id))
+            findings.append(
+                GuardFinding(
+                    code="line_arithmetic",
+                    category="arithmetic",
+                    message=f"line {line.line_id}: claimed-deductions != payable",
+                    severity="block",
+                    location=line.line_id,
+                )
+            )
     payable = sum((line.payable for line in ws.lines), Decimal("0"))
     if ws.co_pay is not None:
         payable -= ws.co_pay.amount
     if payable != ws.total_payable:
-        findings.append(GuardFinding(code="total_arithmetic", category="arithmetic",
-                                     message="total_payable does not reconcile with lines", severity="block"))
+        findings.append(
+            GuardFinding(
+                code="total_arithmetic",
+                category="arithmetic",
+                message="total_payable does not reconcile with lines",
+                severity="block",
+            )
+        )
     return findings
 
 
@@ -288,17 +363,41 @@ def check_letter(claim: Claim, worksheet: Worksheet, letter: str) -> list[GuardF
     """
     findings: list[GuardFinding] = []
     if claim.claim_id != worksheet.claim_id:
-        findings.append(GuardFinding(code="claim_mismatch", category="output",
-                                     message="worksheet belongs to a different claim", severity="block"))
+        findings.append(
+            GuardFinding(
+                code="claim_mismatch",
+                category="output",
+                message="worksheet belongs to a different claim",
+                severity="block",
+            )
+        )
     if claim.policy_number not in (letter or ""):
-        findings.append(GuardFinding(code="policy_missing", category="output",
-                                     message="letter does not name the policy number", severity="block"))
+        findings.append(
+            GuardFinding(
+                code="policy_missing",
+                category="output",
+                message="letter does not name the policy number",
+                severity="block",
+            )
+        )
     if claim.patient_pseudonym not in (letter or ""):
-        findings.append(GuardFinding(code="patient_missing", category="output",
-                                     message="letter does not name the insured person", severity="block"))
+        findings.append(
+            GuardFinding(
+                code="patient_missing",
+                category="output",
+                message="letter does not name the insured person",
+                severity="block",
+            )
+        )
     if f"Rs {worksheet.total_payable}" not in (letter or ""):
-        findings.append(GuardFinding(code="total_missing", category="output",
-                                     message="letter total does not match the worksheet", severity="block"))
+        findings.append(
+            GuardFinding(
+                code="total_missing",
+                category="output",
+                message="letter total does not match the worksheet",
+                severity="block",
+            )
+        )
     return findings
 
 
@@ -342,9 +441,22 @@ def is_injection(findings: list[GuardFinding]) -> bool:
 
 
 _PHI_KEYS = frozenset(
-    {"diagnosis", "procedure", "patient", "patient_pseudonym", "patient_name", "name",
-     "discharge_summary", "documents", "document", "text", "source_text", "description",
-     "bill_lines", "notes"}
+    {
+        "diagnosis",
+        "procedure",
+        "patient",
+        "patient_pseudonym",
+        "patient_name",
+        "name",
+        "discharge_summary",
+        "documents",
+        "document",
+        "text",
+        "source_text",
+        "description",
+        "bill_lines",
+        "notes",
+    }
 )
 
 

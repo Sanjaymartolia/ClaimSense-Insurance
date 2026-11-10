@@ -1,0 +1,48 @@
+# ClaimSense: every dependency, for one-step setup.
+#
+#   python -m venv .venv && source .venv/Scripts/activate   # Windows Git Bash
+#   pip install -r requirements.txt
+#
+# Source of truth is pyproject.toml. This file mirrors its [project] dependencies and every
+# optional extra with the same version ranges (as of 2026-11-10). If you change a dependency, change
+# pyproject.toml first, then this file. To install only what your area needs, use the extras
+# instead, e.g. pip install -e ".[dev,agents]".
+
+# The ClaimSense package itself, editable, so `import claimsense` works.
+-e .
+
+# --- core (always installed) ---
+pydantic>=2.7
+pyyaml>=6.0
+fastapi>=0.115
+uvicorn[standard]>=0.30
+prometheus-client>=0.20
+httpx>=0.27
+
+# --- dev: tests and lint ---
+pytest>=8.0
+ruff>=0.6
+pypdf>=5.0,<7.0              # ingestion tests; also satisfies retrieval's pypdf>=4.0
+
+# --- agents: LangGraph orchestration ---
+langgraph>=0.2
+langgraph-checkpoint-sqlite>=2.0
+langchain-openai>=0.2        # OpenRouter client; also needed by the eval judge
+langchain-mcp-adapters>=0.1
+
+# --- mcp: tool servers ---
+fastmcp>=2.0
+
+# --- retrieval: hybrid search ---
+chromadb>=0.5
+rank-bm25>=0.2.2
+sentence-transformers>=3.0
+
+# --- eval: RAGAS judge (opt-in, costs money when run) ---
+# langchain-community pinned below 0.4: ragas 0.4.x imports a module that 0.4 removed.
+ragas>=0.4,<0.5
+langchain-community>=0.3,<0.4  # also satisfies the course kit's >=0.3
+
+# --- docs and course kit: charts and DOCX builds ---
+matplotlib>=3.8
+python-docx>=1.1

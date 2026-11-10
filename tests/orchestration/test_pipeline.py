@@ -60,9 +60,17 @@ def test_edit_recalculates_and_voids_old_approval(team, services):
             return {"decision": "approve", "approver_id": "adj-1"}
         if len(log) == 2:
             assert payload["level"] == "senior"
-            return {"decision": "edit", "approver_id": "sen-1",
-                    "edits": [{"line_id": "L3", "clause_id": C.NON_PAYABLE_ITEMS,
-                               "reason": "OT kit billed as OT charges"}]}
+            return {
+                "decision": "edit",
+                "approver_id": "sen-1",
+                "edits": [
+                    {
+                        "line_id": "L3",
+                        "clause_id": C.NON_PAYABLE_ITEMS,
+                        "reason": "OT kit billed as OT charges",
+                    }
+                ],
+            }
         return {"decision": "approve", "approver_id": payload["level"] + "-2"}
 
     services.senior_threshold = Decimal("10000")  # force the two-level path
@@ -80,9 +88,13 @@ def test_edit_recalculates_and_voids_old_approval(team, services):
 def test_stale_token_cannot_settle(team, services):
     out = LocalRunner(team).run(room_breach_packet(), approve())
     old = out["approvals"]
-    edited = team.coverage.adjudicate(out["claim"], {**out["clause_choices"], "L2": C.NON_PAYABLE_ITEMS},
-                                      version=out["worksheet"].version + 1)
+    edited = team.coverage.adjudicate(
+        out["claim"],
+        {**out["clause_choices"], "L2": C.NON_PAYABLE_ITEMS},
+        version=out["worksheet"].version + 1,
+    )
     import pytest
+
     with pytest.raises(PermissionError):
         team.settlement.settle(out["claim"], edited, old, needs_senior=False)
 

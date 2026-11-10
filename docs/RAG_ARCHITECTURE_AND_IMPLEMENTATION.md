@@ -575,8 +575,12 @@ sequenceDiagram
 **`src/claimsense/mcp_servers/policy_kb.py` is a stub.** Both tools always return an error, and neither calls the retriever:
 
 ```python
-search_wording("room rent")  # ToolError(error="not implemented (T16): needs retrieval index from T10", retryable=False)
-get_clause("new_india_arogya_sanjeevani:4.1")  # ToolError(error="not implemented (T16)", retryable=False)
+search_wording(
+    "room rent"
+)  # ToolError(error="not implemented (T16): needs retrieval index from T10", retryable=False)
+get_clause(
+    "new_india_arogya_sanjeevani:4.1"
+)  # ToolError(error="not implemented (T16)", retryable=False)
 ```
 
 | Server | File | Tools | Status |

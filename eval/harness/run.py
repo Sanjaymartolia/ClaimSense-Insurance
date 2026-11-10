@@ -8,8 +8,10 @@
 Exit code is 0 only when every catastrophic gate holds and the composite reaches the threshold in
 `scorecard.yaml`, so this is usable directly as a CI gate (T48).
 
-Start with `--adapter gold-replay`. It replays the gold answer, so it must score 1.000 with no gate
-failures. If it does not, the harness is broken and no other number from it means anything.
+Start with `--adapter gold-replay`. It replays the gold answer, so it must pass with no gate
+failures and score 0.975 on dev (0.990 on red-team). It is not 1.000 because five dev gold claims
+have no `clause_id` to cite yet (GOLD-07 is only partly fixed). If the ceiling moves, the harness
+or the fixtures broke and no other number from it means anything.
 """
 
 from __future__ import annotations

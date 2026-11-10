@@ -30,8 +30,12 @@ Rules:
 
 
 def find_injections(documents: dict[str, str]) -> list[str]:
-    return [f"possible prompt injection in {name}: '{m.group(0)}'"
-            for name, text in documents.items() for m in [INJECTION_PATTERNS.search(text)] if m]
+    return [
+        f"possible prompt injection in {name}: '{m.group(0)}'"
+        for name, text in documents.items()
+        for m in [INJECTION_PATTERNS.search(text)]
+        if m
+    ]
 
 
 def verify_spans(claim: Claim, documents: dict[str, str]) -> list[str]:
@@ -43,7 +47,10 @@ def verify_spans(claim: Claim, documents: dict[str, str]) -> list[str]:
         doc = documents.get(line.source.document)
         if doc is None:
             problems.append(f"{line.line_id}: unknown document {line.source.document}")
-        elif doc[line.source.start:line.source.end] != line.source.text and line.source.text not in doc:
+        elif (
+            doc[line.source.start : line.source.end] != line.source.text
+            and line.source.text not in doc
+        ):
             problems.append(f"{line.line_id}: source span not found in {line.source.document}")
     return problems
 

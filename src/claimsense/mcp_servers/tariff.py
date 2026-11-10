@@ -69,7 +69,7 @@ def _candidate_csv_paths() -> list[Path]:
 
     here = Path(__file__).resolve()
     for ancestor in here.parents:
-        candidates.append(ancestor / _CSV_RELPATH)                           # in-repo: data/ above us
+        candidates.append(ancestor / _CSV_RELPATH)  # in-repo: data/ above us
         candidates.append(ancestor / "ClaimSense-Insurance" / _CSV_RELPATH)  # sibling checkout
     return candidates
 
@@ -137,7 +137,7 @@ class TariffTable:
     warnings: list[str] = field(default_factory=list)
 
     @classmethod
-    def from_csv(cls, path: Path | str | None = None) -> "TariffTable":
+    def from_csv(cls, path: Path | str | None = None) -> TariffTable:
         csv_path = Path(path) if path is not None else _resolve_tariff_csv()
         if not csv_path.is_file():
             raise FileNotFoundError(f"tariff CSV not found at {csv_path}.")

@@ -47,16 +47,18 @@ import os
 import sys
 import threading
 import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from functools import lru_cache
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Any
 
 
 def _ensure_claimsense_on_path() -> None:
     try:
         import claimsense  # noqa: F401
+
         return
     except ModuleNotFoundError:
         pass
@@ -78,7 +80,9 @@ _ensure_claimsense_on_path()
 from claimsense.agents.permissions import TOOL_ACL, ToolBelt, ToolPermissionError  # noqa: E402
 from claimsense.contracts import AgentName  # noqa: E402
 
-if TYPE_CHECKING:  # import only for type checkers; avoids pulling the whole agents package at runtime
+if (
+    TYPE_CHECKING
+):  # import only for type checkers; avoids pulling the whole agents package at runtime
     from claimsense.agents import Team
 
 logger = logging.getLogger("claimsense.hooks.audit")
@@ -240,8 +244,9 @@ class BudgetState:
             self._total += 1
 
     # ---- the atomic, full-coverage charge used by the hooks ------------------------------------
-    def try_charge(self, agent: AgentName, tool: str | None = None, *,
-                   fingerprint: str | None = None) -> str | None:
+    def try_charge(
+        self, agent: AgentName, tool: str | None = None, *, fingerprint: str | None = None
+    ) -> str | None:
         """Atomically check every ceiling and, if all pass, charge them. One lock acquisition.
 
         Returns ``None`` when the call is allowed (and counters were incremented), or a short reason
@@ -254,11 +259,17 @@ class BudgetState:
                 return f"per-agent budget of {agent_limit} reached for {agent.value}"
             if self._total >= self.per_claim:
                 return f"per-claim budget of {self.per_claim} reached"
-            if self.per_tool is not None and tool is not None \
-                    and self._tool_counts.get(tool, 0) >= self.per_tool:
+            if (
+                self.per_tool is not None
+                and tool is not None
+                and self._tool_counts.get(tool, 0) >= self.per_tool
+            ):
                 return f"per-tool budget of {self.per_tool} reached for {tool}"
-            if self.max_repeats is not None and fingerprint is not None \
-                    and self._repeat_counts.get(fingerprint, 0) >= self.max_repeats:
+            if (
+                self.max_repeats is not None
+                and fingerprint is not None
+                and self._repeat_counts.get(fingerprint, 0) >= self.max_repeats
+            ):
                 return f"repeated-call budget of {self.max_repeats} reached for {tool}"
             # all ceilings clear -> commit the charge
             self._agent_counts[agent.value] = self._agent_counts.get(agent.value, 0) + 1
@@ -308,9 +319,9 @@ class AuditRecord:
     agent: str
     tool: str
     allowed: bool
-    status: str                     # "ok" | "denied" | "error"
-    error_code: str | None = None   # exception CLASS name or a safe code; never a message
-    claim_id: str | None = None     # correlation id only (a claim id is not PHI)
+    status: str  # "ok" | "denied" | "error"
+    error_code: str | None = None  # exception CLASS name or a safe code; never a message
+    claim_id: str | None = None  # correlation id only (a claim id is not PHI)
     duration_ms: float | None = None
 
 
@@ -332,13 +343,25 @@ class AuditLog:
         self.last_emit_error: str | None = None
         self._lock = threading.Lock()
 
-    def record(self, agent: AgentName | str, tool: str, *, allowed: bool, status: str,
-               error_code: str | None = None, claim_id: str | None = None,
-               duration_ms: float | None = None) -> AuditRecord:
+    def record(
+        self,
+        agent: AgentName | str,
+        tool: str,
+        *,
+        allowed: bool,
+        status: str,
+        error_code: str | None = None,
+        claim_id: str | None = None,
+        duration_ms: float | None = None,
+    ) -> AuditRecord:
         rec = AuditRecord(
-            timestamp=datetime.now(timezone.utc).isoformat(),
+            timestamp=datetime.now(UTC).isoformat(),
             agent=agent.value if isinstance(agent, AgentName) else str(agent),
-            tool=tool, allowed=allowed, status=status, error_code=error_code, claim_id=claim_id,
+            tool=tool,
+            allowed=allowed,
+            status=status,
+            error_code=error_code,
+            claim_id=claim_id,
             duration_ms=duration_ms,
         )
         with self._lock:
@@ -352,7 +375,12 @@ class AuditLog:
         try:
             logger.info(
                 "audit agent=%s tool=%s allowed=%s status=%s code=%s claim=%s dur_ms=%s",
-                rec.agent, rec.tool, rec.allowed, rec.status, rec.error_code, rec.claim_id,
+                rec.agent,
+                rec.tool,
+                rec.allowed,
+                rec.status,
+                rec.error_code,
+                rec.claim_id,
                 None if rec.duration_ms is None else round(rec.duration_ms, 3),
             )
             return True
@@ -362,7 +390,8 @@ class AuditLog:
                 self.last_emit_error = type(exc).__name__
             with contextlib.suppress(Exception):  # best-effort surfacing; never conceal
                 logging.getLogger("claimsense.hooks.audit").warning(
-                    "audit emit failed: %s", type(exc).__name__)
+                    "audit emit failed: %s", type(exc).__name__
+                )
             return False
 
 
@@ -394,13 +423,27 @@ def pre_tool_hook(agent: AgentName, tool: str, budget: BudgetState | None = None
             raise ToolBudgetExceeded(reason)
 
 
-def post_tool_hook(agent: AgentName, tool: str, *, status: str, error_code: str | None = None,
-                   claim_id: str | None = None, audit: AuditLog | None = None,
-                   duration_ms: float | None = None) -> AuditRecord:
+def post_tool_hook(
+    agent: AgentName,
+    tool: str,
+    *,
+    status: str,
+    error_code: str | None = None,
+    claim_id: str | None = None,
+    audit: AuditLog | None = None,
+    duration_ms: float | None = None,
+) -> AuditRecord:
     """Post-tool: write one scrubbed audit record (no arguments, results or health details)."""
     audit = audit or default_audit_log()
-    return audit.record(agent, tool, allowed=(status != "denied"), status=status,
-                        error_code=error_code, claim_id=claim_id, duration_ms=duration_ms)
+    return audit.record(
+        agent,
+        tool,
+        allowed=(status != "denied"),
+        status=status,
+        error_code=error_code,
+        claim_id=claim_id,
+        duration_ms=duration_ms,
+    )
 
 
 # --------------------------------------------------------------------------------------------
@@ -423,20 +466,35 @@ class HookedToolBelt(ToolBelt):
     * ``ok``     - the tool ran and returned.
     """
 
-    def __init__(self, agent: AgentName, registry: dict[str, Callable[..., Any]], log=None, *,
-                 budget: BudgetState | None = None, audit: AuditLog | None = None,
-                 claim_id: str | None = None):
+    def __init__(
+        self,
+        agent: AgentName,
+        registry: dict[str, Callable[..., Any]],
+        log=None,
+        *,
+        budget: BudgetState | None = None,
+        audit: AuditLog | None = None,
+        claim_id: str | None = None,
+    ):
         super().__init__(agent, registry, log)
         self._budget = budget
         self._audit = audit or default_audit_log()
         self._claim_id = claim_id
 
     # audit that must not downgrade a denial/error if the audit sink itself is fail-closed
-    def _audit_nonblocking(self, tool: str, *, status: str, error_code: str | None,
-                           duration_ms: float | None = None) -> None:
+    def _audit_nonblocking(
+        self, tool: str, *, status: str, error_code: str | None, duration_ms: float | None = None
+    ) -> None:
         try:
-            post_tool_hook(self.agent, tool, status=status, error_code=error_code,
-                           claim_id=self._claim_id, audit=self._audit, duration_ms=duration_ms)
+            post_tool_hook(
+                self.agent,
+                tool,
+                status=status,
+                error_code=error_code,
+                claim_id=self._claim_id,
+                audit=self._audit,
+                duration_ms=duration_ms,
+            )
         except AuditUnavailable:
             # The record is already captured + the failure counted. A denial/error is the dominant
             # outcome and still propagates; an audit-sink outage must never turn a denial into allow.
@@ -464,25 +522,39 @@ class HookedToolBelt(ToolBelt):
             result = super().call(name, **kwargs)
         except ToolPermissionError:
             dur = (time.perf_counter() - start) * 1000.0
-            self._audit_nonblocking(name, status="denied", error_code="permission_denied",
-                                    duration_ms=dur)
+            self._audit_nonblocking(
+                name, status="denied", error_code="permission_denied", duration_ms=dur
+            )
             raise
         except Exception as exc:  # noqa: BLE001 - record a safe code, never the payload/message
             dur = (time.perf_counter() - start) * 1000.0
-            self._audit_nonblocking(name, status="error", error_code=type(exc).__name__,
-                                    duration_ms=dur)
+            self._audit_nonblocking(
+                name, status="error", error_code=type(exc).__name__, duration_ms=dur
+            )
             raise  # propagate the ORIGINAL exception unchanged; never a fake success
 
         # 4) Post-tool success audit. Honours a fail-closed audit sink (AuditUnavailable propagates).
         dur = (time.perf_counter() - start) * 1000.0
-        post_tool_hook(self.agent, name, status="ok", claim_id=self._claim_id, audit=self._audit,
-                       duration_ms=dur)
+        post_tool_hook(
+            self.agent,
+            name,
+            status="ok",
+            claim_id=self._claim_id,
+            audit=self._audit,
+            duration_ms=dur,
+        )
         return result
 
 
-def hooked_belt(agent: AgentName, registry: dict[str, Callable[..., Any]], *,
-                budget: BudgetState | None = None, audit: AuditLog | None = None,
-                claim_id: str | None = None, log=None) -> HookedToolBelt:
+def hooked_belt(
+    agent: AgentName,
+    registry: dict[str, Callable[..., Any]],
+    *,
+    budget: BudgetState | None = None,
+    audit: AuditLog | None = None,
+    claim_id: str | None = None,
+    log=None,
+) -> HookedToolBelt:
     """Factory for a :class:`HookedToolBelt` (convenience for adapters and tests)."""
     return HookedToolBelt(agent, registry, log, budget=budget, audit=audit, claim_id=claim_id)
 
@@ -502,7 +574,7 @@ class HookGuard:
     reused for the next claim with a fresh budget (``with claim_hooks(...)``).
     """
 
-    team: "Team"
+    team: Team
     budget: BudgetState
     audit: AuditLog
     _original: dict[str, ToolBelt] = field(default_factory=dict, repr=False)
@@ -515,16 +587,21 @@ class HookGuard:
                 agent_obj.belt = belt
         self._original.clear()
 
-    def __enter__(self) -> "HookGuard":
+    def __enter__(self) -> HookGuard:
         return self
 
     def __exit__(self, *exc) -> None:
         self.restore()
 
 
-def install_hooks(team: "Team", *, budget: BudgetState | None = None,
-                  audit: AuditLog | None = None, claim_id: str | None = None,
-                  agent_attrs: tuple[str, ...] = _TEAM_AGENT_ATTRS) -> HookGuard:
+def install_hooks(
+    team: Team,
+    *,
+    budget: BudgetState | None = None,
+    audit: AuditLog | None = None,
+    claim_id: str | None = None,
+    agent_attrs: tuple[str, ...] = _TEAM_AGENT_ATTRS,
+) -> HookGuard:
     """Swap every agent's ``.belt`` on an already-built ``Team`` for a :class:`HookedToolBelt`.
 
     All agents share one ``budget`` and one ``audit`` so the per-claim ceiling spans the whole team.
@@ -547,12 +624,19 @@ def install_hooks(team: "Team", *, budget: BudgetState | None = None,
             continue
         guard._original[attr] = agent_obj.belt
         agent_obj.belt = HookedToolBelt(
-            agent_obj.name, registry, tool_log, budget=budget, audit=audit, claim_id=claim_id)
+            agent_obj.name, registry, tool_log, budget=budget, audit=audit, claim_id=claim_id
+        )
     return guard
 
 
-def build_hooked_team(services, *, playbook=None, budget: BudgetState | None = None,
-                      audit: AuditLog | None = None, claim_id: str | None = None):
+def build_hooked_team(
+    services,
+    *,
+    playbook=None,
+    budget: BudgetState | None = None,
+    audit: AuditLog | None = None,
+    claim_id: str | None = None,
+):
     """Build a Role 3 ``Team`` and immediately install hooked belts. Returns ``(team, HookGuard)``."""
     from claimsense.agents import Team  # lazy: only when an adapter is actually used
 
@@ -562,9 +646,16 @@ def build_hooked_team(services, *, playbook=None, budget: BudgetState | None = N
 
 
 @contextlib.contextmanager
-def claim_hooks(team: "Team", claim_id: str | None = None, *, per_claim: int | None = None,
-                per_tool: int | None = None, max_repeats: int | None = None,
-                per_agent: dict[AgentName, int] | None = None, audit: AuditLog | None = None):
+def claim_hooks(
+    team: Team,
+    claim_id: str | None = None,
+    *,
+    per_claim: int | None = None,
+    per_tool: int | None = None,
+    max_repeats: int | None = None,
+    per_agent: dict[AgentName, int] | None = None,
+    audit: AuditLog | None = None,
+):
     """Per-claim scope: install a FRESH budget, run the claim, then restore the original belts.
 
     Guarantees budget state is never shared across unrelated claims::

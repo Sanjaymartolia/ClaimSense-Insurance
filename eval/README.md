@@ -17,7 +17,7 @@ python -m eval.harness.suite
 | `ceiling-dev` / `ceiling-redteam` | 0.975 / 0.990 | The harness scores a known-correct answer as correct. |
 | `floor-dev` | 0.130 | Sending everything to a human is safe but earns almost nothing. |
 | `gate-*` (4 rows) | 0.000–0.450 | Each catastrophic gate fires when it should. |
-| `real-dev` / `real-redteam` | 0.220 / 0.327 | The actual agents. Fails on defect AGT-01. |
+| `real-dev` / `real-redteam` | 0.549 / 0.203 | The actual agents (2026-11-10). Fail on AGT-04 (made-up clause id) and, on red-team, AGT-05 (20 of 30 attacked claims cleared for approval). |
 
 Exit code is 0 only if every row matches. **A `gate-*` mismatch is the most serious kind**: a
 safety gate that silently stops firing would not show up in a score table at all.
@@ -28,7 +28,7 @@ Single runs, for when you are debugging one piece:
 python -m eval.harness.run --adapter gold-replay --split dev --label ceiling   # do this first
 python -m eval.harness.run --adapter claimsense  --split dev --label real-dev  # the real agents
 python -m eval.harness.run --help                                             # all adapters/faults
-pytest eval/tests -q                                                          # 112 tests
+pytest eval/tests -q                                                          # 147 tests
 ```
 
 Full documentation, including the measured results and every open limitation:
@@ -51,7 +51,7 @@ Full documentation, including the measured results and every open limitation:
 | `harness/scorecard.py` + `.yaml` | Weighted composite plus gates. The YAML is the whole policy in 50 lines. |
 | `calibration/` | Cohen's kappa workflow for the judge. See its own README. |
 | `tools/build_report_docx.py` | Builds the report DOCX from its Markdown source. |
-| `tests/` | 112 tests. Not in the default `pytest` run; use `pytest eval/tests`. |
+| `tests/` | 147 tests. Not in the default `pytest` run; use `pytest eval/tests`. |
 
 ## Two things to know before you trust a number
 

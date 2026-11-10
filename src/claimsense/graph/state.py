@@ -83,7 +83,18 @@ APPEND_KEYS = {"trace", "handoffs", "critic_history", "edit_log"}
 
 def initial_state(packet: dict, max_revisions: int = MAX_REVISIONS) -> ClaimState:
     return ClaimState(
-        claim_id=packet["claim_id"], packet=packet, revisions=0, max_revisions=max_revisions,
-        human_edited=False, approvals=[], locked_choices={}, fraud_flags=[], escalation=None,
-        status=Status.RUNNING, trace=[], handoffs=[], critic_history=[], edit_log=[],
+        claim_id=packet["claim_id"],
+        packet=packet,
+        revisions=0,
+        max_revisions=max_revisions,
+        human_edited=False,
+        approvals=[],
+        locked_choices={},
+        fraud_flags=[],
+        escalation=None,
+        status=Status.RUNNING,
+        trace=[],
+        handoffs=[],
+        critic_history=[],
+        edit_log=[],
     )

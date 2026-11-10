@@ -190,7 +190,7 @@ class _PolicyMeta:
 
 @dataclass(frozen=True)
 class _Engine:
-    retriever: "HybridRetriever"
+    retriever: HybridRetriever
     meta: _PolicyMeta
 
 
@@ -255,7 +255,7 @@ def _source_url(document: str, page_numbers: list[int]) -> str:
     return f"{base}#page={page}" if page else base
 
 
-def _clause_from_hit(hit: "SearchHit", meta: _PolicyMeta, effective_date: date) -> Clause:
+def _clause_from_hit(hit: SearchHit, meta: _PolicyMeta, effective_date: date) -> Clause:
     return Clause(
         clause_id=hit.clause_id,
         policy_name=meta.product,
@@ -268,7 +268,7 @@ def _clause_from_hit(hit: "SearchHit", meta: _PolicyMeta, effective_date: date) 
     )
 
 
-def _clause_from_full(full: "FullClause", meta: _PolicyMeta, effective_date: date) -> Clause:
+def _clause_from_full(full: FullClause, meta: _PolicyMeta, effective_date: date) -> Clause:
     return Clause(
         clause_id=full.clause_id,
         policy_name=meta.product,

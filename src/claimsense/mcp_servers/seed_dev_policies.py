@@ -102,7 +102,7 @@ def dev_claims_path() -> Path:
 
 
 def seed_dev_policies(
-    db: "claims_db.ClaimsDatabase | None" = None,
+    db: claims_db.ClaimsDatabase | None = None,
     *,
     claims_path: str | os.PathLike[str] | None = None,
     dry_run: bool = False,
@@ -165,7 +165,9 @@ def _print_summary(summary: dict) -> None:
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Seed the claims DB with the development policies.")
+    parser = argparse.ArgumentParser(
+        description="Seed the claims DB with the development policies."
+    )
     parser.add_argument(
         "--db",
         default=None,
@@ -190,9 +192,14 @@ def main(argv: list[str] | None = None) -> int:
     if not args.dry_run:
         pol = db.get_policy("POL-10001")
         ok = pol is not None
-        print(f"validate get_policy('POL-10001'): {'OK' if ok else 'MISSING'}"
-              + (f" (SI={pol.sum_insured}, tier={pol.city_tier}, insured={pol.insured_pseudonym})"
-                 if pol else ""))
+        print(
+            f"validate get_policy('POL-10001'): {'OK' if ok else 'MISSING'}"
+            + (
+                f" (SI={pol.sum_insured}, tier={pol.city_tier}, insured={pol.insured_pseudonym})"
+                if pol
+                else ""
+            )
+        )
         if not ok or summary["missing_after_seed"] or summary["invalid"]:
             return 1
     return 0

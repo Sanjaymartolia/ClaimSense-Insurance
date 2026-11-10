@@ -1,3 +1,7 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
 # ClaimSense — instructions for Claude
 
 ClaimSense reads a hospitalisation claim, checks every bill line against the Arogya Sanjeevani
@@ -28,6 +32,21 @@ Python 3.11+ · Pydantic v2 · LangGraph (+ SQLite checkpointer, store) · FastM
 · Chroma + rank-bm25 + cross-encoder reranker · FastAPI (streaming) · OpenRouter · pytest · ruff
 · Langfuse/LangSmith · Prometheus + Grafana · Docker Compose · GitHub Actions.
 Prompts and model IDs live only in `config/models.yaml` — never hard-code a model ID.
+
+## Architecture (big picture)
+- **Claim flow** (`graph/build.py`): `plan → extract → admissibility →` (gate fails → `human_review`)
+  `coverage → fraud → critic →` (`revise` loops back to `coverage`, or `escalate`) `→ human_review →`
+  `apply_edits` (back to `critic`) / `senior_review` / `settle` / `repudiate` `→ memory_update`.
+  The topology is data (`EDGES` / `conditional()`), so the same spec drives LangGraph and the
+  dependency-free `graph/local.py::LocalRunner` that unit tests and the eval `claimsense` adapter use.
+- **Agents** (`agents/`, bundled as `agents.Team`) pick clauses and write rationales; rupee amounts
+  come from `calc/adjudication.py`. Agents reach tools via `agents/services.py`: stubs by default,
+  `real_services()` for the MCP servers (policy-kb, claims-db, tariff) in `mcp_servers/`.
+- **Approval**: the review gate signs an `ApprovalToken` into the claims-db approval store that
+  `settle_claim` verifies (needs `CLAIMSENSE_APPROVAL_SECRET`; see `production_review_kwargs()`).
+  `hooks/` adds per-claim tool ACL, budget and audit when `tool_hooks=True`.
+- **Reflexion** (`reflexion/`) is a separate improvement loop over dev cases (`scripts/run_reflexion_*.py`);
+  `reflexion/cases.py::CLAIM_REASONS` maps gold reason codes to clauses and raises on unmapped codes.
 
 ## Layout and ownership
 | Path | Owner role | Layers |
@@ -66,8 +85,10 @@ claim JSON does not match `contracts.claim.Claim` (ADR-0002).
 ```bash
 python -m venv .venv && source .venv/Scripts/activate   # Windows Git Bash
 pip install -e ".[dev]"            # add ,agents,mcp,retrieval,course,docs as your area needs
-pytest                             # product tests (CI runs these + ruff)
-ruff check . && ruff format .      # lint + format
+pytest                             # product tests only: testpaths = ["tests"] (CI runs these + ruff)
+pytest tests/calc/test_adjudication.py -k <name>   # one file / one test (or file::test_name)
+ruff check . && ruff format .      # lint + format (CI uses `ruff format --check`)
+python scripts/run_one.py --list | <claim_id> [--reviewer console] [--real-tools]   # one claim, real LLM, node trace
 uvicorn claimsense.api.main:app --reload
 docker compose up                  # full stack
 
@@ -79,9 +100,26 @@ python scripts/build_team_guide.py                           # docs/TEAM_GUIDE.m
 # course kit (needs .[dev,agents,retrieval,course]); work in exercises/<name>/, never course/
 python course/scripts/new_student.py <name>
 pytest course/tests                                          # kit contract tests, no LLM; NOT in CI
+# from inside exercises/<name>/ (its copy of course/scripts/; there is no root scripts/evaluate_dev.py):
 python scripts/evaluate_dev.py --label X [--redteam]         # dev eval + plots in runs/
 python scripts/evaluate_dev.py --retrieval-only --label X    # search recall, free
 ```
+
+### Eval harness (`eval/`, Eval & Red-Team)
+```bash
+python -m eval.harness.suite        # every row (ceiling/floor/gate-*/real) vs its expected outcome; no key, seconds
+python -m eval.harness.run --adapter gold-replay --split dev --label ceiling   # sanity first: must score ~1.0
+python -m eval.harness.run --adapter claimsense  --split dev,redteam --label X # the real agents
+python -m eval.harness.run --adapter perturbed --fault <name> --split dev      # fault injection; --help lists faults
+python -m eval.harness.run --split dev --judge --judge-limit 5                 # RAGAS judge: needs .[eval] + key, costs money
+pytest eval/tests -q                # eval tests are NOT in the default `pytest` run
+```
+- `python -m eval.run` is a shim for the (still commented-out) T48 CI gate in `.github/workflows/ci.yml`.
+- Exit code 0 only if all catastrophic gates hold and the composite meets `eval/harness/scorecard.yaml`.
+  A `gate-*` row mismatch in the suite is the most serious failure (a gate silently stopped firing).
+- `harness/loader.py` strips answer-revealing fields before anything reaches an adapter; keep it that way.
+- Results and limitations: `docs/EVAL_HARNESS_REPORT.md` (DOCX built by `eval/tools/build_report_docx.py`).
+  The judge is uncalibrated and weighted 0.00: `agents/coverage.py::choose_clauses` drops the model's rationale.
 Full how-to for teammates: `docs/TEAM_GUIDE.md` (also PDF and DOCX). Edit the Markdown, then rebuild;
 never edit the generated PDF/DOCX/HTML by hand.
 

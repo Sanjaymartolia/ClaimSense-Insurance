@@ -53,23 +53,42 @@ class CriticAgent:
         self.belt = ToolBelt(self.name, services.registry(), services.tool_log)
         self.llm = get_llm("critic")
 
-    def review(self, claim: Claim, clause_choices: dict[str, str], worksheet: Worksheet) -> CriticReport:
+    def review(
+        self, claim: Claim, clause_choices: dict[str, str], worksheet: Worksheet
+    ) -> CriticReport:
         issues: list[CriticIssue] = []
 
         # 1. arithmetic: recompute from the same inputs and compare line by line
-        redo = self.belt.call("calculate", claim=claim, clause_choices=clause_choices,
-                              version=worksheet.version, fraud_flags=worksheet.fraud_flags)
+        redo = self.belt.call(
+            "calculate",
+            claim=claim,
+            clause_choices=clause_choices,
+            version=worksheet.version,
+            fraud_flags=worksheet.fraud_flags,
+        )
         mine = {l.line_id: l for l in worksheet.lines}
         for l in redo.lines:
             got = mine.get(l.line_id)
             if got is None:
-                issues.append(CriticIssue(line_id=l.line_id, kind="arithmetic", message="line missing"))
+                issues.append(
+                    CriticIssue(line_id=l.line_id, kind="arithmetic", message="line missing")
+                )
             elif got.payable != l.payable:
-                issues.append(CriticIssue(line_id=l.line_id, kind="arithmetic",
-                                          message=f"payable {got.payable} but calculator gives {l.payable}"))
+                issues.append(
+                    CriticIssue(
+                        line_id=l.line_id,
+                        kind="arithmetic",
+                        message=f"payable {got.payable} but calculator gives {l.payable}",
+                    )
+                )
         if redo.total_payable != worksheet.total_payable:
-            issues.append(CriticIssue(line_id=None, kind="total",
-                                      message=f"total {worksheet.total_payable} != {redo.total_payable}"))
+            issues.append(
+                CriticIssue(
+                    line_id=None,
+                    kind="total",
+                    message=f"total {worksheet.total_payable} != {redo.total_payable}",
+                )
+            )
 
         # 2-4. every deduction cites a real clause that supports it
         deductions = [(l.line_id, d) for l in worksheet.lines for d in l.deductions]
@@ -77,18 +96,33 @@ class CriticAgent:
             deductions.append((None, worksheet.co_pay))
         for line_id, d in deductions:
             if not d.clause_id:
-                issues.append(CriticIssue(line_id=line_id, kind="missing_clause",
-                                          message=f"{d.reason} deduction cites no clause"))
+                issues.append(
+                    CriticIssue(
+                        line_id=line_id,
+                        kind="missing_clause",
+                        message=f"{d.reason} deduction cites no clause",
+                    )
+                )
                 continue
             clause = self.belt.call("get_clause", clause_id=d.clause_id)
             if clause is None:
-                issues.append(CriticIssue(line_id=line_id, kind="unknown_clause",
-                                          message=f"{d.clause_id} not in policy-kb"))
+                issues.append(
+                    CriticIssue(
+                        line_id=line_id,
+                        kind="unknown_clause",
+                        message=f"{d.clause_id} not in policy-kb",
+                    )
+                )
                 continue
             ok, why = self._supports(d.reason, clause.text)
             if not ok:
-                issues.append(CriticIssue(line_id=line_id, kind="unsupported_clause",
-                                          message=f"{d.clause_id} does not support {d.reason}: {why}"))
+                issues.append(
+                    CriticIssue(
+                        line_id=line_id,
+                        kind="unsupported_clause",
+                        message=f"{d.clause_id} does not support {d.reason}: {why}",
+                    )
+                )
         return CriticReport(passed=not issues, issues=issues)
 
     def _supports(self, reason: DeductionReason, clause_text: str) -> tuple[bool, str]:
@@ -96,9 +130,14 @@ class CriticAgent:
             kws = REASON_KEYWORDS.get(reason, ())
             ok = not kws or any(k in clause_text.lower() for k in kws)
             return ok, "keyword check"
-        v = self.llm.with_structured_output(SupportVerdict).invoke([
-            ("system", "Answer whether the policy clause text, read literally, supports a "
-                       "deduction of the given type. Be strict."),
-            ("human", f"DEDUCTION TYPE: {reason}\nCLAUSE TEXT:\n{clause_text}"),
-        ])
+        v = self.llm.with_structured_output(SupportVerdict).invoke(
+            [
+                (
+                    "system",
+                    "Answer whether the policy clause text, read literally, supports a "
+                    "deduction of the given type. Be strict.",
+                ),
+                ("human", f"DEDUCTION TYPE: {reason}\nCLAUSE TEXT:\n{clause_text}"),
+            ]
+        )
         return v.supported, v.why

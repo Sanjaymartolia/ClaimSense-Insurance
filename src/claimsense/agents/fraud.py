@@ -31,8 +31,11 @@ class FraudAgent:
         seen = {fp for past in history for fp in past.bill_fingerprints}
         if any(p.claim_id == claim.claim_id for p in history):
             flags.append(f"duplicate claim id {claim.claim_id} already in history")
-        dups = [l.line_id for l in claim.bill_lines
-                if line_fingerprint(claim, l.description, l.amount) in seen]
+        dups = [
+            l.line_id
+            for l in claim.bill_lines
+            if line_fingerprint(claim, l.description, l.amount) in seen
+        ]
         if dups:
             flags.append(f"duplicate bill lines already claimed: {', '.join(dups)}")
 
@@ -42,8 +45,10 @@ class FraudAgent:
             for k, v in past.sub_limits_used.items():
                 used[k] = used.get(k, Decimal("0")) + Decimal(v)
         if used:
-            flags.append("sub-limits partly used earlier: " +
-                         ", ".join(f"{k} Rs {v}" for k, v in used.items()))
+            flags.append(
+                "sub-limits partly used earlier: "
+                + ", ".join(f"{k} Rs {v}" for k, v in used.items())
+            )
             # TODO(day 3): pass `used` to the calculator; agree the parameter with T15
 
         # 3. tariff outliers for the procedure line(s)
@@ -51,10 +56,18 @@ class FraudAgent:
         tier = pol.city_tier if pol else "tier_1"
         if claim.procedure:
             rng = self.belt.call("tariff_range", procedure=claim.procedure, city_tier=tier)
-            proc_total = sum((l.amount for l in claim.bill_lines
-                              if l.category in (LineCategory.PROCEDURE, LineCategory.OT)), Decimal(0))
+            proc_total = sum(
+                (
+                    l.amount
+                    for l in claim.bill_lines
+                    if l.category in (LineCategory.PROCEDURE, LineCategory.OT)
+                ),
+                Decimal(0),
+            )
             if rng and proc_total > rng[1] * OUTLIER_FACTOR:
-                flags.append(f"procedure charges Rs {proc_total} above tariff range {rng[0]}-{rng[1]}")
+                flags.append(
+                    f"procedure charges Rs {proc_total} above tariff range {rng[0]}-{rng[1]}"
+                )
 
         # 4. dates
         if pol and not (pol.period_start <= claim.admission_date <= pol.period_end):

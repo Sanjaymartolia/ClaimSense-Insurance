@@ -53,11 +53,12 @@ import secrets
 import sqlite3
 import sys
 import threading
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
-from typing import Any, Callable, Iterable, Protocol
+from typing import Any, Protocol
 
 
 def _ensure_claimsense_on_path() -> None:
@@ -298,7 +299,7 @@ class DemoIdentityProvider:
             approver_id=approver_id,
             level=level,
             auth_source="demo",
-            authenticated_at=datetime.now(timezone.utc),
+            authenticated_at=datetime.now(UTC),
         )
 
 
@@ -486,7 +487,7 @@ class SqliteApprovalStore:
                     t.decided_at.isoformat(),
                     record.nonce,
                     record.auth_source,
-                    datetime.now(timezone.utc).isoformat(),
+                    datetime.now(UTC).isoformat(),
                 ),
             )
 
@@ -612,8 +613,8 @@ class ApprovalVerification:
 def _is_expired(decided_at: datetime, max_age: float | None) -> bool:
     if max_age is None:
         return False
-    dt = decided_at if decided_at.tzinfo is not None else decided_at.replace(tzinfo=timezone.utc)
-    return (datetime.now(timezone.utc) - dt).total_seconds() > max_age
+    dt = decided_at if decided_at.tzinfo is not None else decided_at.replace(tzinfo=UTC)
+    return (datetime.now(UTC) - dt).total_seconds() > max_age
 
 
 def _find_signed_record(token: ApprovalToken, store: ApprovalStore) -> ApprovalRecord | None:
@@ -756,7 +757,9 @@ def verify_repudiation(
         t for t in tokens if t.level == ApprovalLevel.ADJUDICATOR and t.claim_id == claim_id
     ]
     if not adjudicator_tokens:
-        return ApprovalVerification(ok=False, reasons=("repudiation needs an adjudicator decision",))
+        return ApprovalVerification(
+            ok=False, reasons=("repudiation needs an adjudicator decision",)
+        )
 
     if not require_signed:
         return ApprovalVerification(ok=True)  # compatibility: an adjudicator decision is enough
@@ -833,9 +836,13 @@ def build_review_payload(
         "claim_id": state.get("claim_id"),
         "kind": kind,
         "level": level.value,
-        "worksheet": worksheet.model_dump(mode="json") if worksheet and kind == "worksheet" else None,
+        "worksheet": worksheet.model_dump(mode="json")
+        if worksheet and kind == "worksheet"
+        else None,
         "worksheet_hash": subject_hash,
-        "admissibility": admissibility.model_dump(mode="json") if admissibility is not None else None,
+        "admissibility": admissibility.model_dump(mode="json")
+        if admissibility is not None
+        else None,
         "fraud_flags": state.get("fraud_flags", []),
         "critic": state["critic_report"].feedback() if state.get("critic_report") else [],
         "escalation": state.get("escalation"),
@@ -877,7 +884,7 @@ class ReviewGate:
         interrupt_fn: Callable[[dict], Any],
         identity_provider: IdentityProvider | None = None,
         *,
-        store: "ApprovalStore | None" = None,
+        store: ApprovalStore | None = None,
         render_plan: Callable[[Any], str] | None = None,
     ):
         self.interrupt = interrupt_fn
@@ -896,7 +903,7 @@ class ReviewGate:
             approver_id=decision.approver_id,
             level=level,
             auth_source="unverified",
-            authenticated_at=datetime.now(timezone.utc),
+            authenticated_at=datetime.now(UTC),
         )
 
     def review(self, state: dict, level: ApprovalLevel) -> dict:

@@ -22,8 +22,10 @@ import pytest
 
 # --- path bootstrap --------------------------------------------------------------------------
 _OUT = Path(__file__).resolve().parent
-_SRC = Path(os.environ["CLAIMSENSE_SRC"]) if os.environ.get("CLAIMSENSE_SRC") else (
-    _OUT.parent / "ClaimSense-Insurance" / "src"
+_SRC = (
+    Path(os.environ["CLAIMSENSE_SRC"])
+    if os.environ.get("CLAIMSENSE_SRC")
+    else (_OUT.parent / "ClaimSense-Insurance" / "src")
 )
 for _p in (str(_SRC), str(_OUT)):
     if _p not in sys.path:
@@ -62,16 +64,42 @@ def room_breach_claim() -> Claim:
             "room_category": "single_private",
             "sum_insured": "200000.00",
             "bill_lines": [
-                {"line_id": "L1", "description": "Private room", "category": "room",
-                 "amount": "21000.00", "days": 3, "source": _span()},
-                {"line_id": "L2", "description": "Surgeon fees", "category": "doctor_fees",
-                 "amount": "15000.00", "source": _span()},
-                {"line_id": "L3", "description": "OT charges", "category": "ot",
-                 "amount": "30000.00", "source": _span()},
-                {"line_id": "L4", "description": "Pharmacy", "category": "medicines",
-                 "amount": "8000.00", "source": _span()},
-                {"line_id": "L5", "description": "Gloves and masks", "category": "consumables",
-                 "amount": "2000.00", "source": _span()},
+                {
+                    "line_id": "L1",
+                    "description": "Private room",
+                    "category": "room",
+                    "amount": "21000.00",
+                    "days": 3,
+                    "source": _span(),
+                },
+                {
+                    "line_id": "L2",
+                    "description": "Surgeon fees",
+                    "category": "doctor_fees",
+                    "amount": "15000.00",
+                    "source": _span(),
+                },
+                {
+                    "line_id": "L3",
+                    "description": "OT charges",
+                    "category": "ot",
+                    "amount": "30000.00",
+                    "source": _span(),
+                },
+                {
+                    "line_id": "L4",
+                    "description": "Pharmacy",
+                    "category": "medicines",
+                    "amount": "8000.00",
+                    "source": _span(),
+                },
+                {
+                    "line_id": "L5",
+                    "description": "Gloves and masks",
+                    "category": "consumables",
+                    "amount": "2000.00",
+                    "source": _span(),
+                },
             ],
             "bill_total": "76000.00",
         }
@@ -92,8 +120,12 @@ def _financials(ws: Worksheet) -> dict:
         "total_payable": ws.total_payable,
         "co_pay": (ws.co_pay.reason, ws.co_pay.amount, ws.co_pay.clause_id) if ws.co_pay else None,
         "lines": [
-            (wl.line_id, wl.claimed, wl.payable,
-             [(d.reason, d.amount, d.clause_id) for d in wl.deductions])
+            (
+                wl.line_id,
+                wl.claimed,
+                wl.payable,
+                [(d.reason, d.amount, d.clause_id) for d in wl.deductions],
+            )
             for wl in ws.lines
         ],
     }
@@ -133,11 +165,11 @@ def test_worksheet_reconciles_and_uses_decimal():
     assert isinstance(ws.total_payable, Decimal)
     for wl in ws.lines:
         deducted = sum((d.amount for d in wl.deductions), Decimal("0"))
-        assert wl.claimed - deducted == wl.payable           # line reconciliation
+        assert wl.claimed - deducted == wl.payable  # line reconciliation
         assert isinstance(wl.payable, Decimal)
     gross = sum((wl.payable for wl in ws.lines), Decimal("0"))
     co = ws.co_pay.amount if ws.co_pay else Decimal("0")
-    assert ws.total_payable == gross - co                    # worksheet reconciliation
+    assert ws.total_payable == gross - co  # worksheet reconciliation
     assert ws.total_claimed == sum((wl.claimed for wl in ws.lines), Decimal("0"))
 
 
@@ -145,8 +177,9 @@ def test_worksheet_reconciles_and_uses_decimal():
 def test_real_calculate_is_dropin():
     claim, choices = room_breach_claim(), CHOICES
     via_adapter = services.real_calculate(claim, choices, version=3, fraud_flags=["tariff_outlier"])
-    direct = adjudication.adjudicate(claim, choices, adjudication.PolicyRules(),
-                                     version=3, fraud_flags=["tariff_outlier"])
+    direct = adjudication.adjudicate(
+        claim, choices, adjudication.PolicyRules(), version=3, fraud_flags=["tariff_outlier"]
+    )
 
     assert isinstance(via_adapter, Worksheet)
     assert via_adapter.version == 3
@@ -194,8 +227,12 @@ def test_helpers_and_cataract_assumption():
     assert adjudication.proportional_cut_ratio(Decimal("4000"), Decimal("5000")) == Decimal("1")
     assert adjudication.co_pay(Decimal("1000"), rules) == Decimal("50.00")
     # cataract parameters verified against the policy assumption (25% of SI vs Rs.40,000/eye).
-    assert min(Decimal("200000") * rules.cataract_pct, rules.cataract_max_per_eye) == Decimal("40000")
-    assert min(Decimal("100000") * rules.cataract_pct, rules.cataract_max_per_eye) == Decimal("25000")
+    assert min(Decimal("200000") * rules.cataract_pct, rules.cataract_max_per_eye) == Decimal(
+        "40000"
+    )
+    assert min(Decimal("100000") * rules.cataract_pct, rules.cataract_max_per_eye) == Decimal(
+        "25000"
+    )
 
 
 # --- 5b. edge cases ---------------------------------------------------------------------------
@@ -208,33 +245,59 @@ def test_rejects_non_positive_sum_insured():
 def test_no_breach_claim_only_co_pay():
     claim = Claim.model_validate(
         {
-            "claim_id": "CLM-NB-1", "policy_number": "POL-001", "patient_pseudonym": "PT-1",
-            "admission_date": "2026-05-10", "discharge_date": "2026-05-12",  # 2 nights
-            "diagnosis": "fever", "room_category": "general_ward", "sum_insured": "500000.00",
+            "claim_id": "CLM-NB-1",
+            "policy_number": "POL-001",
+            "patient_pseudonym": "PT-1",
+            "admission_date": "2026-05-10",
+            "discharge_date": "2026-05-12",  # 2 nights
+            "diagnosis": "fever",
+            "room_category": "general_ward",
+            "sum_insured": "500000.00",
             "bill_lines": [
-                {"line_id": "L1", "description": "Room", "category": "room",
-                 "amount": "6000.00", "days": 2, "source": _span()},   # 3000/day <= 5000 cap
-                {"line_id": "L2", "description": "Doctor", "category": "doctor_fees",
-                 "amount": "4000.00", "source": _span()},
+                {
+                    "line_id": "L1",
+                    "description": "Room",
+                    "category": "room",
+                    "amount": "6000.00",
+                    "days": 2,
+                    "source": _span(),
+                },  # 3000/day <= 5000 cap
+                {
+                    "line_id": "L2",
+                    "description": "Doctor",
+                    "category": "doctor_fees",
+                    "amount": "4000.00",
+                    "source": _span(),
+                },
             ],
             "bill_total": "10000.00",
         }
     )
     ws = adjudication.adjudicate(claim, {})
-    assert all(wl.deductions == [] for wl in ws.lines)           # no caps breached
-    assert ws.co_pay.amount == Decimal("500.00")                 # 5% of 10000
+    assert all(wl.deductions == [] for wl in ws.lines)  # no caps breached
+    assert ws.co_pay.amount == Decimal("500.00")  # 5% of 10000
     assert ws.total_payable == Decimal("9500.00")
 
 
 def test_missing_days_falls_back_to_nights():
     claim = Claim.model_validate(
         {
-            "claim_id": "CLM-ND-1", "policy_number": "POL-001", "patient_pseudonym": "PT-1",
-            "admission_date": "2026-05-10", "discharge_date": "2026-05-13",  # 3 nights
-            "diagnosis": "x", "room_category": "single_private", "sum_insured": "200000.00",
+            "claim_id": "CLM-ND-1",
+            "policy_number": "POL-001",
+            "patient_pseudonym": "PT-1",
+            "admission_date": "2026-05-10",
+            "discharge_date": "2026-05-13",  # 3 nights
+            "diagnosis": "x",
+            "room_category": "single_private",
+            "sum_insured": "200000.00",
             "bill_lines": [
-                {"line_id": "L1", "description": "Room", "category": "room",
-                 "amount": "21000.00", "source": _span()},  # days omitted -> use nights (3)
+                {
+                    "line_id": "L1",
+                    "description": "Room",
+                    "category": "room",
+                    "amount": "21000.00",
+                    "source": _span(),
+                },  # days omitted -> use nights (3)
             ],
             "bill_total": "21000.00",
         }

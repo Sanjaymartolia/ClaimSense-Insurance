@@ -153,9 +153,11 @@ def test_citations_metric_counts_only_real_clause_ids():
 
 
 # ----------------------------------------------------------------------------------- trajectory
-def test_required_tools_exclude_settlement_when_a_human_must_look():
+def test_settlement_is_never_a_required_tool():
+    """Rule 3: only a person's approval settles a claim, and the eval reviewer always declines. A
+    requirement to run `settle_claim` capped a perfect agent at 0.5 on every clean claim."""
     assert tm.required_tools(gold(review=True)) == {"compute_worksheet"}
-    assert tm.required_tools(gold(review=False)) == {"compute_worksheet", "settle_claim"}
+    assert tm.required_tools(gold(review=False)) == {"compute_worksheet"}
 
 
 def test_tool_coverage_ignores_blocked_calls():

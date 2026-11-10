@@ -31,7 +31,9 @@ def mark(plan: Plan, step: str, status: str) -> Plan:
     return plan.model_copy(update={"steps": steps})
 
 
-def replan(plan: Plan, skip: list[str] = (), insert_before: dict[str, PlanStep] | None = None) -> Plan:
+def replan(
+    plan: Plan, skip: list[str] = (), insert_before: dict[str, PlanStep] | None = None
+) -> Plan:
     """Skip steps that no longer make sense and insert new ones. Counts as one revision."""
     steps = []
     for s in plan.steps:
@@ -54,4 +56,6 @@ def monitor_after_admissibility(plan: Plan, admissible: bool) -> Plan:
 def render(plan: Plan) -> str:
     """What the case UI shows next to the worksheet."""
     icon = {"pending": "·", "running": "▶", "done": "✓", "failed": "✗", "skipped": "–"}
-    return f"plan r{plan.revision}: " + "  ".join(f"{icon.get(s.status, '?')}{s.name}" for s in plan.steps)
+    return f"plan r{plan.revision}: " + "  ".join(
+        f"{icon.get(s.status, '?')}{s.name}" for s in plan.steps
+    )

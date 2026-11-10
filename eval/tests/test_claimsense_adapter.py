@@ -98,6 +98,82 @@ def test_bill_line_spans_point_at_the_real_itemised_bill_document(dev_cases):
         assert line["source"]["document"] in documents, line["line_id"]
 
 
+def test_every_bill_line_can_be_found_in_the_itemised_bill_text(dev_cases):
+    """The fixture's itemised bill says only "Itemized bill represented in bill_lines" (CLAIM-02),
+    so before this fix every span failed and every claim went to a person whatever the agents
+    judged. The adapter writes the bill lines into that document, keeping its original text so an
+    attack planted there still reaches the agent."""
+    from eval.harness.claimsense_adapter import ClaimSenseAdapter
+
+    for case in dev_cases:
+        packet = ClaimSenseAdapter()._packet(case.claim)
+        for line in packet["claim"]["bill_lines"]:
+            text = packet["documents"][line["source"]["document"]]
+            assert line["source"]["text"] in text, line["line_id"]
+        raw_bill = next(d for d in case.claim.documents if d.get("type") == "itemized_bill")
+        assert raw_bill["synthetic_text"] in packet["documents"][raw_bill["document_id"]]
+
+
+def test_review_flags_use_only_the_gold_vocabulary(adapter, dev_cases):
+    """The `flags` metric compares labels. Free-text diagnostics can never match a gold label, so
+    before this fix `flags` was 0.000 on every claim whatever the agents found."""
+    from eval.harness.claimsense_adapter import GOLD_FLAGS
+
+    for case in dev_cases:
+        assert set(adapter.run(case.claim).review_flags) <= GOLD_FLAGS, case.claim_id
+
+
+def _deduction(reason: str, clause: str = "p:x"):
+    from types import SimpleNamespace
+
+    return SimpleNamespace(reason=SimpleNamespace(value=reason), clause_id=clause)
+
+
+@pytest.mark.parametrize(
+    ("state", "expected"),
+    [
+        # worksheet deduction reasons: an enum set by the calculator, not prose
+        ({"deductions": [_deduction("room_rent_cap")]}, {"room_rent_breach"}),
+        ({"deductions": [_deduction("proportional_cut")]}, {"room_rent_breach"}),
+        ({"deductions": [_deduction("icu_cap")]}, {"sub_limit"}),
+        ({"deductions": [_deduction("sub_limit")]}, {"sub_limit"}),
+        ({"deductions": [_deduction("non_payable")]}, {"non_payable_items"}),
+        ({"deductions": [_deduction("waiting_period")]}, {"waiting_period"}),
+        ({"deductions": [_deduction("co_pay")]}, set()),
+        (
+            {"deductions": [_deduction("exclusion", "new_india_arogya_sanjeevani:7.15")]},
+            {"maternity_childbirth_exclusion"},
+        ),
+        # admissibility clause ids, used only when the claim was ruled not admissible
+        ({"admissibility": ["new_india_arogya_sanjeevani:6.3"]}, {"waiting_period"}),
+        ({"admissibility": ["policy_schedule:period"]}, {"policy_period_inconsistency"}),
+        # fixed message templates from the deterministic fraud and extraction code
+        ({"fraud": ["duplicate bill lines already claimed: L2"]}, {"duplicate_bill"}),
+        ({"fraud": ["duplicate claim id CLM-1 already in history"]}, {"duplicate_bill"}),
+        ({"fraud": ["admission date outside policy period"]}, {"policy_period_inconsistency"}),
+        ({"fraud": ["L1: billed 9 days for a 3-night stay"]}, {"date_conflict"}),
+        ({"fraud": ["extraction: bill total 10 != sum of lines 9"]}, {"bill_total_mismatch"}),
+        ({"fraud": ["extraction: possible prompt injection in D1: 'x'"]}, {"prompt_injection"}),
+        # a per-line diagnostic is not a review flag
+        ({"fraud": ["extraction: L1: source span not found in D2"]}, set()),
+    ],
+)
+def test_structured_signals_map_to_gold_flags(state, expected):
+    from types import SimpleNamespace
+
+    from eval.harness.claimsense_adapter import ClaimSenseAdapter
+
+    pipeline_state = {"fraud_flags": state.get("fraud", [])}
+    if "deductions" in state:
+        line = SimpleNamespace(deductions=state["deductions"])
+        pipeline_state["worksheet"] = SimpleNamespace(lines=[line])
+    if "admissibility" in state:
+        pipeline_state["admissibility"] = SimpleNamespace(
+            admissible=False, clause_ids=state["admissibility"]
+        )
+    assert set(ClaimSenseAdapter._flags(pipeline_state)) == expected
+
+
 def test_an_unmapped_bill_line_category_is_refused(dev_cases):
     """A silent default here would score the wrong thing. CATEGORY_MAP lives in eval/, so the fix
     is in eval/ too."""
@@ -116,12 +192,14 @@ def test_an_unknown_calculator_name_is_refused():
         ClaimSenseAdapter(calculator="magic")
 
 
-def test_the_pipeline_still_cites_the_agt01_placeholder_clause_ids(adapter, dev_cases):
+def test_the_pipeline_still_cites_the_agt04_policy_schedule_placeholder(adapter, dev_cases):
     """A regression test for a defect that is still open.
 
-    `agents/clauses.py` lines 18-21 hold four placeholder constants that are not real clause ids.
-    The harness found this independently through the `fabricated_citation` gate. When somebody
-    fixes AGT-01, this test fails, and that failure is the signal to delete it.
+    AGT-01 (four TODO clause constants in `agents/clauses.py`) is fixed. What is left is AGT-04:
+    `agents/coverage.py` cites the made-up id `policy_schedule:period` when a claim falls outside
+    the policy period, with a TODO to cite the real clause. The `fabricated_citation` gate catches
+    it on CLM-0013. When somebody fixes AGT-04, this test fails: delete it and the note in the
+    report.
     """
     real_ids = policy_clause_ids()
     offenders = {
@@ -129,5 +207,5 @@ def test_the_pipeline_still_cites_the_agt01_placeholder_clause_ids(adapter, dev_
         for case in dev_cases
     }
     offenders = {k: v for k, v in offenders.items() if v}
-    assert offenders, "AGT-01 appears fixed: delete this test and the note in the report"
-    assert any("TODO" in bad for ids in offenders.values() for bad in ids)
+    assert offenders, "AGT-04 appears fixed: delete this test and the note in the report"
+    assert offenders == {"CLM-0013": ["policy_schedule:period"]}

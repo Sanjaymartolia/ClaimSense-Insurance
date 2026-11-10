@@ -19,6 +19,7 @@ starts needing a feature that is missing, prefer rewording the report.
 
 from __future__ import annotations
 
+import argparse
 import re
 import sys
 from pathlib import Path
@@ -190,8 +191,30 @@ def build(source: Path = SOURCE, target: Path = TARGET) -> Path:
     return target
 
 
-def main() -> int:
-    written = build()
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(
+        prog="python -m eval.tools.build_report_docx",
+        description="Build a report DOCX from its Markdown source.",
+        epilog="With no arguments it builds the evaluation harness report.",
+    )
+    parser.add_argument(
+        "--source", default=None, help=f"Markdown to convert (default: {SOURCE.name})"
+    )
+    parser.add_argument(
+        "--target", default=None, help="DOCX to write (default: alongside the eval report)"
+    )
+    args = parser.parse_args(argv)
+
+    source = Path(args.source) if args.source else SOURCE
+    if args.target:
+        target = Path(args.target)
+    elif args.source:
+        # A source with no target: name the DOCX after it rather than overwriting the eval report.
+        target = source.with_suffix(".docx")
+    else:
+        target = TARGET
+
+    written = build(source, target)
     print(f"wrote {written}")
     return 0
 

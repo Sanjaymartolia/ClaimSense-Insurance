@@ -47,7 +47,7 @@ import os
 import sqlite3
 import sys
 import threading
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from decimal import Decimal
 from pathlib import Path
 
@@ -78,7 +78,6 @@ _ensure_claimsense_on_path()
 
 from claimsense.agents.services import PastClaim, PolicyInfo, line_fingerprint  # noqa: E402
 from claimsense.contracts import (  # noqa: E402
-    ApprovalLevel,
     ApprovalToken,
     Claim,
     DeductionReason,
@@ -172,7 +171,7 @@ class ClaimsDatabase:
         self._conn.close()
 
     @property
-    def approval_store(self) -> "appr.ApprovalStore":
+    def approval_store(self) -> appr.ApprovalStore:
         """The persistent approval store backed by *this* database connection.
 
         Constructed lazily. Requires a stable ``CLAIMSENSE_APPROVAL_SECRET`` (see
@@ -180,9 +179,7 @@ class ClaimsDatabase:
         issuance and verification use one store.
         """
         if self._approval_store is None:
-            self._approval_store = appr.SqliteApprovalStore(
-                connection=self._conn, lock=self._lock
-            )
+            self._approval_store = appr.SqliteApprovalStore(connection=self._conn, lock=self._lock)
         return self._approval_store
 
     # -- writes: policies / history -------------------------------------------------------
@@ -222,7 +219,7 @@ class ClaimsDatabase:
                     claim.policy_number,
                     claim.admission_date.isoformat(),
                     "recorded",
-                    datetime.now(timezone.utc).isoformat(),
+                    datetime.now(UTC).isoformat(),
                 ),
             )
             if cur.rowcount == 0:
@@ -332,7 +329,7 @@ class ClaimsDatabase:
         approvals: list[ApprovalToken | dict],
         needs_senior: bool,
         *,
-        store: "appr.ApprovalStore | None" = None,
+        store: appr.ApprovalStore | None = None,
         require_signed: bool | None = None,
     ) -> dict:
         """Write a settlement - only with a verified approval bound to this exact worksheet.
@@ -374,10 +371,12 @@ class ClaimsDatabase:
                     ws_hash,
                     str(ws.total_payable),
                     "settled",
-                    datetime.now(timezone.utc).isoformat(),
+                    datetime.now(UTC).isoformat(),
                 ),
             )
-            self._conn.execute("UPDATE claims SET status = 'settled' WHERE claim_id = ?", (claim_id,))
+            self._conn.execute(
+                "UPDATE claims SET status = 'settled' WHERE claim_id = ?", (claim_id,)
+            )
         return {
             "status": "settled",
             "claim_id": claim_id,
@@ -391,7 +390,7 @@ class ClaimsDatabase:
         reasons: list[str],
         approvals: list[ApprovalToken | dict],
         *,
-        store: "appr.ApprovalStore | None" = None,
+        store: appr.ApprovalStore | None = None,
         require_signed: bool | None = None,
     ) -> dict:
         """Record a repudiation - needs a signed adjudicator decision for this claim.
@@ -422,7 +421,7 @@ class ClaimsDatabase:
                     "repudiation",
                     "0",
                     "repudiated",
-                    datetime.now(timezone.utc).isoformat(),
+                    datetime.now(UTC).isoformat(),
                 ),
             )
             self._conn.execute(
@@ -502,7 +501,9 @@ def seed_demo_policy(db: ClaimsDatabase | None = None) -> PolicyInfo:
 def _tool_get_policy(policy_number: str):
     """[read] Fetch a policy record."""
     policy = get_policy(policy_number)
-    return policy if policy is not None else ToolError(error="policy not found", code="unknown_policy")
+    return (
+        policy if policy is not None else ToolError(error="policy not found", code="unknown_policy")
+    )
 
 
 def _tool_claim_history(policy_number: str):

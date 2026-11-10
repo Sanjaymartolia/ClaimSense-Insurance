@@ -29,8 +29,15 @@ def test_edit_reenters_pipeline(team, services):
     h1 = out["__interrupt__"][0].value["worksheet_hash"]
     out = resume(app, cfg, {"decision": "approve", "approver_id": "adj-1"})
     assert out["__interrupt__"][0].value["level"] == "senior"
-    out = resume(app, cfg, {"decision": "edit", "approver_id": "sen-1", "edits": [
-        {"line_id": "L3", "clause_id": C.NON_PAYABLE_ITEMS, "reason": "test"}]})
+    out = resume(
+        app,
+        cfg,
+        {
+            "decision": "edit",
+            "approver_id": "sen-1",
+            "edits": [{"line_id": "L3", "clause_id": C.NON_PAYABLE_ITEMS, "reason": "test"}],
+        },
+    )
     p = out["__interrupt__"][0].value
     assert p["level"] == "adjudicator" and p["worksheet_hash"] != h1
     assert app.get_state(cfg).values["approvals"] == []

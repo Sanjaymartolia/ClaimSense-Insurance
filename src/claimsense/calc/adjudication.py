@@ -76,13 +76,13 @@ class PolicyRules:
     not invented in this engine.
     """
 
-    room_rent_pct: Decimal = Decimal("0.02")          # clause 4.1(a)
+    room_rent_pct: Decimal = Decimal("0.02")  # clause 4.1(a)
     room_rent_max_per_day: Decimal = Decimal("5000")  # clause 4.1(a)
-    icu_pct: Decimal = Decimal("0.05")                # clause 4.1(b)
-    icu_max_per_day: Decimal = Decimal("10000")       # clause 4.1(b)
-    cataract_pct: Decimal = Decimal("0.25")           # clause 4.3 (not auto-applied; see note)
+    icu_pct: Decimal = Decimal("0.05")  # clause 4.1(b)
+    icu_max_per_day: Decimal = Decimal("10000")  # clause 4.1(b)
+    cataract_pct: Decimal = Decimal("0.25")  # clause 4.3 (not auto-applied; see note)
     cataract_max_per_eye: Decimal = Decimal("40000")  # clause 4.3 (not auto-applied; see note)
-    co_pay_rate: Decimal = Decimal("0.05")            # clause 9.5
+    co_pay_rate: Decimal = Decimal("0.05")  # clause 9.5
 
 
 # Room-linked categories that shrink in proportion after a room/ICU rate breach (clause 4.1.1

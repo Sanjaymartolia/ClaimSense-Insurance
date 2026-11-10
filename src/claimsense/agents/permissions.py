@@ -28,7 +28,9 @@ TOOL_ACL: dict[AgentName, frozenset[str]] = {
 }
 
 assert all(
-    not (SETTLEMENT_ONLY & tools) for agent, tools in TOOL_ACL.items() if agent != AgentName.SETTLEMENT
+    not (SETTLEMENT_ONLY & tools)
+    for agent, tools in TOOL_ACL.items()
+    if agent != AgentName.SETTLEMENT
 ), "settle_claim leaked to a non-settlement agent"
 
 

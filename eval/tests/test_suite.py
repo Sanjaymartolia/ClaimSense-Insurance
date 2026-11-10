@@ -89,6 +89,23 @@ def test_a_ceiling_row_expects_no_gate_and_a_pass():
             assert row.expect_gates == frozenset(), row.label
 
 
+def test_every_row_pins_a_composite():
+    """An unpinned pipeline row let the real-dev composite move from 0.220 to 0.396 while the
+    suite still said OK. `--accept-pipeline` is how a deliberate change gets recorded."""
+    for row in suite.ROWS:
+        assert row.expect_composite is not None, row.label
+
+
+def test_the_suite_forces_stub_mode_and_restores_the_environment(monkeypatch):
+    """With a key in the shell the pipeline rows would call a paid model and drift run to run."""
+    import os
+
+    monkeypatch.setenv("CLAIMSENSE_LLM", "openrouter")
+    with suite.stub_llm():
+        assert os.environ["CLAIMSENSE_LLM"] == "stub"
+    assert os.environ["CLAIMSENSE_LLM"] == "openrouter"
+
+
 # ------------------------------------------------------------------ end to end
 def test_the_whole_suite_runs_and_every_row_matches():
     """Slow by design: it runs all nine rows, including the real pipeline. This is the one test

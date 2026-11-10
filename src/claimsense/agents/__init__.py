@@ -22,8 +22,21 @@ class Team:
 
 
 __all__ = [
-    "Admissibility", "CoverageAgent", "CriticAgent", "CriticReport", "ExtractionAgent",
-    "FraudAgent", "OutputGuardError", "PastClaim", "PolicyInfo", "Services", "SettlementAgent",
-    "TOOL_ACL", "Team", "ToolBelt", "ToolPermissionError", "make_stub_services",
+    "Admissibility",
+    "CoverageAgent",
+    "CriticAgent",
+    "CriticReport",
+    "ExtractionAgent",
+    "FraudAgent",
+    "OutputGuardError",
+    "PastClaim",
+    "PolicyInfo",
+    "Services",
+    "SettlementAgent",
+    "TOOL_ACL",
+    "Team",
+    "ToolBelt",
+    "ToolPermissionError",
+    "make_stub_services",
     "reference_calculate",
 ]
