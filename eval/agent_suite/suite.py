@@ -41,7 +41,7 @@ import yaml
 
 from eval.harness.loader import REPO_ROOT
 
-from . import guardrail, judge, outcome, process
+from . import guardrail, io_guardrails, judge, outcome, process
 from .dataset import Case, composition, load_dataset
 from .trace import Trace, format_trace, run_traced
 
@@ -291,6 +291,10 @@ def report(res: SuiteResult, *, tolerance_inr: int = 0, show: list[str] | None =
         f"attack success rate on {sum(c.source == 'adversarial' for c in cases)} attacked claims: "
         f"this run {bare:.0%}, with the guardrail in front {guarded:.0%}"
     )
+    out.append(
+        "\n## 5.2 The input and output guardrail modules (not wired in: measured as components)"
+    )
+    out.append(io_guardrails.format_both(cases, traces))
 
     out.append("\n## 6.2 Code checks on the review payload (claims failing each)")
     fails = judge.payload_check_summary(cases, traces)

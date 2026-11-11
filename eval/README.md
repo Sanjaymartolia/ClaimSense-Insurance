@@ -40,7 +40,7 @@ Single runs, for when you are debugging one piece:
 python -m eval.harness.run --adapter gold-replay --split dev --label ceiling   # do this first
 python -m eval.harness.run --adapter claimsense  --split dev --label real-dev  # the real agents
 python -m eval.harness.run --help                                             # all adapters/faults
-pytest eval/tests -q                                                          # 292 tests
+pytest eval/tests -q                                                          # 299 tests
 ```
 
 What did the agents *do*? The trace-based agent suite (L13 sections 1–7) records every node, tool
@@ -110,7 +110,7 @@ Full documentation, including the measured results and every open limitation:
 | `monitoring/` | Live monitoring: metrics from traces, Prometheus alert rules, Grafana dashboard as code, live traffic with an A/B split, an incident drill, read-back and A/B tests. |
 | `observability/` | OpenTelemetry traces of the pipeline: spans in memory (`show`) or over OTLP to Jaeger, Langfuse or a Collector (`run`), redaction, outage analysis. |
 | `deepeval_suite/` | DeepEval tests: tool correctness, trajectory rules (free), G-Eval and faithfulness (opt-in judge). Run with `deepeval test run`. |
-| `tests/` | 292 tests. Not in the default `pytest` run; use `pytest eval/tests`. |
+| `tests/` | 299 tests. Not in the default `pytest` run; use `pytest eval/tests`. |
 
 ## Two things to know before you trust a number
 

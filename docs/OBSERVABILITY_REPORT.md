@@ -496,7 +496,7 @@ A run with real models needs your OpenRouter key. Claude's shell has no key and 
 
 | Check | Result |
 |---|---|
-| `pytest eval/tests` | 292 tests: 286 pass, 4 strict `xfail` pass by failure, 2 skip |
+| `pytest eval/tests` | 299 tests: 288 pass, 9 strict `xfail` pass by failure, 2 skip |
 | New tests in `eval/tests/test_observability.py` | 21. No key and no Jaeger. Two tests use a small HTTP server on 127.0.0.1 |
 | DeepEval suite, stub | 74 pass. 44 judge tests skip until you opt in |
 | Product tests (`pytest`) | 124 pass, 4 skip, 1 `xfail`. The same as before this work |
@@ -732,7 +732,7 @@ CAUTION: Do not type `deepeval login`. It sends the results to the cloud of Conf
 ### 12.12 Run the tests
 
 1. Type `pytest eval/tests/test_observability.py -q` for the 21 observability tests.
-2. Type `pytest eval/tests -q` for all 292 evaluation tests.
+2. Type `pytest eval/tests -q` for all 299 evaluation tests.
 3. Type `pytest -q` for the product tests.
 
 ### 12.13 Stop and clean up
@@ -791,7 +791,7 @@ CAUTION: Do not type `deepeval login`. It sends the results to the cloud of Conf
 | `.gitignore` | Changed: `.deepeval/` |
 | `CLAUDE.md`, `README.md`, `eval/README.md` | Changed: commands and links |
 | `eval/tests/test_report_doc.py` | Changed: its test-count check passes `-p no:deepeval` again |
-| `docs/EVAL_HARNESS_REPORT.md`, `docs/TECHNICAL_REPORT_EVAL_AND_MONITORING.md`, `docs/FRAMEWORK_RUBRIC_SCORE.md` | Changed: the test count (269 to 292) |
+| `docs/EVAL_HARNESS_REPORT.md`, `docs/TECHNICAL_REPORT_EVAL_AND_MONITORING.md`, `docs/FRAMEWORK_RUBRIC_SCORE.md` | Changed: the test count (269 to 299) |
 | `runs/observability/stub-jaeger-2/` | New: the run that Section 7.2 quotes |
 | `runs/observability/stub-jaeger/` | New: the first run, before the review. Kept as it was |
 
@@ -802,5 +802,5 @@ CAUTION: Do not type `deepeval login`. It sends the results to the cloud of Conf
 | 26 spans for CLM-0004 | `python -m eval.observability show --stub` |
 | 662 claim spans, 663 spans sent, 40 traces, RED table, error paths, gate, checks | `runs/observability/stub-jaeger-2/summary.json` |
 | 74 DeepEval tests, 100% | `deepeval test run` output, 12 November 2026 |
-| 292 evaluation tests | `pytest eval/tests --collect-only` |
+| 299 evaluation tests | `pytest eval/tests --collect-only` |
 | $0.0008 per real claim | CS-EVAL-TR-001, Section 6 (real-dev run) |

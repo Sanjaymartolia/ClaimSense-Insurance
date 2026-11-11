@@ -121,3 +121,31 @@ Four new tests; the eval test count is now 292 (290, plus 2 from the team's merg
   `eval/monitoring/README.md`.
 - `eval/monitoring/live.py` and `eval/tests/test_monitoring.py`: the fix for "idle" claims at the
   start of a drill, with its test.
+
+## 8. 12 November: the input and output guardrail modules in the eval
+
+`src/claimsense/guardrails/input_guardrails.py` and `output_guardrails.py` (Tools & Security) are
+not called by the pipeline. They are now measured as components in every agent-suite run
+(Section 5.2 of its report). No product code was changed.
+
+| Path | What |
+|---|---|
+| `eval/agent_suite/io_guardrails.py` (new) | Health of both modules; input: injection recall and false alarms, scope blocks, PII masking; output: clean letters blocked or changed, planted leaks caught, wrong-patient letter (RT-005) |
+| `eval/redteam/guardrail_seeds.jsonl` (new) | 5 synthetic PII seeds and 9 planted output leaks |
+| `eval/agent_suite/suite.py` | New report section 5.2 |
+| `eval/tests/test_io_guardrails.py` (new) | 7 tests: 2 pass, 5 strict `xfail` (G-01 to G-04) |
+| `docs/AGENT_SUITE_REPORT.md` | Section 4.4 (results) and the defects table (G-01 to G-04 added; AGT-03 and the maternity check now fixed) |
+
+What the eval found (for Tools & Security):
+
+- **G-01:** `input_guardrails.py` cannot be imported: Pydantic rejects the field `date: date` in
+  `ExtractedBillData`.
+- **G-02:** `process_output_pipeline` raises `TypeError` with its defaults: its flags
+  `scrub_leaks` and `verify_grounding` hide the functions of the same name.
+- **G-03:** so `check_output_safe` blocks 15 of 15 clean letters.
+- **G-04:** `process_input_pipeline` has the same flaw (`mask_pii`, `verify_scope`), seen on a
+  scratch copy with G-01 renamed.
+- The building blocks work: 9 of 9 planted leaks caught, 0 of 15 clean letters blocked or changed,
+  injection recall 12/18 with no false alarm on dev, all 5 PII seeds masked.
+
+The eval test count is now 299 (288 pass, 9 strict `xfail`, 2 skip).

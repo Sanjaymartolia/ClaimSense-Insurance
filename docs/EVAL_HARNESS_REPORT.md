@@ -113,7 +113,7 @@ The harness watches the product. The product does not watch the harness. No file
 | `eval/tools/rubric_score.py` | It prints the framework rubric scorecard. See `docs/FRAMEWORK_RUBRIC_SCORE.md`. |
 | `eval/agent_suite/` | The trace-based agent suite (L13 sections 1 to 7). It records a span for every node, tool call and model call, and computes outcome, process and payload metrics from those traces. Run `python -m eval.agent_suite --label <name>`. See `eval/agent_suite/README.md`. |
 | `eval/full.py` | One run for every metric: the harness self-check, one traced pipeline pass, scored by both the harness and the agent suite, with a combined gate. Run `python -m eval.full --stub --label <name>`. |
-| `eval/tests/` | 292 tests. Thirty-two test the real-pipeline adapter. Twelve check the judge's inputs. Thirteen check the suite. Fourteen check the framework rubric report. Forty-one cover the agent suite, three of them strict `xfail` tests that name open defects (AGT-05 twice, guardrail recall); the AGT-03 test passes since B5 and the maternity test since the childbirth exclusion in `coverage.py`, and both are kept as regression tests. Nine cover `eval/full.py`, including a check that a traced run scores exactly like the harness adapter. Seventy-two cover live monitoring (`eval/monitoring/`, see `docs/MONITORING_REPORT_CARD.md`), one of them a strict `xfail` for MON-01. Twenty-one cover OpenTelemetry tracing (`eval/observability/`, see `docs/OBSERVABILITY_REPORT.md`). |
+| `eval/tests/` | 299 tests. Thirty-two test the real-pipeline adapter. Twelve check the judge's inputs. Thirteen check the suite. Fourteen check the framework rubric report. Forty-one cover the agent suite, three of them strict `xfail` tests that name open defects (AGT-05 twice, guardrail recall); the AGT-03 test passes since B5 and the maternity test since the childbirth exclusion in `coverage.py`, and both are kept as regression tests. Nine cover `eval/full.py`, including a check that a traced run scores exactly like the harness adapter. Seventy-two cover live monitoring (`eval/monitoring/`, see `docs/MONITORING_REPORT_CARD.md`), one of them a strict `xfail` for MON-01. Twenty-one cover OpenTelemetry tracing (`eval/observability/`, see `docs/OBSERVABILITY_REPORT.md`). Seven cover the input and output guardrail modules (`eval/agent_suite/io_guardrails.py`), five of them strict `xfail` tests for defects G-01 to G-04 (results in `docs/AGENT_SUITE_REPORT.md`). |
 
 ### 3.3 Data types
 
@@ -453,7 +453,7 @@ already confirmed by hand.
 
 ### 8.6 Tests
 
-The harness has 292 tests, and none fail. 286 pass. Four are strict `xfail` tests for open
+The harness has 299 tests, and none fail. 288 pass. Nine are strict `xfail` tests for open
 defects, which pass by failing and turn red the day the defect is fixed. Two skip, depending on
 the installed extras. The commands `ruff check` and `ruff format` both pass on
 the `eval/` folder.
@@ -464,7 +464,7 @@ stated here matches the real one, and that the DOCX still builds. They exist bec
 deleted subsection 9.5 silently and left a reference pointing at a heading that had moved. A reader
 does not notice a renumbering. A test does.
 
-Thirty-two of the 292 tests check the real-pipeline adapter. One of them is a regression test for
+Thirty-two of the 299 tests check the real-pipeline adapter. One of them is a regression test for
 defect AGT-04, which is now fixed: it asserts that no dev claim cites an id outside the corpus and
 that CLM-0013 cites clause 2. It replaced the test that pinned the `policy_schedule:period`
 placeholder on 11 November 2026, as that test's predecessor (AGT-01) was replaced on 10 November.
@@ -821,7 +821,7 @@ that chance agreement.
 
        pytest eval/tests -q
 
-2. All 292 tests must pass.
+2. All 299 tests must pass.
 3. Run the lint check.
 
        ruff check eval/ && ruff format --check eval/
@@ -927,7 +927,7 @@ One command runs the whole evaluation and checks every result against what this 
 
     python -m eval.harness.suite
 
-All nine rows match. The harness has 292 tests, and none fail (286 pass, 4 strict xfail, 2 skip).
+All nine rows match. The harness has 299 tests, and none fail (288 pass, 9 strict xfail, 2 skip).
 Neither needs an API key.
 
 It measures a ceiling of 0.975 and a floor of 0.130. The real agent pipeline scores 0.549 on the

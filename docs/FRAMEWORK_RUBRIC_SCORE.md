@@ -224,7 +224,7 @@ The evaluation harness works and is used. `eval/harness/` holds 12 modules. It d
 protocol, with a floor adapter, a ceiling adapter, a fault-injecting adapter with six named
 faults, and an adapter for the real pipeline. `scorecard.yaml` separates weighted metrics from six
 catastrophic gates. `suite.py` runs nine configurations in one command and checks each against its
-expected outcome. There are 292 evaluation tests (12 November 2026). A judge and a Cohen's kappa
+expected outcome. There are 299 evaluation tests (12 November 2026). A judge and a Cohen's kappa
 calibration module exist. The agent suite compares variants side by side, and live monitoring runs
 an A/B test on live traffic with Fisher's exact and Mann-Whitney tests.
 

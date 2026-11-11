@@ -138,7 +138,7 @@ python -m eval.tools.rubric_score [--plan] [--insurance] [--json]              #
 - `harness/loader.py` strips answer-revealing fields before anything reaches an adapter; keep it that way.
 - Results and limitations: `docs/EVAL_HARNESS_REPORT.md` (DOCX built by `eval/tools/build_report_docx.py`).
   The judge is uncalibrated and weighted 0.00: `agents/coverage.py::choose_clauses` drops the model's rationale.
-- Adding an eval test changes the count stated in `docs/EVAL_HARNESS_REPORT.md` (292 today);
+- Adding an eval test changes the count stated in `docs/EVAL_HARNESS_REPORT.md` (299 today);
   `eval/tests/test_report_doc.py` fails until you update it and rebuild that DOCX.
 
 ### Agent suite, combined run, live monitoring (`eval/`, Eval & Red-Team)
@@ -159,6 +159,10 @@ python -m eval.monitoring export --out runs/monitoring/export      # alert rules
 - Thresholds in `eval/agent_suite/gate.yaml` and `eval/monitoring/alert_rules.yml` are proposals:
   never loosen one to get a pass. `test_monitoring.py` checks that rules, dashboard queries and
   metric names agree. Never edit `monitoring/` (Deploy & Ops); `export` refuses to write there.
+- `eval/agent_suite/io_guardrails.py` measures `guardrails/input_guardrails.py` and
+  `output_guardrails.py` as components (report section 5.2; they are not wired into the
+  pipeline). Seeds: `eval/redteam/guardrail_seeds.jsonl` (hand-written, synthetic). Defects
+  G-01 to G-04 are strict `xfail` tests in `eval/tests/test_io_guardrails.py`.
 - `run_traced(prepare=, fraud_screen=)` are eval-only seams (fault injection, the L13 7.1 `lean-pr`
   variant). Monitoring findings MON-01 to MON-04 are in `docs/MONITORING_REPORT_CARD.md`.
 - A run label that exists is overwritten (`runs/monitoring/<label>/`). Never reuse the labels the
