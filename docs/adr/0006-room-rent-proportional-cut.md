@@ -55,7 +55,10 @@ The policy wording is primary (`data/README.md`).
 - Not changed: `calc/` (it already follows the note) and the agents.
 - **Eval & Red-Team:** composites pinned in `eval/harness/suite.py::ROWS` may move. Re-check with
   `python -m eval.harness.suite --accept-pipeline` and record any new values.
-- **Still open, could move these figures again:** DEC-01 (does the ₹5,000 room limit include
+- **Superseded figures (2026-11-11):** ADR-0009 decided DEC-01 (nursing is inside the room cap),
+  so the four settlements above are now ₹67,067 / ₹44,048 / ₹57,971 / ₹62,542. The cut rule in
+  this ADR stands.
+- **Was still open, could move these figures again:** DEC-01 (does the ₹5,000 room limit include
   nursing?) and GOLD-03 / DEC-03 (a specific waiting period on the gallbladder claims CLM-0004 and
   CLM-0005).
 - Reports and run records written before this date (`docs/experiments/`, `runs/`) keep the old gold

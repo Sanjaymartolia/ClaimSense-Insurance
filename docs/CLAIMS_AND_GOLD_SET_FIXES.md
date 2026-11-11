@@ -14,7 +14,8 @@ here because both files are outside `eval/`.
 **2026-11-11 update:** GOLD-02 is fixed by [ADR-0006](adr/0006-room-rent-proportional-cut.md),
 which applies the room-rent cut per Note 4.1.1(b). GOLD-03, GOLD-05, GOLD-06, GOLD-08, DEC-02 and
 DEC-03 are fixed by [ADR-0007](adr/0007-gold-set-rulings-2026-11-11.md); the dev set is now 22
-claims. Still open: DEC-01 and DEC-04.
+claims. DEC-01, DEC-04 and the CLM-0016 ICU questions are decided by
+[ADR-0009](adr/0009-room-cap-nursing-duplicates-icu.md).
 
 ## Summary
 **The JSONL files are well formed, and the gold's arithmetic is right. The problem is the rules behind the gold.** The gold was generated from a demo ruleset (`data/README.md`) that disagrees with the policy wording in several places. A wrong answer can therefore score as correct: the real-model run paid CLM-0018, a Caesarean the policy excludes, at ₹111,406.50, and that counted as a ₹0.50 rounding difference.
@@ -106,7 +107,7 @@ Each item was reproduced from the data or code.
 - **Expected:** The line is category `icu`, capped at ₹10,000, with Note 4.1.1(b) applied to the other charges.
 - **Fix:** Re-file the line, resolve the overlapping day, recalculate.
 - **Done:** `claims.jsonl` L01 category changed `procedure` → `icu`. Gold: L01 now allowed ₹10,000 / deducted ₹14,466, reason `icu_daily_cap`, clause `new_india_arogya_sanjeevani:4.1`. Room rent was already within its ₹5,000/day cap (no breach), so no proportional cut applies to the other lines under Note 4.1.1(b). Settlement ₹73,089 → ₹59,346. Red-team rebuilt. This also gives CLM-0016 a real sub-limit deduction, closing its half of GOLD-05.
-- **Still open:** The "6 ward nights plus 1 ICU day for a 6-night stay" overlap is **not resolved** — nobody has decided whether the ICU day is one of the 6 nights (so room nights should drop to 5) or an additional day. Left as billed.
+- **Done ([ADR-0009](adr/0009-room-cap-nursing-duplicates-icu.md)):** The ICU day is one of the 6 nights, so the fixture now bills 5 ward nights and 5 days of ward nursing. An ICU breach also triggers the Note 4.1.1(b) cut. Settlement ₹40,825.
 - **Depends on:** Domain lead, specifically for the overlapping-day question above; the calculator's ICU rule (T15).
 
 ### GOLD-05: The `sub_limit` scenario tests no sub-limit — **Fixed 2026-11-11**
@@ -293,7 +294,7 @@ All counts are from the 20 dev claims. The set needs these before T39 is complet
 - **Fix:** Add the check, and settle DEC-04 on how a duplicate is deducted.
 - **Depends on:** DEC-04; T27.
 - **Done (B5):** `fraud.py` step 1b flags a line with the same category, description (case and spacing ignored) and amount as an earlier line in the same bill: `duplicate bill lines within this bill: L06 repeats L05`. The claim goes to a person. CLM-0005, 0009, 0010, 0015 and red-team RT-003 are now caught, with no flag on any other dev claim. Test: `tests/orchestration/test_fraud_checks.py`.
-- **Still open:** The duplicate line is still paid until DEC-04 says how to deduct it, so the amounts on these claims still differ from the gold.
+- **Done (ADR-0009):** The reference calculator deducts the duplicate (clause 2), so the amounts now match the gold. `calc/adjudication.py` still has to follow.
 
 ### AGT-04: Untrusted bill text isn't marked as data in the coverage prompt
 - **Priority:** High
@@ -394,12 +395,13 @@ All counts are from the 20 dev claims. The set needs these before T39 is complet
 # Part 2: Decisions needed
 These need a person's ruling. The wording and the current behaviour were checked, but the answer isn't a code question.
 
-### DEC-01: Does the ₹5,000 room limit include nursing?
+### DEC-01: Does the ₹5,000 room limit include nursing? — **Decided 2026-11-11 (ADR-0009): yes, reading A**
 - **Priority:** Critical
 - **Where:** Clause 4.1(a), table row 12.1; `gold_worksheets.jsonl`; `reference_calculate`; T15.
 - **Issue:** Clause 4.1(a) limits "Room Rent, Boarding, Nursing Expenses" to ₹5,000 a day, and row 12.1 adds "all inclusive". Gold and the reference calculator cap room rent alone. All 14 paid claims exceed ₹5,000 once nursing is added, so 10 more become room breaches: CLM-0005, 0006, 0008, 0009, 0010, 0015, 0016, 0018, 0019 and 0020. For example, CLM-0020 is ₹4,000 + ₹1,525 = ₹5,525. No ADR or experiment report discusses this reading.
 - **Recommendation:** Treat nursing as inside the cap unless the Domain lead finds a reason not to, because that is the plain wording. This would change nearly every paid amount, so decide it first.
 - **Depends on:** Domain lead and T15 owners, before 2026-11-13.
+- **Decided:** [ADR-0009](adr/0009-room-cap-nursing-duplicates-icu.md). Room, boarding and nursing share one cap. The Note 4.1.1(b) ratio is cap ÷ (room + nursing per day). The gold is relabelled and `reference_calculate` is updated. `calc/adjudication.py` (Tools & Security) still has to follow.
 
 ### DEC-02: Is 2026-01-01 the first policy date? — **Decided 2026-11-11 (ADR-0007)**
 - **Priority:** High
@@ -415,12 +417,13 @@ These need a person's ruling. The wording and the current behaviour were checked
 - **Recommendation:** State the cause in the synthetic claim, or send it to review.
 - **Depends on:** Domain lead.
 
-### DEC-04: How should a duplicate line be deducted?
+### DEC-04: How should a duplicate line be deducted? — **Decided 2026-11-11 (ADR-0009)**
 - **Priority:** High
 - **Where:** `Deduction` in `contracts/worksheet.py`; `fraud.py`; `LINE_REASONS` in `reflexion/cases.py` on `main`.
 - **Issue:** Gold pays ₹0, `Deduction.clause_id` is required, no clause applies, and the loader's marker `fraud:duplicate_line` would fail the critic against real `get_clause`.
 - **Recommendation:** Make it an explicit non-clause reason, or have a person remove the line and record that.
 - **Depends on:** Domain lead, Agents & Orchestration. A contract change needs two roles.
+- **Decided:** [ADR-0009](adr/0009-room-cap-nursing-duplicates-icu.md). The duplicate is deducted in full, reason `other`, citing clause 2 (Operative Clause: only expenses incurred are indemnified). It is excluded from every rate calculation. The B5 flag still sends the claim to a person, who can restore a genuine repeat. No contract change.
 
 ---
 

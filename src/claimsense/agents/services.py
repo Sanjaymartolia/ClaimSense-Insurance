@@ -69,6 +69,21 @@ class PastClaim(BaseModel):
     admission_date: date
 
 
+def in_bill_duplicates(claim: Claim) -> dict[str, str]:
+    """{repeat line_id: first line_id} for lines billed twice inside one bill: same category, same
+    description (case and spacing ignored), same amount (B5 / DEC-04, ADR-0009). The fraud agent
+    flags them and the calculators deduct them, so both must use this one rule."""
+    first_seen: dict[tuple, str] = {}
+    repeats: dict[str, str] = {}
+    for line in claim.bill_lines:
+        key = (line.category, " ".join(line.description.lower().split()), line.amount)
+        if key in first_seen:
+            repeats[line.line_id] = first_seen[key]
+        else:
+            first_seen[key] = line.line_id
+    return repeats
+
+
 def line_fingerprint(claim: Claim, line_desc: str, amount: Decimal) -> str:
     """Stable id for 'the same bill line submitted again' (duplicate-bill check)."""
     key = f"{claim.policy_number}|{claim.admission_date}|{line_desc.strip().lower()}|{amount}"
@@ -104,11 +119,14 @@ class Services:
 
 # --------------------------------------------------------------------------------------------
 # Reference calculator: DEV ONLY, so the graph runs before T15 lands. Implements the demo ruleset
-# from data/README.md. Delete once claimsense.calc.adjudicate passes its tests.
+# from data/README.md as amended by ADR-0006/0009. Delete once claimsense.calc.adjudicate passes
+# its tests.
 # --------------------------------------------------------------------------------------------
 
+#: Room, boarding and nursing share one all-inclusive daily cap (clause 4.1(a), row 12.1; DEC-01).
+ROOM_TIER = {LineCategory.ROOM, LineCategory.NURSING}
+#: "All other expenses" that Note 4.1.1(b) cuts after a room or ICU breach. Medicines never are.
 LINKED = {
-    LineCategory.NURSING,
     LineCategory.DOCTOR_FEES,
     LineCategory.OT,
     LineCategory.INVESTIGATIONS,
@@ -129,12 +147,21 @@ def reference_calculate(
     si = claim.sum_insured
     room_cap = min(si * Decimal("0.02"), Decimal("5000"))
     icu_cap = min(si * Decimal("0.05"), Decimal("10000"))
+    repeats = in_bill_duplicates(claim)  # DEC-04: never counted towards any rate
+    counted = [x for x in claim.bill_lines if x.line_id not in repeats]
 
-    ratio = Decimal("1")
-    for line in claim.bill_lines:
+    # DEC-01: room + nursing per ward day against one cap. Ward days come from the room line(s).
+    ward_days = sum(
+        (Decimal(x.days or claim.nights or 1) for x in counted if x.category == LineCategory.ROOM),
+        Decimal(0),
+    )
+    ward_total = sum((x.amount for x in counted if x.category in ROOM_TIER), Decimal(0))
+    room_ratio = Decimal("1")
+    if ward_days and ward_total / ward_days > room_cap:
+        room_ratio = room_cap / (ward_total / ward_days)
+    ratio = room_ratio  # Note 4.1.1(b): the lower of the room and ICU ratios (CLM-0016 ruling)
+    for line in counted:
         days = Decimal(line.days or claim.nights or 1)
-        if line.category == LineCategory.ROOM and line.amount / days > room_cap:
-            ratio = min(ratio, room_cap / (line.amount / days))
         if line.category == LineCategory.ICU and line.amount / days > icu_cap:
             ratio = min(ratio, icu_cap / (line.amount / days))
 
@@ -143,7 +170,17 @@ def reference_calculate(
         chosen = clause_choices.get(line.line_id, C.HOSPITALISATION)
         deds: list[Deduction] = []
         days = Decimal(line.days or claim.nights or 1)
-        if chosen in FULLY_DEDUCTED:
+        if line.line_id in repeats:
+            deds.append(
+                Deduction(
+                    reason=DeductionReason.OTHER,
+                    amount=line.amount,
+                    clause_id=C.OPERATIVE,
+                    explanation=f"Repeats {repeats[line.line_id]} in the same bill: only "
+                    "expenses incurred are indemnified. A person can restore it if genuine.",
+                )
+            )
+        elif chosen in FULLY_DEDUCTED:
             deds.append(
                 Deduction(
                     reason=FULLY_DEDUCTED[chosen],
@@ -152,14 +189,15 @@ def reference_calculate(
                     explanation="Not payable under this clause.",
                 )
             )
-        elif line.category == LineCategory.ROOM and line.amount > room_cap * days:
-            amt = rupees(line.amount - room_cap * days)
+        elif line.category in ROOM_TIER and room_ratio < 1:
+            amt = rupees(line.amount * (1 - room_ratio))
             deds.append(
                 Deduction(
                     reason=DeductionReason.ROOM_RENT_CAP,
                     amount=amt,
                     clause_id=C.ROOM_RENT_LIMIT,
-                    explanation=f"Room capped at Rs {rupees(room_cap)}/day x {days}.",
+                    explanation=f"Room, boarding and nursing capped together at Rs "
+                    f"{rupees(room_cap)}/day x {ward_days}; factor {room_ratio:.4f}.",
                 )
             )
         elif line.category == LineCategory.ICU and line.amount > icu_cap * days:

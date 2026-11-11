@@ -39,16 +39,22 @@ workflow templates, not coverage contracts.
 - Specific waiting periods (clause 6.2, 24/36 months) run from `first_policy_inception_date`,
   which every dev claim states ([ADR-0007](../docs/adr/0007-gold-set-rulings-2026-11-11.md)).
   CLM-0008 (urinary calculi, first policy) is the dev case.
-- Room cap: min(2% of sum insured, ₹5,000/day). ICU cap: min(5% of sum insured, ₹10,000/day).
+- Room cap: min(2% of sum insured, ₹5,000/day), **all-inclusive of room, boarding and nursing**
+  (clause 4.1(a), row 12.1; [ADR-0009](../docs/adr/0009-room-cap-nursing-duplicates-icu.md)).
+  ICU cap: min(5% of sum insured, ₹10,000/day).
 - Cataract sub-limit: min(25% of sum insured, ₹40,000) per eye per policy year, on the whole
   cataract treatment, less what earlier claims this year used (`history.prior_claims`). It is
   applied before the co-pay (CLM-0021, CLM-0022).
 - Co-pay: 5% of the otherwise payable amount.
 - `non_payable` line items are excluded.
-- When room charges exceed the daily cap, every other hospital expense, the procedure included,
-  is reduced by the ratio of the admissible rate to the actual rate. **Medicines are exempt.** This
-  follows policy Note 4.1.1(b) ([ADR-0006](../docs/adr/0006-room-rent-proportional-cut.md)). The
-  gold worksheet records the proportional-cut factor.
+- When the room + nursing rate per day exceeds the room cap, or the ICU rate exceeds the ICU cap,
+  every other hospital expense, the procedure included, is reduced by the ratio of the admissible
+  rate to the actual rate. When both caps are breached, the lower ratio applies. **Medicines are
+  exempt.** This follows policy Note 4.1.1(b)
+  ([ADR-0006](../docs/adr/0006-room-rent-proportional-cut.md), ADR-0009). The gold worksheet
+  records the proportional-cut factor.
+- A line billed twice in one bill (same category, description and amount) is deducted in full,
+  citing clause 2, and is left out of the rate calculations (ADR-0009).
 
 Review flags name every rule that changed money. A not-admissible claim names only its gate.
 Gold is in whole rupees, and the eval harness forgives a ₹1 rounding gap by default (ADR-0007).

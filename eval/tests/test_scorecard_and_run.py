@@ -84,7 +84,7 @@ def test_gold_replay_is_the_ceiling_and_trips_no_gate(tmp_path, capsys):
     assert report["parts"]["amounts"] == 1.0
     assert report["parts"]["flags"] == 1.0
     assert report["parts"]["required_tool_coverage"] == 1.0
-    assert report["composite"] == pytest.approx(0.982, abs=0.001)
+    assert report["composite"] == pytest.approx(1.0, abs=0.001)
 
 
 def test_the_null_adapter_is_safe_but_scores_near_the_floor(tmp_path, capsys):

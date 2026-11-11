@@ -89,8 +89,8 @@ def test_gold_clause_choices_follow_the_reason_codes(cases, raw):
         for line_id, want in c.gold_choices().items():
             if "non_payable_item_demo_rule" in codes[line_id]:
                 assert want == C.NON_PAYABLE_ITEMS
-            elif "room_rent_daily_cap" in codes[line_id]:
-                assert want == C.ROOM_RENT_LIMIT and cats[line_id] == "room_rent"
+            elif "room_rent_daily_cap" in codes[line_id]:  # DEC-01: room + nursing, one cap
+                assert want == C.ROOM_RENT_LIMIT and cats[line_id] in ("room_rent", "nursing")
             elif "icu_daily_cap" in codes[line_id]:
                 assert want == C.ICU_LIMIT and cats[line_id] == "icu"
             elif "room_rent_proportional_reduction" in codes[line_id]:
@@ -131,22 +131,26 @@ def test_gold_audit_relabels_are_mapped(cases, raw):
     icu = next(line for line in c16.gold_worksheet.lines if line.line_id == "CLM-0016-L01")
     assert icu.payable == Decimal("10000") and icu.deductions[0].reason == DeductionReason.ICU_CAP
     assert c16.gold_choices()["CLM-0016-L01"] == C.ICU_LIMIT
-    assert c16.gold_worksheet.total_payable == Decimal("59346")
+    # ADR-0009: 5 ward nights + the ICU day; the ICU breach (ratio 10,000 / 24,466) cuts the
+    # diagnostics line, and room + nursing (7,059/day) are capped together at 5,000/day.
+    assert c16.gold_worksheet.total_payable == Decimal("40825")
 
 
-#: GOLD-02 / ADR-0006: settlement after the Note 4.1.1(b) cut (whole rupees, GOLD-08).
+#: GOLD-02 / ADR-0006, with nursing inside the room cap since ADR-0009 (DEC-01, reading A):
+#: settlement after the Note 4.1.1(b) cut (whole rupees, GOLD-08).
 GOLD_02_SETTLEMENTS = {
-    "CLM-0004": Decimal("80990"),
-    "CLM-0011": Decimal("57184"),
-    "CLM-0012": Decimal("67575"),
-    "CLM-0014": Decimal("74630"),
+    "CLM-0004": Decimal("67067"),
+    "CLM-0011": Decimal("44048"),
+    "CLM-0012": Decimal("57971"),
+    "CLM-0014": Decimal("62542"),
 }
 
 
 @pytest.mark.parametrize("claim_id", sorted(GOLD_02_SETTLEMENTS))
 def test_gold_room_rent_cut_follows_note_4_1_1_b(cases, raw, claim_id):
     """GOLD-02 / ADR-0006: on a room-rent breach, every other hospital expense is cut in
-    proportion, *except medicines* (procedure included), citing Note 4.1.1(b)."""
+    proportion, *except medicines* (procedure included), citing Note 4.1.1(b). ADR-0009: room and
+    nursing share the all-inclusive cap, so both carry the cap, not the proportional cut."""
     claims, golds = raw
     cats = {
         b["line_id"]: b["category"]
@@ -154,7 +158,7 @@ def test_gold_room_rent_cut_follows_note_4_1_1_b(cases, raw, claim_id):
     }
     for li in golds[claim_id]["line_items"]:
         cat = cats[li["line_id"]]
-        if cat == "room_rent":
+        if cat in ("room_rent", "nursing"):
             assert li["reason_codes"] == ["room_rent_daily_cap"]
         elif cat == "pharmacy":
             assert li["reason_codes"] == [] and li["deduction_before_copay_inr"] == 0

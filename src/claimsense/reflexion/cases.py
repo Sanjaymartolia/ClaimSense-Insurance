@@ -63,8 +63,8 @@ CATEGORY_MAP: dict[str, LineCategory] = {
 }
 
 #: gold line-level reason code -> (deduction reason, clause id the gold is taken to cite).
-#: `duplicate_line` has no policy clause: it is a fraud finding, so it gets a marker id and is
-#: left out of the gold clause choices (a human catches it; no clause choice "fixes" it).
+#: `duplicate_line` cites clause 2, the Operative Clause (DEC-04, ADR-0009): the calculator deducts
+#: it by rule, not by a clause choice, so it stays out of the gold clause choices.
 #: `sub_limit` is a generic demo-rule code that no gold line carries today. The cataract limit
 #: (clause 4.3) has its own code, `cataract_sub_limit`, used by CLM-0021/0022 (GOLD-05, ADR-0007).
 LINE_REASONS: dict[str, tuple[DeductionReason, str]] = {
@@ -74,7 +74,7 @@ LINE_REASONS: dict[str, tuple[DeductionReason, str]] = {
     "non_payable_item_demo_rule": (DeductionReason.NON_PAYABLE, C.NON_PAYABLE_ITEMS),
     "sub_limit": (DeductionReason.SUB_LIMIT, C.OTHER_EXPENSES),
     "cataract_sub_limit": (DeductionReason.SUB_LIMIT, C.CATARACT),
-    "duplicate_line": (DeductionReason.OTHER, "fraud:duplicate_line"),
+    "duplicate_line": (DeductionReason.OTHER, C.OPERATIVE),  # DEC-04, ADR-0009
 }
 NO_CLAUSE_CHOICE = {"duplicate_line"}
 
@@ -99,19 +99,10 @@ ADMISSIBILITY_GATE = "claim_level_admissibility_gate"
 #: Where the demo-rule gold and the reference calculator are known to disagree. Each one shows up
 #: as a baseline error that no playbook lesson can remove, so the report must say so.
 RULE_DISAGREEMENTS = [
-    "Gold deducts an in-bill duplicate line in full (duplicate_line); the fraud agent only "
-    "checks claim history and a fraud flag never changes an amount. CLM-0005, 0009, 0010, 0015. "
-    "Decision (lead, Nov 2026 walkthrough): a duplicate stays a fraud flag for the human "
-    "adjudicator; no clause pays it at zero.",
     "Gold rounds each cut line to whole rupees; the calculator keeps paise. Cut lines differ by up "
     "to Rs 0.50 and count as a miss unless the evaluator is run with a tolerance "
     "(--tolerance-rs). ADR-0007 (GOLD-08): the gold stays in rupees; the eval harness defaults to "
     "a Rs 1 tolerance, the Reflexion evaluator keeps it explicit.",
-    "Gold (2026-11-04 audit, GOLD-04) caps CLM-0016's ICU day at Rs 10,000 but applies no "
-    "proportional cut to the other lines because the room rent itself is within its cap; the "
-    "calculator applies clause 4.1.1 Note (b) to an ICU breach as well, so it cuts investigations "
-    "and nursing. Both cap the ICU line identically. Needs a domain ruling: does Note (b) follow "
-    "an ICU breach or only a room-rent breach?",
     "Gold (ADR-0007, GOLD-03) repudiates CLM-0008 under the 24-month specific wait (clause "
     "6.2.18, urinary calculi, first policy); the admissibility check has no 6.2 list yet "
     "(AGT-02), so the pipeline pays it.",
