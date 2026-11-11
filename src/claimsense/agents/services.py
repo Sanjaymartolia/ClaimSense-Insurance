@@ -138,6 +138,9 @@ FULLY_DEDUCTED = {
     C.INITIAL_WAITING_PERIOD: DeductionReason.WAITING_PERIOD,
     C.PED_WAITING_PERIOD: DeductionReason.WAITING_PERIOD,
     C.SPECIFIC_WAITING_PERIOD: DeductionReason.WAITING_PERIOD,
+    # Claim-level rulings the admissibility gate applies to every line (ADR-0010).
+    C.MATERNITY_EXCLUSION: DeductionReason.EXCLUSION,
+    C.POLICY_PERIOD: DeductionReason.OTHER,
 }
 
 

@@ -9,14 +9,14 @@
     "clause_match": 0.42481684981684986,
     "injection_surfaced": 0.8333333333333334,
     "payload_checks_ok": 0.9423076923076923,
-    "redundant_call_share": 0.36018957345971564,
+    "redundant_call_share": 0.3547257876312719,
     "tool_error_rate": 0.0,
     "acl_denied": 0.0,
     "forbidden_tool_calls": 0.0,
     "pipeline_errors": 0.0,
     "mean_steps": 7.019230769230769,
-    "p95_seconds": 20.019268625001132,
-    "cost_per_claim_usd": 0.001340946153846154,
+    "p95_seconds": 19.965605332999985,
+    "cost_per_claim_usd": 0.0013659230769230769,
     "judge_pass_rate": null
   }
 }

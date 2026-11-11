@@ -226,3 +226,19 @@ def test_policy_and_history_follow_the_fixture(adapter, dev_cases):
     (past,) = adapter._history(by_id["CLM-0022"])
     assert past.sub_limits_used == {"new_india_arogya_sanjeevani:4.3": 25000}
     assert adapter._history(by_id["CLM-0004"]) == []
+
+
+def test_a_gated_claim_gets_a_zero_worksheet_from_the_calculator(adapter, dev_cases):
+    """ADR-0010 (AGT-02, the admissibility short circuit): a claim the gold rules not admissible
+    still gets a worksheet, every line at Rs 0, and the calculator is among the executed tools."""
+    from eval.harness.trajectory_metrics import CALCULATOR_TOOL, executed_tools
+
+    gated = [c for c in dev_cases if c.gold.expected_settlement_inr == 0 and c.gold.line_items]
+    gated = [c for c in gated if c.claim.claim_id != "CLM-0008"]  # AGT-02: no 6.2 check yet
+    assert len(gated) == 7
+    for case in gated:
+        out = adapter.run(case.claim)
+        assert out.worksheet is not None, case.claim.claim_id
+        assert out.worksheet.settlement_inr == 0, case.claim.claim_id
+        assert all(li.allowed_before_copay_inr == 0 for li in out.worksheet.line_items)
+        assert CALCULATOR_TOOL in executed_tools(out), case.claim.claim_id

@@ -287,6 +287,14 @@ All counts are from the 20 dev claims. The set needs these before T39 is complet
 - **Expected:** Choosing an exclusion or an unserved waiting-period clause deducts the line, or the claim fails admissibility.
 - **Fix:** Decide the mapping with T15's owners, for example by clause prefix, and cover it with hand-worked tests.
 - **Depends on:** AGT-01, CLAIM-01, T15.
+- **Done since:**
+  - Maternity: `coverage.py` excludes childbirth under 7.15 (GOLD-01).
+  - `FULLY_DEDUCTED` holds the real waiting-period, 7.15 and clause-2 ids.
+  - **ADR-0010 (2026-11-12):** a not-admissible claim gets its ₹0 worksheet from the calculator,
+    with every line under the gate's clause. `clauses.CLAIM_LEVEL` keeps those clauses out of
+    per-line choices.
+- **Still open:** admissibility has no 6.2 specific-waiting check (CLM-0008, DEC-02), and `6.2.x`
+  list items still don't match `6.2`.
 
 ### AGT-03: Duplicate lines inside one bill aren't caught — **Flag fixed 2026-11-11 (B5); deduction waits on DEC-04**
 - **Priority:** High

@@ -136,6 +136,18 @@ class Nodes:
             if not adm.admissible
             else {}
         )
+        # ADR-0010 (AGT-02): a not-admissible claim still gets its worksheet from the calculator,
+        # every line deducted under the gate's clause, so the Rs 0 comes from code (rule 1). It is
+        # not stored as clause_choices: an adjudicator override must run real clause selection.
+        # The repudiation review never shows it (Nodes._review hides it).
+        if not adm.admissible and adm.clause_ids:
+            gate = adm.clause_ids[0]
+            ws = self.team.coverage.adjudicate(
+                s["claim"],
+                {line.line_id: gate for line in s["claim"].bill_lines},
+                fraud_flags=carried["fraud_flags"],
+            )
+            carried["worksheet"] = ws
         return {
             **carried,
             "admissibility": adm,

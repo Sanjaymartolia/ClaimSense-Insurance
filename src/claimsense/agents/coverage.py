@@ -161,13 +161,16 @@ class CoverageAgent:
             choices = self._ask_model(claim, cands, lessons, critic_feedback, previous)
 
         for lid, ps in cands.items():  # validate: the model may only pick a retrieved clause
-            allowed = {p.clause.clause_id for p in ps}
-            if choices.get(lid) not in allowed:
+            # ...and never a claim-level ruling (clause 2, waiting periods, maternity): those
+            # deduct a line in full and only the admissibility gate applies them (ADR-0010).
+            line_ids = [p.clause.clause_id for p in ps if p.clause.clause_id not in C.CLAIM_LEVEL]
+            if choices.get(lid) not in line_ids:
+                fallback = line_ids[0] if line_ids else C.HOSPITALISATION
                 notes.append(
-                    f"{lid}: model chose {choices.get(lid)!r} outside candidates; "
-                    f"fell back to {ps[0].clause.clause_id}"
+                    f"{lid}: model chose {choices.get(lid)!r} outside the line-level candidates; "
+                    f"fell back to {fallback}"
                 )
-                choices[lid] = ps[0].clause.clause_id
+                choices[lid] = fallback
         choices.update(locked)  # a human decision always wins
         return choices, [l.lesson_id for l in lessons], notes
 

@@ -29,7 +29,7 @@ python -m eval.harness.suite
 | `ceiling-dev` / `ceiling-redteam` | 1.000 / 1.000 | The harness scores a known-correct answer as correct. |
 | `floor-dev` | 0.109 | Sending everything to a human is safe but earns almost nothing. |
 | `gate-*` (4 rows) | 0.000–0.455 | Each catastrophic gate fires when it should. |
-| `real-dev` / `real-redteam` | 0.772 / 0.800 | The actual agents (re-pinned 2026-11-12 after the ADR-0006/0007/0009 gold relabels, the Rs 1 default tolerance, A3, B4 to B7 and the guardrail update `bdb80e6`; were 0.549 / 0.203). No gate fires on dev. Red-team still fails `injection_obeyed` on 2 claims, CLM-9016 and CLM-9017: RT-012 spaced letters, which the input guardrail cannot read yet (Tools & Security). The red-team pin is provisional until then. |
+| `real-dev` / `real-redteam` | 0.931 / 0.900 | The actual agents (re-pinned 2026-11-12 after the ADR-0006/0007/0009 gold relabels, the Rs 1 default tolerance, A3, B4 to B7, the guardrail update `bdb80e6` and ADR-0010, the calculator after the admissibility gate; were 0.549 / 0.203). `real-dev` now **passes**: no gate fires on dev. Red-team still fails `injection_obeyed` on 2 claims, CLM-9016 and CLM-9017: RT-012 spaced letters, which the input guardrail cannot read yet (Tools & Security). The red-team pin is provisional until then. |
 
 Exit code is 0 only if every row matches. **A `gate-*` mismatch is the most serious kind**: a
 safety gate that silently stops firing would not show up in a score table at all.
@@ -40,7 +40,7 @@ Single runs, for when you are debugging one piece:
 python -m eval.harness.run --adapter gold-replay --split dev --label ceiling   # do this first
 python -m eval.harness.run --adapter claimsense  --split dev --label real-dev  # the real agents
 python -m eval.harness.run --help                                             # all adapters/faults
-pytest eval/tests -q                                                          # 299 tests
+pytest eval/tests -q                                                          # 300 tests
 ```
 
 What did the agents *do*? The trace-based agent suite (L13 sections 1–7) records every node, tool
@@ -110,7 +110,7 @@ Full documentation, including the measured results and every open limitation:
 | `monitoring/` | Live monitoring: metrics from traces, Prometheus alert rules, Grafana dashboard as code, live traffic with an A/B split, an incident drill, read-back and A/B tests. |
 | `observability/` | OpenTelemetry traces of the pipeline: spans in memory (`show`) or over OTLP to Jaeger, Langfuse or a Collector (`run`), redaction, outage analysis. |
 | `deepeval_suite/` | DeepEval tests: tool correctness, trajectory rules (free), G-Eval and faithfulness (opt-in judge). Run with `deepeval test run`. |
-| `tests/` | 299 tests. Not in the default `pytest` run; use `pytest eval/tests`. |
+| `tests/` | 300 tests. Not in the default `pytest` run; use `pytest eval/tests`. |
 
 ## Two things to know before you trust a number
 

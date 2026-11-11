@@ -63,6 +63,11 @@ def test_rupees_come_from_the_calculator(traces):
             continue
         outputs = [s.output for s in t.calls("calculate") if s.ok]
         assert outputs, f"{cid}: a worksheet with no calculator call"
+        if t.review_payloads[-1]["worksheet"] is None:
+            # A repudiation shows no worksheet. Its Rs 0 worksheet (ADR-0010) must still be the
+            # calculator's own output.
+            assert any("payable Rs 0.00" in o for o in outputs), f"{cid}: Rs 0 not computed"
+            continue
         shown = t.review_payloads[-1]["worksheet"]["total_payable"]
         assert any(f"payable Rs {shown}" in o for o in outputs), f"{cid}: {shown} not computed"
 

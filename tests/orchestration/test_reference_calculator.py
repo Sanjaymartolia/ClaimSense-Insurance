@@ -148,3 +148,27 @@ def test_an_icu_breach_cuts_other_expenses_but_not_the_capped_ward():
     assert by["L5"].deductions == []
     # gross 10,000 + 4,000 + 500 + 5,000 + 3,000 = 22,500; co-pay 1,125
     assert ws.total_payable == Decimal("21375.00")
+
+
+def test_claim_level_gate_clauses_deduct_every_line_in_full():
+    # ADR-0010: the admissibility gate gives every line its clause. Bill 9,000 + 30,000 + 6,000 =
+    # 45,000. Every line is deducted in full -> payable 0, and no co-pay on 0.
+    claim = _claim(
+        [
+            ("L1", "room", "9000", "General ward per day", 2),
+            ("L2", "procedure", "30000", "LSCS"),
+            ("L3", "medicines", "6000", "Medicines"),
+        ]
+    )
+    for clause, reason in [
+        (C.MATERNITY_EXCLUSION, DeductionReason.EXCLUSION),
+        (C.POLICY_PERIOD, DeductionReason.OTHER),
+        (C.INITIAL_WAITING_PERIOD, DeductionReason.WAITING_PERIOD),
+    ]:
+        ws = reference_calculate(claim, {lid: clause for lid in ("L1", "L2", "L3")})
+        assert ws.total_payable == Decimal("0")
+        assert ws.co_pay is None
+        for line in ws.lines:
+            assert [(d.reason, d.clause_id, d.amount) for d in line.deductions] == [
+                (reason, clause, line.claimed)
+            ]

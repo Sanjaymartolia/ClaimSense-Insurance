@@ -30,6 +30,18 @@ PED_WAITING_PERIOD = P + "6.1"  # Pre-Existing Diseases (Code- Excl01): 36 month
 SPECIFIC_WAITING_PERIOD = P + "6.2"  # Specific Waiting Period (Excl02); list in 6.2.x
 NON_PAYABLE_ITEMS = P + "annexure-a.list-i"  # Annexure-A List I: items not covered (ADR-0003)
 
+# Claim-level rulings: each deducts a line in full. Only the admissibility gate applies them (to
+# every line, ADR-0010); the coverage analyst may never pick one for a single line.
+CLAIM_LEVEL = frozenset(
+    {
+        POLICY_PERIOD,
+        INITIAL_WAITING_PERIOD,
+        PED_WAITING_PERIOD,
+        SPECIFIC_WAITING_PERIOD,
+        MATERNITY_EXCLUSION,
+    }
+)
+
 # Note: the wording (4.1.1 Note b) applies the proportional cut to "all other expenses ... with
 # the exception of cost of medicines". The data README says "room-linked charges". Agree ONE
 # reading with the Domain lead and the calculator owner (T15) before day 3.
