@@ -81,6 +81,12 @@ All commands below run from **your own folder** `exercises/<yourname>/` unless m
 | Rebuild the policy knowledge base (repo root) | `python -m claimsense.ingestion.build_policy_knowledge_base` | free |
 | Product API (repo root) | `uvicorn claimsense.api.main:app --reload` | — |
 | Full stack (repo root) | `docker compose up` | — |
+| Check the scorer, score the agents (repo root) | `python -m eval.harness.suite` | free |
+| What the agents did, step by step (repo root) | `python -m eval.agent_suite --stub --label <name>` | free with `--stub` |
+| Live monitoring drill: dashboard and alerts (repo root; once before: `python -m eval.monitoring setup`) | `python -m eval.monitoring run --stub --label <name> --open` | free with `--stub` |
+| One claim as an OpenTelemetry trace, printed (repo root; needs `.[observability]`) | `python -m eval.observability show --stub` | free with `--stub` |
+| Traces in Jaeger, a normal batch and a tool outage (repo root; once before: `python -m eval.observability setup`) | `python -m eval.observability run --stub --label <name> --keep` | free with `--stub` |
+| DeepEval unit tests of the pipeline (repo root; needs `.[deepeval]`) | `DEEPEVAL_DISABLE_DOTENV=1 DEEPEVAL_TELEMETRY_OPT_OUT=1 CLAIMSENSE_LLM=stub deepeval test run eval/deepeval_suite` | free in stub mode |
 
 Change a setting for one run without editing code, for example:
 
@@ -94,7 +100,7 @@ Model IDs come only from `config/models.yaml`. Never type a model ID into code. 
 |---|---|---|---|---|---|
 | Policy knowledge base | `data/knowledge_base/` | 167 chunks | — | everyone, agent | what the agent searches |
 | Dev claims (golden set) | `eval/golden_dev/claims.jsonl` + `gold_worksheets.jsonl` | 20 claims, 7 scenarios | yes | everyone; agent sees claims only | every-change eval |
-| Retrieval set | `eval/golden_dev/retrieval_queries.jsonl` | 12 questions | yes (draft) | everyone | `--retrieval-only` recall@k |
+| Retrieval set | `eval/golden_dev/retrieval_queries.jsonl` | 47 questions | yes (draft) | everyone | `--retrieval-only` recall@k |
 | Red-team set | `eval/redteam/claims.jsonl` + `gold.jsonl` | 30 attacked claims | yes | everyone; agent sees claims only | safety eval, `--redteam` |
 | Attack seeds | `eval/redteam/attacks.jsonl` | 12 seeds | — | everyone | source of the red-team set |
 | Held-out test set | `../claimsense-heldout/` (outside the repo) | 60 claims | yes | Eval & Red-Team only, once | final, frozen result |
@@ -105,9 +111,9 @@ Model IDs come only from `config/models.yaml`. Never type a model ID into code. 
 
 Each claim tests one rule. Scenarios: room-rent breach (6), duplicate bill (5), non-payable items (3), normal (2), sub-limit (2), waiting period (1), policy-date inconsistency (1). Ten need a human, ten do not. The gold was produced by the demo ruleset in `data/README.md` and is **not authoritative**: the Domain lead must hand-verify it against the policy wording before anyone relies on it for T15. The agent never sees `scenario_label` or `fixture_notes`; the tools strip them.
 
-### 6.2 Retrieval set (12 questions)
+### 6.2 Retrieval set (47 questions)
 
-Question → correct clause id pairs (room rent, ICU, proportional cut, co-pay, 30-day wait, pre-existing disease, cataract, robotic surgery, excluded items, policy period, AYUSH, ambulance). It costs nothing to run. Status: **draft**, the Domain lead verifies each clause id. The shipped search scores recall@4 = 0.583 on it, so there is room to improve.
+Question → correct clause id pairs (room rent, ICU, proportional cut, co-pay, 30-day wait, pre-existing disease, cataract, robotic surgery, excluded items, policy period, AYUSH, ambulance, and more). It costs nothing to run. Status: **draft**, the Domain lead verifies each clause id. The shipped search scored recall@4 = 0.583 when the set had its first 12 questions; the set now has 47, so measure again before you compare.
 
 ### 6.3 Red-team set (30 claims)
 
@@ -222,7 +228,7 @@ CI today runs ruff and the product tests on every PR. The course-kit tests are n
 | Item | Owner | Status |
 |---|---|---|
 | Hand-verify dev gold against the policy wording (gold flags follow the scenario, not every rule, e.g. CLM-0008) | Domain & Product | open |
-| Verify the 12 retrieval questions' clause ids | Domain & Product | draft |
+| Verify the 47 retrieval queries' clause ids | Domain & Product | draft |
 | Review attack seeds RT-009 to RT-012 | Eval & Red-Team | added, unreviewed |
 | RT-005 wrong-patient letter has no test | Eval & Red-Team | gap until a letter step exists |
 | Claim JSON does not match `contracts.claim.Claim` (ADR-0002) | two-role PR | open |
@@ -247,6 +253,17 @@ CI today runs ruff and the product tests on every PR. The course-kit tests are n
 
     # search only, free
     python scripts/evaluate_dev.py --retrieval-only --label <name>
+
+    # evaluation and monitoring (repo root; --stub keeps it free)
+    python -m eval.harness.suite
+    python -m eval.agent_suite --stub --label <name>
+    python -m eval.monitoring run --stub --label <name> --open
+
+    # observability and DeepEval (repo root; docs/OBSERVABILITY_REPORT.md)
+    python -m eval.observability show --stub
+    python -m eval.observability run --stub --label <name> --keep
+    export DEEPEVAL_DISABLE_DOTENV=1 DEEPEVAL_TELEMETRY_OPT_OUT=1
+    CLAIMSENSE_LLM=stub deepeval test run eval/deepeval_suite
 
     # rebuild this guide (repo root)
     pip install -e ".[docs]" && python scripts/build_team_guide.py

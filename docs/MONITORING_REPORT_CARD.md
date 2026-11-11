@@ -1,16 +1,19 @@
 # Monitoring Report Card: ClaimSense under live traffic
 
-**Owner:** Eval & Red-Team · **Date:** 10 November 2026 ·
+**Owner:** Eval & Red-Team · **Date:** 11 November 2026 ·
 **Code:** `eval/monitoring/` (section 8), `eval/agent_suite/` (section 7)
 **Based on:** Lecture 13 hands-on, sections 7 to 8.9 ("Evaluating and Monitoring an Agent")
 **Runs quoted:**
 
 - `runs/monitoring/drill-2/`: the reference drill;
 - `runs/monitoring/drill-3/`: the same drill on the final code, after the review fixes;
-- `runs/monitoring/drill/`: the first drill, which stalled;
+- `runs/monitoring/drill/`: a later stub rerun under the first drill's label, with no stall. It
+  overwrote the files of the first drill, which stalled (Section 6.6);
+- `runs/monitoring/real-drill/`: the same drill with real models, which cost $0.17;
 - `runs/agent_suite/l13-7-1/`: L13 7.1.
 
-All in stub mode, so no money was spent.
+All are in stub mode, so they cost nothing, except `real-drill`, which used real models and cost
+$0.17.
 
 ---
 
@@ -31,15 +34,17 @@ All in stub mode, so no money was spent.
 | 8.7 Read it back | the same queries, as numbers and a chart | **Done** | `panels.json`, `panels.png` (Section 6.2) |
 | 8.8 Alerts + runbook | which alerts fired, in which phase | **Done; the drill passes** | 3 of 3 expected alerts fired, none in normal traffic; confirmed again on the final code (Sections 6.3, 6.4) |
 | 8.9 A/B on live traffic | Mann-Whitney, Fisher, "the decision isn't a p-value" | **Done** | on attacked claims, B (`guarded`) handled 77% correctly against 49% for A (p = 0.0002). On clean claims there is no difference (p = 0.91) |
+| 8.6–8.9 with real models | the same drill with real agents | **Done** | 250 claims for $0.172 ($0.00069 per claim); the same three alerts fired; no false alarm (Section 6.7) |
 | 8.10 Clean up | stop the servers | **Done** | stopped in `finally`; `python -m eval.monitoring down` stops leftovers |
 
-**Verdict.** The monitoring works end to end on this machine and catches both incidents. Three
-things need the team:
+**Verdict.** The monitoring works end to end on this machine and catches both incidents, with
+stub agents and with real models. Four things need the team:
 
 - **MON-01:** one failed tariff lookup crashes the whole claim.
 - **MON-02:** the tool alert takes 55 s to fire on a 60 s outage.
 - **Drill 1 stalled.** A 44 s freeze of the traffic generator made the first drill's timings
   meaningless. The run now detects such a stall and says so.
+- **MON-04:** with real models, the "handled correctly" alert sits inside normal noise.
 
 See Section 9.
 
@@ -84,7 +89,7 @@ deleted and nothing runs. Everything goes to `C:\Users\<you>\.claimsense\monitor
 ### Step 3: Run the drill (free, about 6 minutes)
 
 ```powershell
-python -m eval.monitoring run --stub --label drill --open
+python -m eval.monitoring run --stub --label my-drill --open
 ```
 
 **Always pass `--stub`.** Without it, an OpenRouter key in your environment (VS Code loads `.env`)
@@ -317,6 +322,12 @@ every failed tariff call became a crashed claim (MON-01).
 "Handled correctly" is about 50% in normal traffic. That is the stub agents' level on the dev
 claims (10 of 20 right), not a monitoring result.
 
+The phase rows add up to 1,541, not 1,546. The other 5 claims, one per worker, started before
+the first phase was set. They were labelled `idle`, so they are in `live.csv`, the metrics and the
+A/B, but not in this table. Every drill in `runs/monitoring/`, `real-drill` included, ran before
+the fix and has the same 5 claims. The fix sets the
+first phase before any worker starts, and a test now checks that every claim has a phase.
+
 ### 6.2 The dashboard, read back (8.7)
 
 ![The reference drill: eight dashboard panels over the four phases, with the alerts underneath](../runs/monitoring/drill-2/panels.png)
@@ -435,9 +446,10 @@ taste.
 
 ### 6.6 The first drill stalled, and the run now says so
 
-The first full drill (`runs/monitoring/drill/`) passed too, but its tariff alerts fired 70 s into
-the outage, after the outage had ended. Its `live.csv` shows why: from 76 s to 120 s **no claim
-finished in any of the five workers**. Four claims that were in flight report 44 s inside the
+The first full drill (label `drill`) passed too, but its tariff alerts fired 70 s into the outage,
+after the outage had ended. Its `live.csv` showed why: from 76 s to 120 s **no claim finished in
+any of the five workers**. (A later run with the same label overwrote those files on 11 November.
+The figures here come from the analysis made before that. Use a new label for each run.) Four claims that were in flight report 44 s inside the
 pipeline and finished at the same instant, including one that never calls the tariff tool. The
 whole Python process stopped for 44 s, so for that time the dashboard measured a frozen load
 generator, not the pipeline.
@@ -457,6 +469,64 @@ What changed: `run_scenario` now runs a heartbeat thread. Any stall over 2 s is 
 "rerun") instead of passing or failing. A drill's timings are only evidence when the traffic was
 actually flowing. Drill 1's alerts did work, as drill 2 confirmed, so failing it would have been
 just as wrong as passing it.
+
+### 6.7 The same drill with real models
+
+`runs/monitoring/real-drill/` ran on 11 November 2026 without `--stub`. The agents called
+`openai/gpt-4.1-mini` through OpenRouter. The scenario, workers and arms were the same as in the
+stub drills.
+
+| | Stub (`drill-2`) | Real models (`real-drill`) |
+|---|---|---|
+| claims in the 225 s | 1,546 | 250 |
+| claims per minute, normal phase | about 490 | about 56 |
+| seconds per claim, P50 / P95 | 0.003 / 1.5 (normal phase 0.003 / 0.008) | 4.5 / 9.5 |
+| model calls per claim | 0 | 2.0 |
+| tokens per claim | 0 | about 1,050 |
+| cost per claim | $0 | **$0.00069** (highest $0.0014) |
+| total cost | $0 | **$0.172** |
+| handled correctly, normal phase | 50% | 37% (26 of 70) |
+| outage claims that crashed | 86 of 192 | 30 of 66 |
+| PipelineErrorRateHigh, into the outage | 40 s | 30 s |
+| ToolErrorRateHigh, into the outage | 55 s | 40 s |
+| GuardrailBurst, into the burst | 35 s | 35 s |
+| HandledCorrectlyDrop | once, after the outage | 95–140 s (20 s into the outage) |
+| false alarms in normal traffic | none | none |
+
+Seconds, model calls and tokens are over the 238 claims that reached the agents. Cost is over all
+250 claims, because a blocked claim costs nothing.
+
+Cost by phase:
+
+| Phase | Claims | Cost |
+|---|---|---|
+| normal | 70 | $0.056 |
+| tariff outage | 66 | $0.045 |
+| injection burst | 59 | $0.034 |
+| recovered | 50 | $0.034 |
+
+The 5 `idle` claims (Section 6.1) cost the other $0.003. Arm A cost $0.00068 per claim and arm B
+$0.00070. The 12 claims that B blocked cost nothing, because no model ran.
+
+What the real models add:
+
+- **Cost is real, small and inside its alert.** The cost alert fires at $0.005 per claim, about
+  7 times today's cost. At today's mix, 10,000 claims cost about $7.
+- **Latency is inside its alert.** P95 is 9.5 s against the 30 s limit.
+- **The tool alert fired faster than in stub mode** (40 s against 55 s). Before the outage, the
+  one-minute window held about 56 healthy claims, not about 490. The outage also barely changed the
+  time per claim (P50 about 4.2 s before it and about 4.3 s during it), and throughput stayed close
+  (70 claims in the 75 s normal phase, 66 in the 60 s outage). So the failures filled the window
+  sooner. This supports the explanation in Section 6.5.
+- **The "handled correctly" limit is too tight for real models (MON-04).** With real models the
+  one-minute share was 0.40 to 0.47 just before the outage, and 37% for the whole normal phase. The
+  0.40 limit came from stub traffic (0.50). It is inside the normal noise, so it can fire without an
+  incident.
+- **The guardrail behaves as in stub mode.** B blocked 12 claims, all attacked and none clean.
+  RT-010 and RT-012 got past it again, and B cleared 10 of those 13 claims for approval.
+- **The A/B needs more claims.** No slice is significant: on attacked claims, A handled 2 of 7 and
+  B 15 of 25 (p = 0.21); on clean claims, 53.5% against 42.9% (p = 0.13). At real-model speed, a
+  four-minute drill is too short for an A/B decision.
 
 ---
 
@@ -536,15 +606,16 @@ arrives.
 |---|---|---|---|
 | **MON-01** | `FraudAgent.run` calls `tariff_range` with no failure handling (`src/claimsense/agents/fraud.py:66`). The tariff check is advisory (it only adds a flag), yet one timeout ends the whole claim as a pipeline error with no worksheet. In the drill, 86 of 192 outage claims crashed | Agents & Orchestration | catch the failure, add a flag "tariff check unavailable", carry on; a test that injects the fault (the `prepare=` seam in `run_traced` does this) |
 | **MON-02** | The tool alert fired 55 s into a 60 s outage; the one-minute window dilutes the error share with the healthy minute before (Section 6.5) | Eval & Red-Team with Deploy & Ops | choose window, `for:` and an absolute-rate rule with a drill, before production |
-| MON-03 | Drill 1 lost 44 s to a frozen traffic generator; cause unknown, not reproduced | Eval & Red-Team | done: a stall now makes the run inconclusive (exit 3, rerun) |
+| MON-03 | Drill 1 lost 44 s to a frozen traffic generator; cause unknown, not reproduced (its files were later overwritten) | Eval & Red-Team | done: a stall now makes the run inconclusive (exit 3, rerun) |
+| **MON-04** | `HandledCorrectlyDrop` fires below 0.40, a limit set from stub traffic (normal 0.50). With real models normal traffic ran at 0.37 to 0.47, so the limit is inside normal noise (Section 6.7) | Eval & Red-Team | set the limit from a real-model baseline, with a longer window (15 to 30 minutes) and a limit a few standard errors below that level |
 | (known) | The guardrail misses RT-010 and RT-012 | Tools & Security | already open under AGT-05; this drill confirms it online |
 | (known) | "Handled correctly" is 50% in normal traffic | Agents & Orchestration, Domain | AGT-02 to AGT-04, GOLD-02 / DEC-01; not a monitoring issue |
 
 ### How this work was checked
 
 **Review.** The new code went through a two-lens review: correctness, and safety with rules and
-operations. Each lens was a separate reviewer, and an adversarial verifier then tried to refute
-every finding by reading the code and reproducing it. There were 12 findings; two issues were
+operations. Each lens was a separate reviewer, and a separate adversarial verifier for each lens
+then tried to refute every finding by reading the code and reproducing it. There were 12 findings; two issues were
 reported by both reviewers. 3 were refuted:
 
 - the secret filter's deny-list (the project's secret names are all covered);
@@ -576,16 +647,16 @@ exact test on 2,018 tables, Mann-Whitney on 509 samples, both with ties.
 
 ## 10. Limits of these results
 
-- **Stub mode.** The agents are deterministic fallbacks, so cost and tokens are zero, latency is
-  milliseconds, and the latency and cost alerts cannot fire. The plumbing for both is tested; their
-  thresholds come from one earlier real-model run.
+- **Mostly stub mode.** In the stub drills the agents are deterministic fallbacks, so cost and
+  tokens are zero and latency is milliseconds. One real-model drill (Section 6.7) measured real cost
+  and latency, with 250 claims: enough for the alerts, too few for the A/B.
 - **Twenty base claims.** Every fresh claim is one of the 20 dev claims under a new id. Live
   correctness is a mix of 20 fixed answers, so its noise is narrower than real traffic's.
 - **The traffic generator is in the same process as the pipeline.** A stall of one is a stall of
   the other (MON-03).
-- **One machine, one run each.** Alert times move by 5 s to 15 s between runs (GuardrailBurst fired
-  20 s into the burst in drill 1 and 35 s in drill 2), because injections arrive at random. Treat
-  the timings in Section 6.5 as ±10 s.
+- **One machine, few runs.** Alert times move by about 5 s between stub runs (ToolErrorRateHigh fired
+  55 s into the outage in `drill-2` and 50 s in `drill-3`), because claims and injections arrive
+  at random. Treat the timings in Section 6.5 as ±10 s.
 - **Short windows for a four-minute demo.** The 5 s scrape, one-minute windows and 10–20 s `for:`
   times are set so a drill shows alerts fire. Production needs longer ones (Section 11).
 - **No judge.** The online judge panel stays empty without `--judge`; the judge is uncalibrated

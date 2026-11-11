@@ -80,7 +80,8 @@ def test_the_test_count_in_the_report_matches_reality(report_lines):
     # collecting, or a different environment could report a different count.
     #
     # `-o addopts=` clears the `-q` that pyproject.toml adds. With -q, pytest suppresses the
-    # "N tests collected" line this test needs.
+    # "N tests collected" line this test needs. It clears all of addopts, so `-p no:deepeval`
+    # is passed again: without it the DeepEval plugin loads and copies .env into the child.
     result = subprocess.run(  # noqa: S603
         [
             sys.executable,
@@ -92,6 +93,8 @@ def test_the_test_count_in_the_report_matches_reality(report_lines):
             "addopts=",
             "-p",
             "no:cacheprovider",
+            "-p",
+            "no:deepeval",
         ],
         capture_output=True,
         text=True,

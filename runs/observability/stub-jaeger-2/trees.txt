@@ -1,0 +1,45 @@
+## normal: CLM-0004, trace c7f027978deeef4aa7c6343378336742
+invoke_agent claimsense                     108.3 ms        route=ready_for_approval Rs 80,990 status=rejected
+  node plan                                   0.1 ms        
+  node extract                                0.2 ms        
+  node admissibility                          0.3 ms        
+    execute_tool get_policy                   0.0 ms        coverage: {"policy_number": "<text 9 chars>"} -> policy found
+  node coverage                              21.9 ms        
+    execute_tool policy_search                0.1 ms        coverage: {"category": "procedure", "query": "<text 28 chars>"} -> 2 passages: 4
+    execute_tool policy_search                0.0 ms        coverage: {"category": "room", "query": "<text 35 chars>"} -> 2 passages: 12.1, 
+    execute_tool policy_search                0.0 ms        coverage: {"category": "nursing", "query": "<text 30 chars>"} -> 2 passages: 4.1
+    execute_tool policy_search                0.1 ms        coverage: {"category": "medicines", "query": "<text 52 chars>"} -> 2 passages: 4
+    execute_tool policy_search                0.1 ms        coverage: {"category": "investigations", "query": "<text 26 chars>"} -> 2 passag
+    execute_tool calculate                    0.3 ms        coverage: {"claim": "<Claim>", "clause_choices": "<5 entries>", "fraud_flags": "
+  node fraud                                  1.0 ms        
+    execute_tool claim_history                0.0 ms        fraud: {"policy_number": "<text 9 chars>"} -> 0 items
+    execute_tool get_policy                   0.0 ms        fraud: {"policy_number": "<text 9 chars>"} -> policy found
+    execute_tool tariff_range                 0.0 ms        fraud: {"city_tier": "tier_1", "procedure": "<text 28 chars>"} -> none
+    execute_tool calculate                    0.2 ms        coverage: {"claim": "<Claim>", "clause_choices": "<5 entries>", "fraud_flags": "
+  node critic                                 1.4 ms        
+    execute_tool calculate                    0.2 ms        critic: {"claim": "<Claim>", "clause_choices": "<5 entries>", "fraud_flags": "<0
+    execute_tool get_clause                   0.0 ms        critic: {"clause_id": "new_india_arogya_sanjeevani:4.1.1"} -> clause 4.1.1
+    execute_tool get_clause                   0.0 ms        critic: {"clause_id": "new_india_arogya_sanjeevani:12.1"} -> clause 12.1
+    execute_tool get_clause                   0.0 ms        critic: {"clause_id": "new_india_arogya_sanjeevani:4.1.1"} -> clause 4.1.1
+    execute_tool get_clause                   0.0 ms        critic: {"clause_id": "new_india_arogya_sanjeevani:4.1.1"} -> clause 4.1.1
+    execute_tool get_clause                   0.0 ms        critic: {"clause_id": "new_india_arogya_sanjeevani:9.5"} -> clause 9.5
+  node human_review                           0.3 ms        
+    human_review                              0.0 ms        decision=reject proposed=Rs 80990
+
+## outage: CLM-0004, trace aefbb13b3873829a627c1a43c34d84b6
+invoke_agent claimsense                    1516.7 ms ERROR  route= - status=error
+  node plan                                   0.1 ms        
+  node extract                                0.3 ms        
+  node admissibility                          0.3 ms        
+    execute_tool get_policy                   0.0 ms        coverage: {"policy_number": "<text 9 chars>"} -> policy found
+  node coverage                               2.2 ms        
+    execute_tool policy_search                0.1 ms        coverage: {"category": "procedure", "query": "<text 28 chars>"} -> 2 passages: 4
+    execute_tool policy_search                0.1 ms        coverage: {"category": "room", "query": "<text 35 chars>"} -> 2 passages: 12.1, 
+    execute_tool policy_search                0.0 ms        coverage: {"category": "nursing", "query": "<text 30 chars>"} -> 2 passages: 4.1
+    execute_tool policy_search                0.1 ms        coverage: {"category": "medicines", "query": "<text 52 chars>"} -> 2 passages: 4
+    execute_tool policy_search                0.0 ms        coverage: {"category": "investigations", "query": "<text 26 chars>"} -> 2 passag
+    execute_tool calculate                    0.7 ms        coverage: {"claim": "<Claim>", "clause_choices": "<5 entries>", "fraud_flags": "
+  node fraud                               1510.7 ms ERROR  
+    execute_tool claim_history                0.0 ms        fraud: {"policy_number": "<text 9 chars>"} -> 0 items
+    execute_tool get_policy                   0.1 ms        fraud: {"policy_number": "<text 9 chars>"} -> policy found
+    execute_tool tariff_range              1503.3 ms ERROR  

@@ -327,6 +327,9 @@ def test_a_short_scenario_runs_every_phase(source):
     log = run_scenario(live, scenario, workers=2, annotate=notes.append, pace=(0.0, 0.01))
     assert [name for name, _, _ in log] == ["calm", "broken"]
     assert notes == ["calm", "broken", "traffic stopped"]
+    # Every claim belongs to a phase: before the fix, each worker's first claim was "idle"
+    # (5 claims per drill missing from the phase table).
+    assert {r["phase"] for r in live.records} == {"calm", "broken"}
     assert not live.worker_errors and live.phase.name == "idle" and not live.stalls
     assert phase_counts(live.records, "calm")["errors"] == 0
     broken = phase_counts(live.records, "broken")

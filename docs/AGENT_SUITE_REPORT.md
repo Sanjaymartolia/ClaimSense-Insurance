@@ -146,7 +146,8 @@ python -m eval.agent_suite --label real-judge --splits dev --judge --judge-limit
 ```
 
 Check that the first line reads `mode: REAL MODELS via OpenRouter`. Section 4.1 of the output
-prints what the run actually cost. The real-model cost has not been measured yet.
+prints what the run actually cost. One real-model run on the 20 dev claims
+(`runs/agent_suite/real-dev`) cost $0.0008 per claim.
 
 ### All options
 
@@ -154,7 +155,7 @@ prints what the run actually cost. The real-model cost has not been measured yet
 |---|---|---|
 | `--label NAME` | run name; output goes to `runs/agent_suite/NAME/` | required |
 | `--stub` | force the free deterministic agents, even if a key is set | off |
-| `--variant` | comma list of `v1`, `no-docs`, `guarded` | `v1` |
+| `--variant` | comma list of `v1`, `no-docs`, `guarded`, `lean-pr` | `v1` |
 | `--splits` | comma list of `dev`, `redteam` | `dev,redteam` |
 | `--show` | claim ids whose full trace to print | first wrong claim |
 | `--k N` | run each claim N times for pass@k / pass^k | 1 (off) |
@@ -248,8 +249,8 @@ cost pass. Outcome, attack rate, injection surfacing and payload checks fail.
 ### 4.3 Reliability (pass@k)
 
 In stub mode the agents are deterministic: pass^1 = pass@3 = pass^3 = 0.40, with no flaky
-claims. The gap between pass@k and pass^k only appears with real models (Step 10), which haven't
-been run yet.
+claims. The gap between pass@k and pass^k only appears with real models (Step 10). No real-model
+pass^k result is recorded yet.
 
 ---
 
@@ -289,8 +290,9 @@ failing, and turn red when the defect is fixed.
 
 ## 7. Limits of these results
 
-- **Stub mode only.** Every number in Section 4 comes from the deterministic fallbacks, not from a
-  model. Real-model results, cost and pass^k haven't been measured.
+- **Mostly stub mode.** Every number in Section 4 comes from the deterministic fallbacks, not from a
+  model. One real-model run on the 20 dev claims (`runs/agent_suite/real-dev`) gave the same task
+  success, 0.50, at $0.0008 per claim and a P95 of 10 s. No real-model pass^k result is recorded.
 - **The gold is partly wrong.** Open items GOLD-02/03/05/06/08 (`docs/CLAIMS_AND_GOLD_SET_FIXES.md`)
   affect task success, so treat it as "agrees with today's gold", not "correct under the policy".
 - **No production traffic.** The dataset is 40% golden and 60% adversarial, not the lecture's

@@ -39,13 +39,27 @@ docs = ["matplotlib>=3.8", "python-docx>=1.1"]  # scripts/build_team_guide.py
 # .vertexai import ChatVertexAI`, which 0.4.x removed in its sunset, so `import ragas` raises
 # ModuleNotFoundError. 0.3.31 still ships that shim. Drop the pin once ragas stops importing it.
 eval = ["ragas>=0.4,<0.5", "langchain-openai>=0.2", "langchain-community>=0.3,<0.4"]
+# OpenTelemetry tracing (L14, eval/observability). Pinned to one minor version: the GenAI parts of
+# OpenTelemetry are still "Development" and their attribute names change between releases.
+observability = [
+    "opentelemetry-sdk>=1.45,<1.46",
+    "opentelemetry-exporter-otlp-proto-http>=1.45,<1.46",
+    "opentelemetry-instrumentation-langchain>=0.63,<0.64",
+]
+# DeepEval test suite (AAI-13, eval/deepeval_suite). It downgrades click to 8.3.x; uvicorn accepts it.
+deepeval = ["deepeval>=4.3,<4.4"]
 
 [tool.setuptools.packages.find]
 where = ["src"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = "-q"
+# `-p no:deepeval`: the deepeval extra installs a pytest plugin that loads for every pytest run,
+# imports deepeval (which copies `.env` into the environment: with a key, the agents then call real
+# models) and writes a `.deepeval/` folder. `deepeval test run` passes `-p deepeval`, which
+# re-enables it. The flag stops only the plugin: eval/deepeval_suite/conftest.py also sets
+# DEEPEVAL_DISABLE_DOTENV=1 before the suite imports deepeval.
+addopts = "-q -p no:deepeval"
 
 [tool.ruff]
 line-length = 100

@@ -22,3 +22,5 @@ data/raw/
 [Rr]eference_[Cc]ode_[Ff]iles/
 # Jupyter's autosave copies keep any key the notebook had
 .ipynb_checkpoints/
+# DeepEval's local test-run cache (`deepeval test run`): it stores each test case's input and output
+.deepeval/

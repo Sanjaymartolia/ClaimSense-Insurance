@@ -20,6 +20,9 @@ How it is recorded without touching `src/`:
   tells the wrapper which agent made each call, and records ACL refusals, which never reach a tool.
 - Model calls are collected with LangChain's `collect_runs` while each node runs, so they need no
   callback wiring in the agents. In stub mode there are no model calls and no llm spans.
+- `run_traced(observer=...)` lets another package watch each step *while it runs* (`Observer`).
+  `eval.observability` uses it to open an OpenTelemetry span around every node, tool call,
+  guardrail check and human review. With no observer nothing changes.
 
 Rule 4 (no health details in logs): span arguments are redacted to their shape. Only ids that carry
 no health detail (`clause_id`, `category`, `version`, ...) are kept verbatim; free text such as a
@@ -32,10 +35,10 @@ from __future__ import annotations
 import hashlib
 import time
 from collections.abc import Callable, Iterator
-from contextlib import contextmanager
+from contextlib import AbstractContextManager, contextmanager, nullcontext
 from dataclasses import asdict, dataclass, field
 from functools import cache
-from typing import Any
+from typing import Any, Protocol
 
 from eval.harness.claimsense_adapter import ClaimSenseAdapter, _observed
 from eval.harness.models import AgentOutput, EvalCase
@@ -160,6 +163,23 @@ class Trace:
         return out
 
 
+class Observer(Protocol):
+    """Watches a run while it happens (L14: a span is opened before a step and closed after it).
+
+    `step` is entered before the step starts and left after `span` is filled in (status, output,
+    time). It must not swallow an exception. `review` must call `decide(payload)` once and return
+    its answer unchanged.
+    """
+
+    def step(self, span: Span) -> AbstractContextManager[Any]: ...
+
+    def review(self, payload: dict, decide: Callable[[dict], dict]) -> dict: ...
+
+
+def _watch(observer: Observer | None, span: Span) -> AbstractContextManager[Any]:
+    return nullcontext() if observer is None else observer.step(span)
+
+
 # ---------------------------------------------------------------------------- redaction
 def redact_args(kwargs: dict[str, Any]) -> dict[str, Any]:
     out: dict[str, Any] = {}
@@ -227,28 +247,32 @@ class _ToolLogTap(list):
     the next tool span is the agent of the last allowed entry.
     """
 
-    def __init__(self, trace: Trace) -> None:
+    def __init__(self, trace: Trace, observer: Observer | None = None) -> None:
         super().__init__()
         self.trace = trace
+        self.observer = observer
 
     def append(self, entry: dict) -> None:  # type: ignore[override]
         super().append(entry)
         if entry.get("allowed"):
             self.trace._agent = str(entry.get("agent", ""))
             return
-        self.trace.spans.append(
-            Span(
-                "tool",
-                str(entry.get("tool", "?")),
-                node=self.trace._node,
-                agent=str(entry.get("agent", "")),
-                status="blocked",
-                output="refused by the agent's tool ACL",
-            )
+        span = Span(
+            "tool",
+            str(entry.get("tool", "?")),
+            node=self.trace._node,
+            agent=str(entry.get("agent", "")),
+            status="blocked",
+            output="refused by the agent's tool ACL",
         )
+        self.trace.spans.append(span)
+        with _watch(self.observer, span):  # a hook that acts leaves a record (L14 section 7.4)
+            pass
 
 
-def _wrap_tool(name: str, fn: Callable[..., Any], trace: Trace) -> Callable[..., Any]:
+def _wrap_tool(
+    name: str, fn: Callable[..., Any], trace: Trace, observer: Observer | None = None
+) -> Callable[..., Any]:
     def traced(*args: Any, **kwargs: Any) -> Any:
         span = Span(
             "tool",
@@ -261,14 +285,15 @@ def _wrap_tool(name: str, fn: Callable[..., Any], trace: Trace) -> Callable[...,
         trace._agent = ""  # consumed: a later direct call must not inherit it
         trace.spans.append(span)
         t0 = time.perf_counter()
-        try:
-            result = fn(*args, **kwargs)
-        except Exception as e:
-            span.status, span.output = "error", f"{type(e).__name__}: {str(e)[:120]}"
-            raise
-        finally:
-            span.ms = (time.perf_counter() - t0) * 1000
-        span.output = summarise_result(result)
+        with _watch(observer, span):
+            try:
+                result = fn(*args, **kwargs)
+            except Exception as e:
+                span.status, span.output = "error", f"{type(e).__name__}: {str(e)[:120]}"
+                raise
+            finally:
+                span.ms = (time.perf_counter() - t0) * 1000
+            span.output = summarise_result(result)
         if name in ("policy_search", "get_clause"):
             _remember_clauses(trace, result)
         return result
@@ -277,11 +302,11 @@ def _wrap_tool(name: str, fn: Callable[..., Any], trace: Trace) -> Callable[...,
     return traced
 
 
-def instrument_services(services: Any, trace: Trace) -> Any:
+def instrument_services(services: Any, trace: Trace, observer: Observer | None = None) -> Any:
     """Wrap every tool on one claim's `Services`. Call before building the `Team`."""
-    services.tool_log = _ToolLogTap(trace)
+    services.tool_log = _ToolLogTap(trace, observer)
     for name in TOOL_NAMES:
-        setattr(services, name, _wrap_tool(name, getattr(services, name), trace))
+        setattr(services, name, _wrap_tool(name, getattr(services, name), trace, observer))
     return services
 
 
@@ -349,30 +374,34 @@ def _runner_class() -> type:
     class TracedRunner(LocalRunner):
         """`LocalRunner` with one node span per step. Same nodes, same routers."""
 
-        def __init__(self, team: Any, trace: Trace, **kwargs: Any) -> None:
+        def __init__(
+            self, team: Any, trace: Trace, observer: Observer | None = None, **kwargs: Any
+        ) -> None:
             super().__init__(team, **kwargs)
             self.trace = trace
+            self.observer = observer
 
         def _run(self, nodes: dict, packet: dict):  # noqa: ANN202 - ClaimState
             return super()._run({n: self._timed(n, fn) for n, fn in nodes.items()}, packet)
 
         def _timed(self, name: str, fn: Callable[[dict], dict]) -> Callable[[dict], dict]:
-            trace = self.trace
+            trace, observer = self.trace, self.observer
 
             def run(state: dict) -> dict:
                 span = Span("node", name)
                 trace.spans.append(span)
                 trace._node = name
                 t0 = time.perf_counter()
-                try:
-                    with _llm_capture(trace, name):
-                        return fn(state)
-                except Exception as e:
-                    span.status, span.output = "error", f"{type(e).__name__}: {str(e)[:120]}"
-                    raise
-                finally:
-                    span.ms = (time.perf_counter() - t0) * 1000
-                    trace._node = ""
+                with _watch(observer, span):
+                    try:
+                        with _llm_capture(trace, name):
+                            return fn(state)
+                    except Exception as e:
+                        span.status, span.output = "error", f"{type(e).__name__}: {str(e)[:120]}"
+                        raise
+                    finally:
+                        span.ms = (time.perf_counter() - t0) * 1000
+                        trace._node = ""
 
             return run
 
@@ -414,6 +443,7 @@ def run_traced(
     calculator: str = "reference",
     fraud_screen: bool = True,
     prepare: Callable[[Any], None] | None = None,
+    observer: Observer | None = None,
 ) -> Trace:
     """Run one claim through the real pipeline and return its trace.
 
@@ -427,6 +457,9 @@ def run_traced(
     prepare, if given, is called with this claim's `Services` before the tools are wrapped.
     `eval.monitoring` uses it to make a tool fail (section 8.6); because the fault sits under the
     tracing wrapper, it shows up in the trace as an `error` tool span, like a real outage would.
+
+    observer, if given, watches each step while it runs (see `Observer`). It changes nothing in
+    the run or in the returned trace.
     """
     adapter = _adapter(calculator, pass_documents)
     imports = adapter._imports
@@ -437,16 +470,13 @@ def run_traced(
     if guardrail:
         from .guardrail import screen_documents
 
+        span = Span("guardrail", "input_guardrail")
         t0 = time.perf_counter()
-        findings = screen_documents(packet.get("documents") or {})
-        trace.spans.append(
-            Span(
-                "guardrail",
-                "input_guardrail",
-                ms=(time.perf_counter() - t0) * 1000,
-                output=f"{len(findings)} finding(s)" if findings else "clean",
-            )
-        )
+        with _watch(observer, span):
+            findings = screen_documents(packet.get("documents") or {})
+            span.ms = (time.perf_counter() - t0) * 1000
+            span.output = f"{len(findings)} finding(s)" if findings else "clean"
+        trace.spans.append(span)
         if findings:
             trace.status, trace.route, trace.flags = "blocked", "needs_review", ["prompt_injection"]
             trace.seconds = time.perf_counter() - started
@@ -467,15 +497,17 @@ def run_traced(
     )
     if prepare is not None:
         prepare(services)
-    instrument_services(services, trace)
+    instrument_services(services, trace, observer)
     team = imports["Team"](services)
     if not fraud_screen:
         team.fraud = _NoFraudScreen()
-    runner = _runner_class()(team, trace)
+    runner = _runner_class()(team, trace, observer)
 
     def reviewer(payload: dict) -> dict:
         trace.review_payloads.append(payload)
-        return adapter._decline(payload)
+        if observer is None:
+            return adapter._decline(payload)
+        return observer.review(payload, adapter._decline)
 
     try:
         state = runner.run(packet, reviewer=reviewer)

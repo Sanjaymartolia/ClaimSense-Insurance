@@ -1,0 +1,409 @@
+{
+ "label": "stub-jaeger",
+ "mode": "stub",
+ "backend": "jaeger",
+ "versions": {
+  "opentelemetry-sdk": "1.45.2",
+  "jaeger": "2.22.0"
+ },
+ "started": "2026-11-11T10:08:33+00:00",
+ "ended": "2026-11-11T10:08:39+00:00",
+ "split": "dev",
+ "claims_per_phase": 20,
+ "workers": 4,
+ "fault": {
+  "tool": "tariff_range",
+  "error_rate": 0.7,
+  "delay_s": 1.5
+ },
+ "spans": {
+  "normal": 380,
+  "outage": 282
+ },
+ "red": {
+  "normal": {
+   "execute_tool calculate": {
+    "spans": 42,
+    "errors": 0,
+    "error_pct": 0.0,
+    "p50_ms": 0.2,
+    "p95_ms": 0.2
+   },
+   "execute_tool claim_history": {
+    "spans": 14,
+    "errors": 0,
+    "error_pct": 0.0,
+    "p50_ms": 0.0,
+    "p95_ms": 0.0
+   },
+   "execute_tool get_clause": {
+    "spans": 37,
+    "errors": 0,
+    "error_pct": 0.0,
+    "p50_ms": 0.0,
+    "p95_ms": 0.1
+   },
+   "execute_tool get_policy": {
+    "spans": 34,
+    "errors": 0,
+    "error_pct": 0.0,
+    "p50_ms": 0.0,
+    "p95_ms": 0.0
+   },
+   "execute_tool policy_search": {
+    "spans": 78,
+    "errors": 0,
+    "error_pct": 0.0,
+    "p50_ms": 0.0,
+    "p95_ms": 0.1
+   },
+   "execute_tool tariff_range": {
+    "spans": 13,
+    "errors": 0,
+    "error_pct": 0.0,
+    "p50_ms": 0.0,
+    "p95_ms": 0.0
+   },
+   "human_review": {
+    "spans": 20,
+    "errors": 0,
+    "error_pct": 0.0,
+    "p50_ms": 0.0,
+    "p95_ms": 0.0
+   },
+   "invoke_agent claimsense": {
+    "spans": 20,
+    "errors": 0,
+    "error_pct": 0.0,
+    "p50_ms": 7.1,
+    "p95_ms": 113.4
+   },
+   "node admissibility": {
+    "spans": 20,
+    "errors": 0,
+    "error_pct": 0.0,
+    "p50_ms": 0.2,
+    "p95_ms": 0.4
+   },
+   "node coverage": {
+    "spans": 14,
+    "errors": 0,
+    "error_pct": 0.0,
+    "p50_ms": 1.6,
+    "p95_ms": 22.3
+   },
+   "node critic": {
+    "spans": 14,
+    "errors": 0,
+    "error_pct": 0.0,
+    "p50_ms": 0.8,
+    "p95_ms": 1.8
+   },
+   "node extract": {
+    "spans": 20,
+    "errors": 0,
+    "error_pct": 0.0,
+    "p50_ms": 0.2,
+    "p95_ms": 0.3
+   },
+   "node fraud": {
+    "spans": 14,
+    "errors": 0,
+    "error_pct": 0.0,
+    "p50_ms": 1.0,
+    "p95_ms": 2.3
+   },
+   "node human_review": {
+    "spans": 20,
+    "errors": 0,
+    "error_pct": 0.0,
+    "p50_ms": 0.2,
+    "p95_ms": 0.3
+   },
+   "node plan": {
+    "spans": 20,
+    "errors": 0,
+    "error_pct": 0.0,
+    "p50_ms": 0.1,
+    "p95_ms": 0.1
+   }
+  },
+  "outage": {
+   "execute_tool calculate": {
+    "spans": 16,
+    "errors": 0,
+    "error_pct": 0.0,
+    "p50_ms": 0.2,
+    "p95_ms": 0.2
+   },
+   "execute_tool claim_history": {
+    "spans": 14,
+    "errors": 0,
+    "error_pct": 0.0,
+    "p50_ms": 0.0,
+    "p95_ms": 0.0
+   },
+   "execute_tool get_clause": {
+    "spans": 4,
+    "errors": 0,
+    "error_pct": 0.0,
+    "p50_ms": 0.0,
+    "p95_ms": 0.1
+   },
+   "execute_tool get_policy": {
+    "spans": 34,
+    "errors": 0,
+    "error_pct": 0.0,
+    "p50_ms": 0.0,
+    "p95_ms": 0.0
+   },
+   "execute_tool policy_search": {
+    "spans": 78,
+    "errors": 0,
+    "error_pct": 0.0,
+    "p50_ms": 0.0,
+    "p95_ms": 0.1
+   },
+   "execute_tool tariff_range": {
+    "spans": 13,
+    "errors": 13,
+    "error_pct": 100.0,
+    "p50_ms": 1501.2,
+    "p95_ms": 1503.2
+   },
+   "human_review": {
+    "spans": 7,
+    "errors": 0,
+    "error_pct": 0.0,
+    "p50_ms": 0.0,
+    "p95_ms": 0.0
+   },
+   "invoke_agent claimsense": {
+    "spans": 20,
+    "errors": 13,
+    "error_pct": 65.0,
+    "p50_ms": 1504.5,
+    "p95_ms": 1507.7
+   },
+   "node admissibility": {
+    "spans": 20,
+    "errors": 0,
+    "error_pct": 0.0,
+    "p50_ms": 0.2,
+    "p95_ms": 0.4
+   },
+   "node coverage": {
+    "spans": 14,
+    "errors": 0,
+    "error_pct": 0.0,
+    "p50_ms": 1.5,
+    "p95_ms": 3.6
+   },
+   "node critic": {
+    "spans": 1,
+    "errors": 0,
+    "error_pct": 0.0,
+    "p50_ms": 0.8,
+    "p95_ms": 0.8
+   },
+   "node extract": {
+    "spans": 20,
+    "errors": 0,
+    "error_pct": 0.0,
+    "p50_ms": 0.2,
+    "p95_ms": 0.2
+   },
+   "node fraud": {
+    "spans": 14,
+    "errors": 13,
+    "error_pct": 92.9,
+    "p50_ms": 1501.6,
+    "p95_ms": 1503.6
+   },
+   "node human_review": {
+    "spans": 7,
+    "errors": 0,
+    "error_pct": 0.0,
+    "p50_ms": 0.2,
+    "p95_ms": 0.2
+   },
+   "node plan": {
+    "spans": 20,
+    "errors": 0,
+    "error_pct": 0.0,
+    "p50_ms": 0.1,
+    "p95_ms": 0.1
+   }
+  }
+ },
+ "error_paths": [
+  {
+   "trace_id": "1d55c347798e3b6c3f1ccaa419b58ef3",
+   "claim_id": "CLM-0004",
+   "status": "error",
+   "route": "",
+   "error_type": "TimeoutError",
+   "path": "get_policy -> calculate -> claim_history -> get_policy -> tariff_range[FAILED]"
+  },
+  {
+   "trace_id": "4ed9d3f3459fff3a2aad764fb9734166",
+   "claim_id": "CLM-0005",
+   "status": "error",
+   "route": "",
+   "error_type": "TimeoutError",
+   "path": "get_policy -> calculate -> claim_history -> get_policy -> tariff_range[FAILED]"
+  },
+  {
+   "trace_id": "9e6ff250f129d66ba696c11ea04d12cd",
+   "claim_id": "CLM-0006",
+   "status": "error",
+   "route": "",
+   "error_type": "TimeoutError",
+   "path": "get_policy -> calculate -> claim_history -> get_policy -> tariff_range[FAILED]"
+  },
+  {
+   "trace_id": "22c6510b5ec02571d6a61ba5cfcbc5e4",
+   "claim_id": "CLM-0008",
+   "status": "error",
+   "route": "",
+   "error_type": "TimeoutError",
+   "path": "get_policy -> calculate -> claim_history -> get_policy -> tariff_range[FAILED]"
+  },
+  {
+   "trace_id": "7bb164f3cc7b948d3980b61f3a94e5ae",
+   "claim_id": "CLM-0009",
+   "status": "error",
+   "route": "",
+   "error_type": "TimeoutError",
+   "path": "get_policy -> calculate -> claim_history -> get_policy -> tariff_range[FAILED]"
+  },
+  {
+   "trace_id": "72f7b8c79405797d30334c67c53822aa",
+   "claim_id": "CLM-0010",
+   "status": "error",
+   "route": "",
+   "error_type": "TimeoutError",
+   "path": "get_policy -> calculate -> claim_history -> get_policy -> tariff_range[FAILED]"
+  },
+  {
+   "trace_id": "9430163f753e3d0e7efda0e1a36a31da",
+   "claim_id": "CLM-0011",
+   "status": "error",
+   "route": "",
+   "error_type": "TimeoutError",
+   "path": "get_policy -> calculate -> claim_history -> get_policy -> tariff_range[FAILED]"
+  },
+  {
+   "trace_id": "ca9972c869f3b655edd05708f2f63bd8",
+   "claim_id": "CLM-0012",
+   "status": "error",
+   "route": "",
+   "error_type": "TimeoutError",
+   "path": "get_policy -> calculate -> claim_history -> get_policy -> tariff_range[FAILED]"
+  },
+  {
+   "trace_id": "13c1c5ea72cb2593a4cee014750cafb7",
+   "claim_id": "CLM-0014",
+   "status": "error",
+   "route": "",
+   "error_type": "TimeoutError",
+   "path": "get_policy -> calculate -> claim_history -> get_policy -> tariff_range[FAILED]"
+  },
+  {
+   "trace_id": "8d468613e60631c0b174c342cfea381f",
+   "claim_id": "CLM-0015",
+   "status": "error",
+   "route": "",
+   "error_type": "TimeoutError",
+   "path": "get_policy -> calculate -> claim_history -> get_policy -> tariff_range[FAILED]"
+  },
+  {
+   "trace_id": "6d5edc38a5ff4d28c127d80a8c4eecf8",
+   "claim_id": "CLM-0018",
+   "status": "error",
+   "route": "",
+   "error_type": "TimeoutError",
+   "path": "get_policy -> calculate -> claim_history -> get_policy -> tariff_range[FAILED]"
+  },
+  {
+   "trace_id": "785b164da7529176c18d4b475586f88a",
+   "claim_id": "CLM-0019",
+   "status": "error",
+   "route": "",
+   "error_type": "TimeoutError",
+   "path": "get_policy -> calculate -> claim_history -> get_policy -> tariff_range[FAILED]"
+  },
+  {
+   "trace_id": "d7995c47df1d00f88a33ec1e952331d6",
+   "claim_id": "CLM-0020",
+   "status": "error",
+   "route": "",
+   "error_type": "TimeoutError",
+   "path": "get_policy -> calculate -> claim_history -> get_policy -> tariff_range[FAILED]"
+  }
+ ],
+ "gate": {
+  "normal": {
+   "claims": 20,
+   "sent_to_person": 20,
+   "share_sent_to_person": 1.0,
+   "reviews": 20,
+   "decisions": {
+    "reject": 20
+   },
+   "levels": {
+    "adjudicator": 20
+   },
+   "median_wait_s": 0.0001
+  },
+  "outage": {
+   "claims": 20,
+   "sent_to_person": 7,
+   "share_sent_to_person": 0.35,
+   "reviews": 7,
+   "decisions": {
+    "reject": 7
+   },
+   "levels": {
+    "adjudicator": 7
+   },
+   "median_wait_s": 0.0
+  }
+ },
+ "usage": {
+  "normal": {
+   "model_call_spans": 0,
+   "input_tokens": 0,
+   "output_tokens": 0,
+   "cost_usd": 0.0
+  },
+  "outage": {
+   "model_call_spans": 0,
+   "input_tokens": 0,
+   "output_tokens": 0,
+   "cost_usd": 0.0
+  }
+ },
+ "readback": {
+  "expected_traces": 40,
+  "services": [
+   "claimsense"
+  ],
+  "traces_found": 40,
+  "example_trace": "02e697f25756c54c5b5b6a1240cd7fb6",
+  "example_spans_stored": 7,
+  "example_spans_sent": 7,
+  "unredacted_keys_stored": [],
+  "ok": true
+ },
+ "checks": {
+  "every_claim_traced": true,
+  "one_trace_per_claim": true,
+  "normal_has_no_tool_errors": true,
+  "outage_visible_in_spans": true,
+  "exported_spans_redacted": true,
+  "exporter_flushed": true,
+  "jaeger_read_back": true
+ },
+ "ok": true
+}

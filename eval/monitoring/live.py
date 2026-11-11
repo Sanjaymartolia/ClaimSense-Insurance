@@ -405,14 +405,17 @@ def run_scenario(
     ]
     threads.append(threading.Thread(target=_heartbeat, args=(live, stop), daemon=True))
     phase_log: list[tuple[str, float, float]] = []
+    # The first phase is set before any worker starts, or each worker's first claim is "idle".
+    if scenario:
+        live.phase = scenario[0]
     for thread in threads:
         thread.start()
     try:
         for phase in scenario:
+            t0 = time.time()  # before the annotation: its HTTP call is part of the phase
             live.phase = phase
             note(phase.name)
-            t0 = time.time()
-            time.sleep(phase.seconds * scale)
+            time.sleep(max(0.0, t0 + phase.seconds * scale - time.time()))
             phase_log.append((phase.name, t0, time.time()))
             c = phase_counts(live.records, phase.name)
             live.log(

@@ -1,12 +1,12 @@
 # ClaimSense Eval Run Guide
 
-As of 2026-11-10. Owner: Eval & Red-Team. DOCX: `docs/ClaimSense_Eval_Run_Guide.docx`, built from this file with
+As of 2026-11-11. Owner: Eval & Red-Team. DOCX: `docs/ClaimSense_Eval_Run_Guide.docx`, built from this file with
 `python -m eval.tools.build_report_docx --source docs/EVAL_RUN_GUIDE.md --target docs/ClaimSense_Eval_Run_Guide.docx`.
 Edit this Markdown, then rebuild; never edit the DOCX by hand.
 
 ## At a glance
 
-Run all three from the repo root. One switch decides whether a real model is called: `CLAIMSENSE_LLM` plus
+Run all of them from the repo root. One switch decides whether a real model is called: `CLAIMSENSE_LLM` plus
 `OPENROUTER_API_KEY` in your shell.
 
 | Run | What it answers | Command | Real API called? | Cost |
@@ -14,6 +14,13 @@ Run all three from the repo root. One switch decides whether a real model is cal
 | Eval suite | Is the harness itself trustworthy? | `python -m eval.harness.suite` | No: the suite forces stub mode | Free |
 | Offline run | How well do the agents score on the fixed dev and red-team sets? | `CLAIMSENSE_LLM=stub python -m eval.harness.run --adapter claimsense ...` | No | Free |
 | Online run | How do the agents behave with real models, one claim or the whole set? | `CLAIMSENSE_LLM=openrouter python -m eval.harness.run ...` or `python scripts/run_one.py <claim_id>` | Yes, every agent step | Paid (OpenRouter) |
+| Agent suite | What did the agents do, step by step? | `python -m eval.agent_suite --stub --label X` | Only without `--stub` and with a key | Free with `--stub`; about $0.0008 per claim without |
+| Combined run | Harness and agent suite on one pipeline pass | `python -m eval.full --stub --label X` | Only without `--stub` and with a key | Free with `--stub` |
+| Live monitoring drill | Do the alerts fire when a tool fails or injections arrive? | `python -m eval.monitoring run --stub --label X` | Only without `--stub` and with a key | Free with `--stub`; about $0.17 for one real drill |
+
+The agent suite, the combined run and the drill switch to real models whenever a key is in your
+shell, unless you pass `--stub`. VS Code loads `.env` into its terminals, so pass `--stub` by
+default. The first line of the output says which mode runs.
 
 ## 1. Eval suite run
 
@@ -26,7 +33,7 @@ against its expected outcome. It tests the harness, not the agents: exit code 0 
 2. Install once: `pip install -e ".[dev]"`
 3. Force stub mode so the result is free and repeatable (Git Bash): `export CLAIMSENSE_LLM=stub` (PowerShell: `$env:CLAIMSENSE_LLM = "stub"`)
 4. Run: `python -m eval.harness.suite`
-5. Read the `check` column. Every row should say `ok`, and the last line should be `SUITE OK: all 9 rows match`.
+5. Read the `check` column. Every row should say `ok`, and the line before `written to` should be `SUITE OK: all 9 rows match`.
 6. The full result is written to `runs/suite.json`.
 
 **Expected output (stub mode, 2026-11-10)**
@@ -95,19 +102,38 @@ not for routine regression.
 3. `python scripts/run_one.py CLM-0004 --reviewer console` prints each step and pauses for you at the approval gate.
 4. Add `--real-tools` to use the MCP servers instead of stubs. This needs `CLAIMSENSE_APPROVAL_SECRET`, the seeded policy (`python -m claimsense.mcp_servers.seed_dev_policies`) and the built policy index.
 
-**Steps: live monitoring**
+**Steps: live monitoring of the product (Deploy & Ops stack)**
 
 1. `docker compose up`
 2. Prometheus at `localhost:9090`: query `claimsense_claims_processed_total`.
 3. Grafana at `localhost:3000`.
 
+**Steps: live monitoring drill (evaluation tool, no Docker)**
+
+1. Download and check the servers, one time: `python -m eval.monitoring setup`.
+2. Free run: `python -m eval.monitoring run --stub --label my-drill --open`. It takes about 6 minutes.
+3. Real-model run: leave out `--stub`. The first line must say `mode: REAL MODELS`. One drill cost
+   $0.17 (250 claims).
+4. Read the drill result and the A/B table at the end. The chart is
+   `runs/monitoring/<label>/panels.png`.
+5. Exit code 0: the drill passed, or the run is not a drill test (real models, `--scale` below 1
+   or other `--arms` report the drill but never fail on it). 1: an expected alert stayed silent or
+   an alert fired in normal traffic (stub, full length, `v1,guarded` only). 2: the run could not
+   start, or another run holds the lock. 3: inconclusive, run it again.
+   A label that exists is overwritten: use a new label for each run.
+6. If a run stopped before its end: `python -m eval.monitoring down`.
+
+Full detail: `docs/MONITORING_REPORT_CARD.md`.
+
 **Where the real API is used:** every agent step (extraction, coverage, critic, fraud, settlement) calls
 OpenRouter once the key is set and stub mode is off. `run_one.py` loads `.env` itself, so it uses the real API
 whenever `.env` holds a key, unless you set `CLAIMSENSE_LLM=stub`.
 
-**Not built yet:** Langfuse or LangSmith tracing, scoring of live claims, cost and latency counters in the
-product, and the T48 eval gate in CI (commented out in `.github/workflows/ci.yml`). Prometheus counts processed
-claims only.
+**Not built yet in the product:** Langfuse or LangSmith tracing, scoring of live claims, cost and latency
+counters, and the T48 eval gate in CI (commented out in `.github/workflows/ci.yml`). The product's Prometheus
+counts processed claims only. The evaluation drill above has all of these counters, alert rules and a
+dashboard; `python -m eval.monitoring export --out runs/monitoring/export` writes them for Deploy & Ops to
+adopt.
 
 ## 4. Where the real API is called in code
 

@@ -29,9 +29,18 @@ python scripts/run_one.py <claim_id>             # one claim, real model, node-b
 
 python -m eval.harness.suite                     # whole eval suite vs expected outcomes; no key, seconds
 python -m eval.harness.run --adapter claimsense --split dev,redteam --label <name>   # one scored run
+python -m eval.agent_suite --stub --label <name> # what the agents did: traces, process metrics, gate
+python -m eval.full --stub --label <name>        # harness + agent suite on one pipeline pass
+python -m eval.monitoring setup                  # once: local Prometheus + Grafana (no Docker)
+python -m eval.monitoring run --stub --label <name> --open   # 4-minute live drill with alerts
+python -m eval.observability show --stub         # one claim as an OpenTelemetry trace, printed
+python -m eval.observability setup               # once: local Jaeger trace viewer (no Docker)
+python -m eval.observability run --stub --label <name> --keep   # traces to Jaeger, normal + outage
+DEEPEVAL_DISABLE_DOTENV=1 DEEPEVAL_TELEMETRY_OPT_OUT=1 CLAIMSENSE_LLM=stub deepeval test run eval/deepeval_suite   # DeepEval unit tests (needs .[deepeval])
 python -m eval.tools.rubric_score                # framework rubric scorecard
 pytest eval/tests -q                             # eval tests (not part of the default `pytest`)
 ```
+`--stub` keeps a run free. Without it, a key in your terminal makes the agents call paid models.
 More in [eval/README.md](eval/README.md).
 
 ## Documentation
@@ -44,6 +53,19 @@ More in [eval/README.md](eval/README.md).
 - **[Eval harness report](docs/EVAL_HARNESS_REPORT.md)**: what the harness measures, current results
   and open limitations ([Word](docs/ClaimSense_Eval_Harness_Report.docx)) ·
   [run guide](docs/EVAL_RUN_GUIDE.md) · [framework rubric score](docs/FRAMEWORK_RUBRIC_SCORE.md)
+- **[Technical report: evaluation and monitoring](docs/TECHNICAL_REPORT_EVAL_AND_MONITORING.md)**:
+  everything from the eval harness to live monitoring in one ASD-STE100-style report: results,
+  defects, cost, recommendations, procedures
+  ([Word](docs/ClaimSense_Technical_Report_Eval_and_Monitoring.docx))
+- **[Agent suite report](docs/AGENT_SUITE_REPORT.md)**: traces of what the agents do, and the
+  combined run · [harness vs agent suite note](docs/EvalSuite_AgentSuite_Note.md)
+- **[Monitoring report card](docs/MONITORING_REPORT_CARD.md)**: live traffic, Prometheus, Grafana,
+  alerts, the incident drill, the A/B test, real-model cost, hand-off to Deploy & Ops
+- **[Observability report](docs/OBSERVABILITY_REPORT.md)**: production eval tools (DeepEval, RAGAS
+  and others), the DeepEval suite, OpenTelemetry tracing the simple and the production way
+  (Jaeger, Langfuse, LangSmith over OTLP), results, an adversarial review, and a step-by-step
+  terminal guide for stub and real runs
+  ([Word](docs/ClaimSense_Observability_Report.docx))
 - **[Claims and gold-set fixes](docs/CLAIMS_AND_GOLD_SET_FIXES.md)**: audit of the dev set, what is
   fixed and what is still open
 - **Flow diagram:** [SVG](docs/diagrams/claimsense-flow.svg) · editable
@@ -65,7 +87,7 @@ See `CLAUDE.md` for the folder → role map and the rules every contributor (and
 | `src/claimsense/retrieval/` | Hybrid search over the clauses: Chroma + BM25 + reranker ([README](src/claimsense/retrieval/README.md)) |
 | `data/` | Synthetic starter pack: policy PDFs, tariffs, processed clauses, knowledge base ([README](data/README.md)) |
 | `src/claimsense/graph/`, `agents/`, `reflexion/` | LangGraph supervisor, specialists, playbook loop |
-| `eval/` | Harness, dev golden set, red-team suite (held-out set lives outside the repo) |
+| `eval/` | Harness, agent suite, live monitoring, observability (OpenTelemetry), DeepEval suite, dev golden set, red-team suite (held-out set lives outside the repo) |
 | `docs/` | ADRs, experiments, threat model, memory policy, meetings |
 | `course/`, `exercises/<name>/` | HW2-style course kit: build the agent yourself, six TODOs ([README](course/README.md)) |
 

@@ -16,10 +16,10 @@ It runs a real Prometheus and a real Grafana on this machine, without Docker.
 python -m eval.monitoring setup
 
 # the four-minute incident drill, free (stub agents); about 6 minutes with start-up
-python -m eval.monitoring run --stub --label drill --open
+python -m eval.monitoring run --stub --label my-drill --open
 
 # leave the stack up afterwards to explore the dashboard (Ctrl+C stops it)
-python -m eval.monitoring run --stub --label drill --keep
+python -m eval.monitoring run --stub --label my-drill --keep
 
 # stop servers that an interrupted run left behind
 python -m eval.monitoring down
@@ -27,6 +27,9 @@ python -m eval.monitoring down
 # config files for Deploy & Ops (alert rules, Prometheus example, Grafana dashboard + provisioning)
 python -m eval.monitoring export --out runs/monitoring/export
 ```
+
+A label that already exists is overwritten. The reports quote `drill-2`, `drill-3` and
+`real-drill`: never reuse those labels (a reused label already lost the first drill's evidence).
 
 `run` options: `--arms v1,guarded` (the two variants of the A/B test; any two from the agent
 suite's `VARIANTS`), `--scale 0.5` (shorter phases; alerts may not have time to fire), `--workers 5`,

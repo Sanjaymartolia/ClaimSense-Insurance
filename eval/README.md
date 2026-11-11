@@ -40,7 +40,7 @@ Single runs, for when you are debugging one piece:
 python -m eval.harness.run --adapter gold-replay --split dev --label ceiling   # do this first
 python -m eval.harness.run --adapter claimsense  --split dev --label real-dev  # the real agents
 python -m eval.harness.run --help                                             # all adapters/faults
-pytest eval/tests -q                                                          # 269 tests
+pytest eval/tests -q                                                          # 290 tests
 ```
 
 What did the agents *do*? The trace-based agent suite (L13 sections 1–7) records every node, tool
@@ -60,10 +60,30 @@ the right alerts fire:
 
 ```bash
 python -m eval.monitoring setup                              # once: download + verify the servers
-python -m eval.monitoring run --stub --label drill --open    # ~6 min, free; exit 1 if the drill fails
+python -m eval.monitoring run --stub --label my-drill --open    # ~6 min, free; exit 1 if the drill fails
 ```
 
 See [monitoring/README.md](monitoring/README.md) and `docs/MONITORING_REPORT_CARD.md`.
+
+What happened inside one claim? Observability (L14) records every claim as an OpenTelemetry trace:
+a span per node, tool call, model call and review, viewed in Jaeger (or, over OTLP, Langfuse or
+LangSmith):
+
+```bash
+python -m eval.observability show --stub                       # one trace as a tree, no server
+python -m eval.observability setup                             # once: download + verify Jaeger
+python -m eval.observability run --stub --label my-trace-run   # normal + tool outage, to Jaeger
+```
+
+Production-grade unit tests for the pipeline, written with DeepEval (AAI-13):
+
+```bash
+export DEEPEVAL_DISABLE_DOTENV=1 DEEPEVAL_TELEMETRY_OPT_OUT=1   # first: no .env, no usage events
+CLAIMSENSE_LLM=stub deepeval test run eval/deepeval_suite      # 70 tests, free
+```
+
+See [observability/README.md](observability/README.md), [deepeval_suite/README.md](deepeval_suite/README.md)
+and `docs/OBSERVABILITY_REPORT.md`.
 
 Full documentation, including the measured results and every open limitation:
 **`docs/EVAL_HARNESS_REPORT.md`** (and its DOCX). Section 10 is the procedures.
@@ -88,7 +108,9 @@ Full documentation, including the measured results and every open limitation:
 | `full.py` | `python -m eval.full`: harness self-check + one traced pipeline run scored by both the harness and the agent suite; combined gate. |
 | `agent_suite/` | Trace-based agent suite: spans per node/tool/model call, process metrics, pass@k, guardrail recall, payload checks, judge, gate (`gate.yaml`). |
 | `monitoring/` | Live monitoring: metrics from traces, Prometheus alert rules, Grafana dashboard as code, live traffic with an A/B split, an incident drill, read-back and A/B tests. |
-| `tests/` | 269 tests. Not in the default `pytest` run; use `pytest eval/tests`. |
+| `observability/` | OpenTelemetry traces of the pipeline: spans in memory (`show`) or over OTLP to Jaeger, Langfuse or a Collector (`run`), redaction, outage analysis. |
+| `deepeval_suite/` | DeepEval tests: tool correctness, trajectory rules (free), G-Eval and faithfulness (opt-in judge). Run with `deepeval test run`. |
+| `tests/` | 290 tests. Not in the default `pytest` run; use `pytest eval/tests`. |
 
 ## Two things to know before you trust a number
 

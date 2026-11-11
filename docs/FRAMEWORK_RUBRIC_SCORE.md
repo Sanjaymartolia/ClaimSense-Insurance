@@ -173,6 +173,10 @@ retrieval layer uses Chroma. `docker-compose.yml` starts the API, Chroma, Promet
 one endpoint, `/health`. The monitoring folder holds one `prometheus.yml` and no dashboards. The
 compose file says that the MCP servers arrive in tasks T16 to T18.
 
+Note of 11 November 2026: `eval/monitoring/` now holds six alert rules and a Grafana dashboard,
+tested against a live Prometheus and Grafana. They are an evaluation tool. The product does not
+use them yet, so this score does not change.
+
 ### 5.3 D3 Compliance and audit — score 2, weight 15%
 
 **Matched: "Structured logs".**
@@ -220,7 +224,9 @@ The evaluation harness works and is used. `eval/harness/` holds 12 modules. It d
 protocol, with a floor adapter, a ceiling adapter, a fault-injecting adapter with six named
 faults, and an adapter for the real pipeline. `scorecard.yaml` separates weighted metrics from six
 catastrophic gates. `suite.py` runs nine configurations in one command and checks each against its
-expected outcome. There are 112 tests. A judge and a Cohen's kappa calibration module exist.
+expected outcome. There are 290 evaluation tests (11 November 2026). A judge and a Cohen's kappa
+calibration module exist. The agent suite compares variants side by side, and live monitoring runs
+an A/B test on live traffic with Fisher's exact and Mann-Whitney tests.
 
 Comparison is supported in practice. You can run two adapters and compare two labelled
 scorecards, and the Reflexion loop can ablate one lesson at a time.
@@ -242,7 +248,9 @@ and free.
 
 - There is **no response caching in the product**. The only `SQLiteCache` is in the teaching kit,
   `course/claimsense_hw/llm.py`. The product's `lru_cache` caches the client object, not answers.
-- No code in `src/` counts tokens or cost. The fields exist only in the evaluation harness.
+- No code in `src/` counts tokens or cost. The fields exist only in the evaluation tools. Those
+  tools measured real-model runs on 10 and 11 November 2026: about $0.0007 to $0.0008 per claim and
+  a P95 of about 10 s. This is a measurement outside the product, so it does not move the score.
 - `config/models.yaml` declares `max_tool_calls_per_claim: 40` and `max_cost_usd_per_claim: 0.20`.
   Nothing enforces either, because the budget hook is the empty `hooks/` folder.
 - Defect AGT-09 means the model tiering contradicts itself. `agents/llm.py:16` sets coverage to
