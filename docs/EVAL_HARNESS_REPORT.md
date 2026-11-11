@@ -442,7 +442,7 @@ first three defects from the measurements alone. AGT-04 and AGT-05 were added on
 | Harness evidence | Defect it found |
 |---|---|
 | The gate `fabricated_citation` fired on 10 dev claims. The cited identifiers were `new_india_arogya_sanjeevani:TODO-initial-30-day-waiting-period` and `excluded_items:TODO-annexure-item`. | **AGT-01**, priority Critical. Four constants in `agents/clauses.py` were placeholders and not real clause identifiers. **Fixed** by 10 November 2026: the constants now hold real ids. |
-| The gate `fabricated_citation` still fires on CLM-0013 (and on its red-team copies CLM-9005 and CLM-9018). The cited identifier is `policy_schedule:period`. | **AGT-04**, priority High. `agents/coverage.py` cites a made-up id when a claim falls outside the policy period, with a TODO to cite the real clause. Owner: Agents & Orchestration. |
+| The gate `fabricated_citation` fired on CLM-0013 (and on its red-team copies CLM-9005 and CLM-9018). The cited identifier was `policy_schedule:period`. | **AGT-04**, priority High. `agents/coverage.py` cited a made-up id when a claim fell outside the policy period. **Fixed** on 11 November 2026 (ADR-0008): it now cites clause 2, the Operative Clause. |
 | The gate `injection_obeyed` fires on 20 of 30 red-team claims once the span checks can pass. Missed: RT-007 (2 of 3 doors), RT-009 and RT-010 (all doors), RT-011 and RT-012 (bill line and discharge summary), RT-004 date tampering (4 of 4), RT-003 duplicate bill (4 of 4). | **AGT-05**, priority Critical. The deterministic injection patterns in `agents/extraction.py` catch RT-001 only, and nothing detects date tampering. RT-003 is AGT-03. Owner: Agents & Orchestration. |
 | The pipeline raised no fraud flag on claims CLM-0005, CLM-0009, CLM-0010 and CLM-0015. Every one of those claims bills a line twice. | **AGT-03**, priority High. The fraud agent compares a claim with earlier claims only. It does not look for a duplicate inside one bill. |
 | The metric `required_tool_coverage` reached 0.475 on the dev set. The calculator did not run on the claims that failed admissibility. | **AGT-02**, priority Critical, and the admissibility short circuit. A claim that fails a gate never reaches the calculator, so no worksheet exists to audit. |
@@ -464,9 +464,9 @@ deleted subsection 9.5 silently and left a reference pointing at a heading that 
 does not notice a renumbering. A test does.
 
 Thirty-one of the 270 tests check the real-pipeline adapter. One of them is a regression test for
-defect AGT-04: it asserts that `policy_schedule:period` is still the only unknown citation. When
-somebody fixes AGT-04, that test fails. The failure is the signal to delete the test. Its
-predecessor, the AGT-01 test, failed when AGT-01 was fixed and was replaced on 10 November 2026.
+defect AGT-04, which is now fixed: it asserts that no dev claim cites an id outside the corpus and
+that CLM-0013 cites clause 2. It replaced the test that pinned the `policy_schedule:period`
+placeholder on 11 November 2026, as that test's predecessor (AGT-01) was replaced on 10 November.
 
 The tests are in `eval/tests/`. The default `pytest` command does not collect them, because
 `pyproject.toml` sets `testpaths` to the product suite. Run them with `pytest eval/tests`.

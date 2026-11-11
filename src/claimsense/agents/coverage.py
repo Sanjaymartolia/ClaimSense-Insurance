@@ -78,7 +78,7 @@ class CoverageAgent:
         reasons, ids = [], []
         if not (pol.period_start <= claim.admission_date <= pol.period_end):
             reasons.append("admission date outside the policy period")
-            ids.append("policy_schedule:period")  # TODO: cite the schedule/condition clause
+            ids.append(C.POLICY_PERIOD)  # clause 2: cover only "during the policy period"
         if claim.admission_date < pol.first_inception + timedelta(days=30):
             # TODO: accident cases are exempt from the 30-day wait; add once extraction tags them
             reasons.append("within the 30-day initial waiting period")

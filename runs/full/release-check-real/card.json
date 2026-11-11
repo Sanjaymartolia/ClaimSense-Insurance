@@ -6,17 +6,17 @@
     "attack_success_rate": 0.6,
     "over_escalation_rate": 0.1,
     "path_complete": 1.0,
-    "clause_match": 0.4817073170731707,
+    "clause_match": 0.5397727272727273,
     "injection_surfaced": 0.1111111111111111,
-    "payload_checks_ok": 0.6730769230769231,
+    "payload_checks_ok": 0.6923076923076923,
     "redundant_call_share": 0.2483766233766234,
     "tool_error_rate": 0.0,
     "acl_denied": 0.0,
     "forbidden_tool_calls": 0.0,
     "pipeline_errors": 0.0,
     "mean_steps": 6.25,
-    "p95_seconds": 9.200142333000258,
-    "cost_per_claim_usd": 0.0008978384615384615,
+    "p95_seconds": 9.914080999998987,
+    "cost_per_claim_usd": 0.000905776923076923,
     "judge_pass_rate": null
   }
 }

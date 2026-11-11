@@ -83,7 +83,7 @@ NO_CLAUSE_CHOICE = {"duplicate_line"}
 MATERNITY_EXCLUSION = C.MATERNITY_EXCLUSION
 
 #: gold claim-level reason code -> deduction applied to every line through the admissibility gate.
-#: "policy_schedule:period" is the same id `CoverageAgent.check_admissibility` cites.
+#: An out-of-period admission cites clause 2 (`C.POLICY_PERIOD`), like `check_admissibility` (A3).
 CLAIM_REASONS: dict[str, tuple[DeductionReason, str]] = {
     "initial_waiting_period_not_elapsed": (
         DeductionReason.WAITING_PERIOD,
@@ -91,10 +91,7 @@ CLAIM_REASONS: dict[str, tuple[DeductionReason, str]] = {
     ),
     "pre_existing_disease_waiting_period": (DeductionReason.WAITING_PERIOD, C.PED_WAITING_PERIOD),
     "specific_illness_waiting_period": (DeductionReason.WAITING_PERIOD, C.SPECIFIC_WAITING_PERIOD),
-    "admission_or_discharge_outside_policy_period": (
-        DeductionReason.EXCLUSION,
-        "policy_schedule:period",
-    ),
+    "admission_or_discharge_outside_policy_period": (DeductionReason.EXCLUSION, C.POLICY_PERIOD),
     "maternity_childbirth_exclusion": (DeductionReason.EXCLUSION, MATERNITY_EXCLUSION),
 }
 ADMISSIBILITY_GATE = "claim_level_admissibility_gate"

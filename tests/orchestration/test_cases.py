@@ -192,6 +192,28 @@ def test_admissibility_applies_the_maternity_exclusion(cases, diagnosis, exclude
     assert adm.admissible is not excluded
 
 
+def test_out_of_period_admission_cites_the_operative_clause(cases, raw):
+    """A3: an admission outside the policy period cites clause 2, the Operative Clause ("if during
+    the policy period ... the Company shall indemnify"), not a made-up id. The gold agrees."""
+    from claimsense.agents.coverage import CoverageAgent
+
+    kb = Path("data/knowledge_base/policy_knowledge_base.jsonl").read_text(encoding="utf-8")
+    known = {json.loads(line)["clause_id"] for line in kb.splitlines() if line.strip()}
+    assert C.POLICY_PERIOD == "new_india_arogya_sanjeevani:2" and C.POLICY_PERIOD in known
+
+    c13 = next(c for c in cases if c.case_id == "CLM-0013")
+    adm = CoverageAgent(stub_services_factory()(c13)).check_admissibility(
+        Claim.model_validate(c13.packet["claim"])
+    )
+    assert not adm.admissible
+    assert C.POLICY_PERIOD in adm.clause_ids
+    assert set(adm.clause_ids) <= known
+    _, golds = raw
+    assert {li["clause_id"] for li in golds["CLM-0013"]["line_items"]} == {C.POLICY_PERIOD}
+    for line in c13.gold_worksheet.lines:
+        assert line.deductions[0].clause_id == C.POLICY_PERIOD
+
+
 def test_policy_record_comes_from_the_fixture(raw):
     claims, _ = raw
     fx = claims[0]

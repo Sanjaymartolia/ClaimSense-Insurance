@@ -138,9 +138,16 @@ def test_repeats_are_counted_by_tool_and_full_arguments():
 
 # ---------------------------------------------------------------------- 6. checks and judge
 def test_payload_checks_catch_a_made_up_clause(cases):
-    case = cases["CLM-0013"]  # outside the policy period: AGT-04 cites policy_schedule:period
+    """CLM-0013 (outside the policy period) cites clause 2 since A3; swap in the old placeholder
+    id and the check must catch it."""
+    import copy
+
+    case = cases["CLM-0013"]
     t = run_traced(case.eval_case)
-    assert "cited_clauses_exist" in judge.failed_checks(case, t)
+    assert "cited_clauses_exist" not in judge.failed_checks(case, t)
+    forged = copy.deepcopy(t)
+    forged.review_payloads[-1]["admissibility"]["clause_ids"] = ["policy_schedule:period"]
+    assert "cited_clauses_exist" in judge.failed_checks(case, forged)
 
 
 def test_payload_checks_pass_on_a_clean_worksheet(cases):

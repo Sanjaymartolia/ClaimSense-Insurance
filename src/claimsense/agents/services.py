@@ -261,6 +261,8 @@ _CLAUSE_TEXT = {
     C.INITIAL_WAITING_PERIOD: "30-day initial waiting period from first policy inception.",
     C.PED_WAITING_PERIOD: "Pre-existing disease waiting period.",
     C.SPECIFIC_WAITING_PERIOD: "Specified illness waiting period of 24/36 months.",
+    C.POLICY_PERIOD: "2 Operative clause: if during the policy period an insured person is "
+    "hospitalized, the Company shall indemnify medically necessary expenses.",
 }
 
 

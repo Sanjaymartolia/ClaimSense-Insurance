@@ -18,6 +18,10 @@ ROOM_RENT_LIMIT = P + "12.1"  # table of benefits: 2% SI, max 5,000/day
 ICU_LIMIT = P + "12.2"  # 5% SI, max 10,000/day
 CO_PAY = P + "9.5"  # 5% on every claim
 MATERNITY_EXCLUSION = P + "7.15"  # 7.15 Maternity Expenses (Code - Excl18): childbirth, caesarean
+# Operative Clause: cover applies only "if during the policy period" an insured is hospitalised.
+# Cited when the admission falls outside the period (A3, Domain lead 2026-11-11). 3.45 only
+# defines "Policy Period"; clause 2 is the one that makes an out-of-period admission unpaid.
+POLICY_PERIOD = P + "2"
 
 # Checked against the knowledge base 2026-11-07 (GOLD-07); still not_human_verified there.
 INITIAL_WAITING_PERIOD = P + "6.3"  # First Thirty Days Waiting Period (Code- Excl03)

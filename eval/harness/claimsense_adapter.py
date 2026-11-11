@@ -85,14 +85,14 @@ DEDUCTION_FLAGS: dict[str, str] = {
 #: An `exclusion` deduction's clause id -> gold flag.
 EXCLUSION_CLAUSE_FLAGS: dict[str, str] = {_P + "7.15": "maternity_childbirth_exclusion"}
 
-#: A not-admissible ruling's clause id -> gold flag. `policy_schedule:period` is the placeholder
-#: id of defect AGT-04; map it so the flag is earned while the citation gate still fails it.
+#: A not-admissible ruling's clause id -> gold flag. Clause 2 (Operative Clause) is what an
+#: out-of-period admission cites since A3 replaced the `policy_schedule:period` placeholder.
 ADMISSIBILITY_CLAUSE_FLAGS: dict[str, str] = {
     _P + "6.1": "waiting_period",
     _P + "6.2": "waiting_period",
     _P + "6.3": "waiting_period",
     _P + "7.15": "maternity_childbirth_exclusion",
-    "policy_schedule:period": "policy_period_inconsistency",
+    _P + "2": "policy_period_inconsistency",
 }
 
 #: Fixed message templates written by deterministic code (not a model) -> gold flag.
