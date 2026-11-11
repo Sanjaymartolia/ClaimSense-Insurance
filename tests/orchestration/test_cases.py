@@ -274,8 +274,21 @@ def test_unknown_reason_code_or_category_raises(raw):
 #: missed. CLM-0018 (caesarean, clause 7.15; GOLD-01 / AGT-02) was removed on 2026-11-11 when
 #: `check_admissibility` gained the maternity exclusion.
 #: CLM-0008 (ureteroscopy for stones on a first policy: 24-month wait, clause 6.2.18; GOLD-03 /
-#: ADR-0007) stays until `check_admissibility` learns the 6.2 list (AGT-02).
-KNOWN_UNIMPLEMENTED_EXCLUSIONS: set[str] = {"CLM-0008"}
+#: ADR-0007) was removed on 2026-11-12 when `check_admissibility` learned the 6.2 list (ADR-0011).
+KNOWN_UNIMPLEMENTED_EXCLUSIONS: set[str] = set()
+
+
+def test_admissibility_matches_the_gold_on_every_dev_claim(cases):
+    """ADR-0011: with the 6.2 list in place, admissibility agrees with the gold on all 22 dev
+    claims, and an out-of-period claim cites clause 2 alone (CLM-0013, ruling 1)."""
+    from claimsense.agents.coverage import CoverageAgent
+
+    for c in cases:
+        claim = Claim.model_validate(c.packet["claim"])
+        adm = CoverageAgent(stub_services_factory()(c)).check_admissibility(claim)
+        assert adm.admissible is c.gold_admissible, (c.case_id, adm.reasons)
+        if c.case_id == "CLM-0013":
+            assert adm.clause_ids == [C.POLICY_PERIOD], adm.clause_ids
 
 
 def test_stub_dry_run_of_all_dev_claims_completes(cases):
@@ -322,7 +335,10 @@ def test_rounding_tolerance_changes_what_counts_as_a_mistake_not_the_rupees(case
         assert loose_g == {m for m in strict_g if not 0 < m[1] <= 1}, case.case_id
         paise += len(strict_g - loose_g)
         kept += len(loose_g)
-    assert paise > 0 and kept > 0
+    # Since ADR-0011 the stub pipeline agrees with the gold on every dev claim beyond paise
+    # (CLM-0008 was the last real disagreement), so `kept` is 0; the per-case check above still
+    # proves a real disagreement would be kept.
+    assert paise > 0 and kept == 0
 
 
 # ---------------------------------------------------------------- the two scripts, end to end

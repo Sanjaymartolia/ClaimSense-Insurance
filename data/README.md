@@ -38,7 +38,9 @@ workflow templates, not coverage contracts.
 - Pre-existing disease waiting period: 36 months. A declared PED inside it is not payable.
 - Specific waiting periods (clause 6.2, 24/36 months) run from `first_policy_inception_date`,
   which every dev claim states ([ADR-0007](../docs/adr/0007-gold-set-rulings-2026-11-11.md)).
-  CLM-0008 (urinary calculi, first policy) is the dev case.
+  CLM-0008 (urinary calculi, first policy) is the dev case. Waiting periods (6.1, 6.2, 6.3) apply
+  only to an admission inside the policy period: one outside it cites clause 2 alone (CLM-0013;
+  [ADR-0011](../docs/adr/0011-specific-waiting-period-check.md)).
 - Room cap: min(2% of sum insured, ₹5,000/day), **all-inclusive of room, boarding and nursing**
   (clause 4.1(a), row 12.1; [ADR-0009](../docs/adr/0009-room-cap-nursing-duplicates-icu.md)).
   ICU cap: min(5% of sum insured, ₹10,000/day).

@@ -103,9 +103,6 @@ RULE_DISAGREEMENTS = [
     "to Rs 0.50 and count as a miss unless the evaluator is run with a tolerance "
     "(--tolerance-rs). ADR-0007 (GOLD-08): the gold stays in rupees; the eval harness defaults to "
     "a Rs 1 tolerance, the Reflexion evaluator keeps it explicit.",
-    "Gold (ADR-0007, GOLD-03) repudiates CLM-0008 under the 24-month specific wait (clause "
-    "6.2.18, urinary calculi, first policy); the admissibility check has no 6.2 list yet "
-    "(AGT-02), so the pipeline pays it.",
     "Gold (ADR-0007, GOLD-05) caps cataract treatment at clause 4.3 (CLM-0021) and at the part an "
     "earlier claim left unused (CLM-0022); the calculator does not apply 4.3 because the claim "
     "contract carries no treated eye (calc.adjudication.INFORMATIONAL_SUB_LIMITS).",

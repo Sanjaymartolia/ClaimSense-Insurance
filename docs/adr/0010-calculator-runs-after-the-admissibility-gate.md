@@ -60,7 +60,8 @@ way, and the release check stayed below its 0.85 threshold (0.788).
   are already there. Until then, with `real_services()` an out-of-period claim gets a non-zero
   worksheet. It is still repudiated and never shown, so nothing is paid, but the worksheet is
   wrong.
-- **Still open from AGT-02:** admissibility has no 6.2 specific-waiting check (CLM-0008).
+- **AGT-02's other half,** the 6.2 specific-waiting check (CLM-0008), is done by
+  [ADR-0011](0011-specific-waiting-period-check.md).
 
 ## Links
 AGT-02 in `docs/CLAIMS_AND_GOLD_SET_FIXES.md`; ADR-0008 (clause 2); ADR-0009 (duplicates).

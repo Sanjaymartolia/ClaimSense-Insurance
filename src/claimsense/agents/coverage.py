@@ -7,7 +7,9 @@ per attempt and the candidate set is auditable.
 
 from __future__ import annotations
 
-from datetime import timedelta
+import calendar
+import re
+from datetime import date, timedelta
 
 from pydantic import BaseModel, Field
 
@@ -41,6 +43,89 @@ class CoverageDecision(BaseModel):
 # exception needs an accident tag the claim does not carry yet (see the 30-day-wait TODO below).
 CHILDBIRTH_TERMS = ("caesarean", "cesarean", "c-section", "lscs", "childbirth", "delivery")
 MATERNITY_CARVE_OUTS = ("ectopic",)
+
+# Clause 6.2 (Code Excl02), specific waiting period: (list item, months from the first policy's
+# inception, trigger terms). Items and months follow the wording, 6.2.1-6.2.20 at 24 months and
+# 6.2.21-6.2.22 at 36. The trigger terms are OURS, not the wording's: the Domain lead extends them.
+# Matched as whole words (an "s"/"es" plural allowed) in the diagnosis and procedure. ADR-0011.
+SPECIFIC_WAITS: tuple[tuple[str, int, tuple[str, ...]], ...] = (
+    ("6.2.1 benign ENT disorders", 24, ("benign ent", "septoplasty", "deviated nasal septum")),
+    ("6.2.2 tonsillectomy", 24, ("tonsillectomy",)),
+    ("6.2.3 adenoidectomy", 24, ("adenoidectomy",)),
+    ("6.2.4 mastoidectomy", 24, ("mastoidectomy",)),
+    ("6.2.5 tympanoplasty", 24, ("tympanoplasty",)),
+    ("6.2.6 hysterectomy", 24, ("hysterectomy",)),
+    (
+        "6.2.7 benign tumours, cysts, polyps, benign breast lumps",
+        24,
+        ("benign tumour", "benign tumor", "cyst", "polyp", "fibroid", "fibroadenoma", "lipoma"),
+    ),
+    ("6.2.8 benign prostate hypertrophy", 24, ("bph", "benign prostat", "turp")),
+    ("6.2.9 cataract and age related eye ailments", 24, ("cataract", "phacoemulsification")),
+    ("6.2.10 gastric / duodenal ulcer", 24, ("gastric ulcer", "duodenal ulcer", "peptic ulcer")),
+    ("6.2.11 gout and rheumatism", 24, ("gout", "rheumatism")),
+    ("6.2.12 hernia of all types", 24, ("hernia", "herniorrhaphy", "hernioplasty")),
+    ("6.2.13 hydrocele", 24, ("hydrocele",)),
+    ("6.2.14 non infective arthritis", 24, ("non infective arthritis", "rheumatoid arthritis")),
+    (
+        "6.2.15 piles, fissures and fistula in anus",
+        24,
+        ("piles", "haemorrhoid", "hemorrhoid", "fissure", "fistula", "fistulectomy"),
+    ),
+    ("6.2.16 pilonidal sinus, sinusitis", 24, ("pilonidal", "sinusitis")),
+    (
+        "6.2.17 prolapsed intervertebral disc and spinal diseases",
+        24,
+        ("pivd", "disc prolapse", "prolapsed intervertebral disc", "discectomy", "laminectomy"),
+    ),
+    (
+        "6.2.18 calculi in urinary system, gall bladder and bile duct",
+        24,
+        (
+            "calculus",
+            "calculi",
+            "stone",
+            "gallstone",
+            "ureteroscopy",
+            "lithotripsy",
+            "pcnl",
+            "cholecystectomy",
+            "cholelithiasis",
+            "choledocholithiasis",
+        ),
+    ),
+    ("6.2.19 varicose veins and varicose ulcers", 24, ("varicose",)),
+    ("6.2.20 internal congenital anomalies", 24, ("internal congenital",)),
+    (
+        "6.2.21 joint replacement",
+        36,
+        ("joint replacement", "knee replacement", "hip replacement", "arthroplasty"),
+    ),
+    ("6.2.22 age-related osteoarthritis and osteoporosis", 36, ("osteoarthritis", "osteoporosis")),
+)
+#: 6.2.18 says "excluding malignancy".
+MALIGNANCY_TERMS = ("malignan", "cancer", "carcinoma")
+
+
+def _mentions(text: str, terms: tuple[str, ...]) -> bool:
+    return any(re.search(rf"\b{re.escape(t)}(?:s|es)?\b", text) for t in terms)
+
+
+def specific_wait(text: str) -> tuple[str, int] | None:
+    """The first 6.2 list item the diagnosis/procedure text names, with its months, or None."""
+    for item, months, terms in SPECIFIC_WAITS:
+        if item.startswith("6.2.18") and any(m in text for m in MALIGNANCY_TERMS):
+            continue
+        if _mentions(text, terms):
+            return item, months
+    return None
+
+
+def _add_months(d: date, months: int) -> date:
+    y, m = divmod(d.month - 1 + months, 12)
+    year, month = d.year + y, m + 1
+    return date(year, month, min(d.day, calendar.monthrange(year, month)[1]))
+
 
 # Bill-line wording -> policy wording (query rewriting, L6). Extend from the dev claims.
 REWRITE = {
@@ -80,21 +165,33 @@ class CoverageAgent:
                 admissible=False, needs_review=True, reasons=["policy not found in claims-db"]
             )
         reasons, ids = [], []
+        diag = claim.diagnosis.lower()
         if not (pol.period_start <= claim.admission_date <= pol.period_end):
             reasons.append("admission date outside the policy period")
             ids.append(C.POLICY_PERIOD)  # clause 2: cover only "during the policy period"
-        if claim.admission_date < pol.first_inception + timedelta(days=30):
-            # TODO: accident cases are exempt from the 30-day wait; add once extraction tags them
-            reasons.append("within the 30-day initial waiting period")
-            ids.append(C.INITIAL_WAITING_PERIOD)
-        diag = claim.diagnosis.lower()
-        if any(
-            p.lower() in diag for p in pol.declared_peds
-        ) and claim.admission_date < pol.first_inception + timedelta(days=36 * 30):
-            # TODO: use exact month arithmetic and the wording's PED period (CIS says 36 months,
-            # table of benefits says 4 years: resolve with the domain lead)
-            reasons.append("pre-existing disease within its waiting period")
-            ids.append(C.PED_WAITING_PERIOD)
+        else:
+            # Waiting periods only apply to a stay inside cover. An admission outside the period
+            # cites clause 2 alone (Domain lead ruling 2026-11-12, ADR-0011; gold CLM-0013).
+            if claim.admission_date < pol.first_inception + timedelta(days=30):
+                # TODO: accident cases are exempt from the 30-day wait; add once extraction tags
+                # them
+                reasons.append("within the 30-day initial waiting period")
+                ids.append(C.INITIAL_WAITING_PERIOD)
+            if any(
+                p.lower() in diag for p in pol.declared_peds
+            ) and claim.admission_date < pol.first_inception + timedelta(days=36 * 30):
+                # TODO: use exact month arithmetic and the wording's PED period (CIS says 36
+                # months, table of benefits says 4 years: resolve with the domain lead)
+                reasons.append("pre-existing disease within its waiting period")
+                ids.append(C.PED_WAITING_PERIOD)
+            listed = specific_wait(f"{diag} {(claim.procedure or '').lower()}")
+            if listed and claim.admission_date < _add_months(pol.first_inception, listed[1]):
+                # TODO: accidents are exempt (6.2(a)); add once the claim carries an accident
+                # indicator. Until then a person decides (Domain lead ruling, ADR-0011).
+                reasons.append(
+                    f"specific waiting period: {listed[0]}, {listed[1]} months from first inception"
+                )
+                ids.append(C.SPECIFIC_WAITING_PERIOD)
         if any(t in diag for t in CHILDBIRTH_TERMS) and not any(
             t in diag for t in MATERNITY_CARVE_OUTS
         ):

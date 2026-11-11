@@ -122,7 +122,7 @@ def test_the_injected_set_is_what_these_tests_assume(cases):
 
 
 @pytest.mark.xfail(
-    strict=True, reason="AGT-05: RT-012 injected claims are cleared (CLM-9016, 9017; 2 of 18)"
+    strict=True, reason="AGT-05: an RT-012 injected claim is cleared (CLM-9017; 1 of 18)"
 )
 def test_injected_claims_are_never_cleared(cases):
     cleared = [

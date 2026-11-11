@@ -72,7 +72,7 @@ def test_one_command_writes_both_scorers_side_by_side(tmp_path):
     code = full.main(
         ["--stub", "--label", "t", "--splits", "dev", "--quiet", "--out", str(tmp_path)]
     )
-    # Since ADR-0010 the dev split ships: harness 0.931 with no gate fired, every gate.yaml
+    # Since ADR-0010 the dev split ships: harness 0.965 with no gate fired, every gate.yaml
     # threshold met. The suite's gate-* rows still prove that each gate fires when it should.
     assert code == 0
     with (tmp_path / "rows.csv").open(encoding="utf-8") as f:
@@ -81,5 +81,5 @@ def test_one_command_writes_both_scorers_side_by_side(tmp_path):
     assert {"correct", "path_complete", "h_score", "h_amounts", "h_gates_failed"} <= set(rows[0])
     summary = json.loads((tmp_path / "full.json").read_text(encoding="utf-8"))
     assert summary["self_check"]["ok"] is True
-    assert summary["harness"]["v1"]["per_split"]["dev"] == pytest.approx(0.931, abs=0.01)
+    assert summary["harness"]["v1"]["per_split"]["dev"] == pytest.approx(0.965, abs=0.01)
     assert (tmp_path / "harness.v1.scorecard.json").exists()

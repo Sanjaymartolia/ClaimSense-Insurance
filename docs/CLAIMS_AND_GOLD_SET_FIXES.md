@@ -293,8 +293,12 @@ All counts are from the 20 dev claims. The set needs these before T39 is complet
   - **ADR-0010 (2026-11-12):** a not-admissible claim gets its ₹0 worksheet from the calculator,
     with every line under the gate's clause. `clauses.CLAIM_LEVEL` keeps those clauses out of
     per-line choices.
-- **Still open:** admissibility has no 6.2 specific-waiting check (CLM-0008, DEC-02), and `6.2.x`
-  list items still don't match `6.2`.
+  - **ADR-0011 (2026-11-12):** admissibility applies the 6.2 list (24 or 36 months from first
+    inception) and repudiates CLM-0008 at ₹0, as the gold does. Domain lead rulings: an
+    out-of-period admission cites clause 2 alone (CLM-0013), and an accident is not exempted until
+    the claim carries an accident indicator (a person decides).
+- **Still open:** a model that picks a `6.2.x` list item for a single line gets no deduction (only
+  `6.2` itself is in `FULLY_DEDUCTED`). It is harmless today, because the gate applies `6.2`.
 
 ### AGT-03: Duplicate lines inside one bill aren't caught — **Flag fixed 2026-11-11 (B5); deduction waits on DEC-04**
 - **Priority:** High

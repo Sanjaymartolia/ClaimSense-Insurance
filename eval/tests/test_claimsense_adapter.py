@@ -234,8 +234,7 @@ def test_a_gated_claim_gets_a_zero_worksheet_from_the_calculator(adapter, dev_ca
     from eval.harness.trajectory_metrics import CALCULATOR_TOOL, executed_tools
 
     gated = [c for c in dev_cases if c.gold.expected_settlement_inr == 0 and c.gold.line_items]
-    gated = [c for c in gated if c.claim.claim_id != "CLM-0008"]  # AGT-02: no 6.2 check yet
-    assert len(gated) == 7
+    assert len(gated) == 8  # CLM-0008 included since the 6.2 check (ADR-0011)
     for case in gated:
         out = adapter.run(case.claim)
         assert out.worksheet is not None, case.claim.claim_id
