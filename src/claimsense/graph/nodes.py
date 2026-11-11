@@ -128,7 +128,16 @@ class Nodes:
         adm = self.team.coverage.check_admissibility(s["claim"])
         plan = planner.mark(s["plan"], "admissibility", "done" if adm.admissible else "failed")
         plan = planner.monitor_after_admissibility(plan, adm.admissible)
+        # B4: a not-admissible claim goes straight to review and skips the fraud node, which is
+        # where extraction issues normally become flags (fraud.py step 5). Carry them here, in the
+        # same "extraction: ..." form, so the reviewer still sees an injection or a bad span.
+        carried = (
+            {"fraud_flags": [f"extraction: {i}" for i in s.get("extraction_issues") or []]}
+            if not adm.admissible
+            else {}
+        )
         return {
+            **carried,
             "admissibility": adm,
             "plan": plan,
             "handoffs": [

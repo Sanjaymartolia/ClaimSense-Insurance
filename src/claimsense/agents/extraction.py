@@ -30,12 +30,40 @@ Rules:
 
 
 def find_injections(documents: dict[str, str]) -> list[str]:
+    """The cheap regex tripwire alone. `guardrails.scan_documents` builds on it, so it must stay
+    free of guardrail imports. The agent itself uses `detect_injections` (B4)."""
     return [
         f"possible prompt injection in {name}: '{m.group(0)}'"
         for name, text in documents.items()
         for m in [INJECTION_PATTERNS.search(text)]
         if m
     ]
+
+
+def detect_injections(documents: dict[str, str], claim: Claim | None = None) -> list[str]:
+    """B4: run the Tools & Security input guardrail (`guardrails.scan_text`: this module's regex
+    plus its broader generic cues) over every document AND every bill-line description, because a
+    packet can carry injected text in either, and the dev loader sends no document text at all.
+
+    Each issue reads `possible prompt injection in <where>: '<cue>'`, the prefix the eval adapter
+    and the fraud agent's `extraction: ...` flag already rely on. One issue per place: the first
+    cue found there is enough for a person to look. A finding is a security signal that sends the
+    claim to a person; it never changes an amount or counts as fraud evidence.
+    """
+    # Imported here: guardrails.guardrails imports this module (find_injections), so a top-level
+    # import would be circular.
+    from claimsense.guardrails.guardrails import scan_text
+
+    places = [(name, text) for name, text in (documents or {}).items()]
+    if claim is not None:
+        places += [(f"bill line {line.line_id}", line.description) for line in claim.bill_lines]
+    issues = []
+    for where, text in places:
+        findings = scan_text(text, source=where)
+        if findings:
+            cue = findings[0].message.split(": ", 1)[-1]
+            issues.append(f"possible prompt injection in {where}: {cue}")
+    return issues
 
 
 def verify_spans(claim: Claim, documents: dict[str, str]) -> list[str]:
@@ -71,7 +99,7 @@ class ExtractionAgent:
             raise RuntimeError("stub mode: give the packet a pre-extracted 'claim'")
         else:
             claim = self._extract(packet["claim_id"], documents)
-        issues = verify_spans(claim, documents) + find_injections(documents)
+        issues = verify_spans(claim, documents) + detect_injections(documents, claim)
         if not claim.total_matches_lines():
             issues.append(f"bill total {claim.bill_total} != sum of lines {claim.lines_total()}")
         return claim, issues
