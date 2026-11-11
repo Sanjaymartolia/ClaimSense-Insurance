@@ -14,7 +14,8 @@ words and how it differs from the adjudicator approval in the graph.
 | `run-01/` | the reviewed run of 1 Nov 2026: real model, human gate, frozen playbook (`playbook.json` is the playbook) |
 | `harness-check-stub/` | a complete stub-mode run, auto-approved, stamped "HARNESS CHECK ONLY", proving the loop runs on the current gold (rerun 7 Nov 2026) |
 | `langgraph-check/` | the real-model baseline run through the LangGraph executor instead of the local runner, same numbers |
-| `run-02/` | the reviewed run of 7 Nov 2026 on the gold as corrected by the 4 Nov 2026 audit, tolerance Rs 1: the current result |
+| `run-02/` | the reviewed run of 7 Nov 2026 on the gold as corrected by the 4 Nov 2026 audit, tolerance Rs 1 |
+| `run-03/` | the reviewed run of 12 Nov 2026 on the final gold (ADR-0006/0007/0009), tolerance Rs 1: **the current result**; its frozen playbook is the one for the held-out run |
 | `dspy-harness-check-stub/` | the L12 §6-7 comparison (DSPy Predict/ChainOfThought, BootstrapFewShot, BootstrapFewShot + coach, GEPA, the playbook, the retrieval ceiling) run offline with stub LMs on 12 Nov 2026: proves the loop, stamped "HARNESS CHECK ONLY" |
 | `dspy-run-01/` | the same comparison with the real models, 12 Nov 2026: GEPA reaches the retrieval ceiling (1.0) and is the chosen method; `REPORT-SECTION.md` section 9.4 |
 
@@ -195,6 +196,7 @@ tables into `REPORT-SECTION.md` section 4.4.
 | `run-01/` (1 Nov 2026, reviewed) | pre-audit | `openai/gpt-4.1-mini`, reviewer Dhruvi Ramani at the console | 0 | Rs 65,989.27 / exact 0.30 / edit 0.20 → identical, both after runs | 14 proposed, 2 approved, 12 rejected with reasons, 0 withdrawn; frozen hash `6b4c530d…` |
 | `harness-check-stub/` (7 Nov 2026, not a result) | post-audit (4 Nov) | stub, auto-approved | Rs 1 | Rs 186,368.94 / exact 0.50 / edit 0.30 → identical | 6 template lessons, none harmful |
 | `run-02/` (7 Nov 2026, reviewed) | post-audit (4 Nov) | `openai/gpt-4.1-mini`, reviewer Dhruvi Ramani at the console | Rs 1 | Rs 186,368.94 / exact 0.50 / edit 0.30 → identical, both after runs | 19 proposed, 1 approved, 18 rejected with reasons, 0 withdrawn; frozen hash `b5666378…` |
+| `run-03/` (12 Nov 2026, reviewed) | final (ADR-0006/0007/0009) | `openai/gpt-4.1-mini`, reviewer Dhruvi Ramani at the console | Rs 1 | Rs 112,102.91 / exact 0.864 / edit 0.136 / critic rejection 0.182 → identical, both after runs | 16 proposed, 0 approved, 16 rejected with reasons, 0 withdrawn; frozen hash `4f53cda1…` |
 | `dspy-harness-check-stub/` (12 Nov 2026, not a result) | current (ADR-0006/0007/0009) | stub LMs (student = top candidate, coach = gold replay) | Rs 1 | test half (7 claims): clause accuracy 0.574 for every method, 1.0 for the retrieval ceiling; settlement error Rs 18,052.33 for every row | all eight rows run, 5 programs saved, GEPA loop runs offline |
 | `dspy-run-01/` (12 Nov 2026, real models, Dhruvi Ramani's key) | current | `openai/gpt-4.1-mini` as student, coach and reflector | Rs 1 | test clause accuracy: agent prompt 0.645, + playbook 0.61, Predict 0.574, ChainOfThought 0.917, BootstrapFewShot 0.952, + coach 0.952, **GEPA 1.0** (= ceiling); settlement error Rs 18,052.33 in every row | **GEPA chosen**; its 2,777-char instruction is `dspy-run-01/programs/gepa.json`; reading in `REPORT-SECTION.md` 9.4 |
 
@@ -205,13 +207,15 @@ the proportional cut to the other lines and the gold does not. Both are listed i
 `RULE_DISAGREEMENTS` and in `REPORT-SECTION.md` section 7. Full reading of `run-01` in
 `REPORT-SECTION.md` section 4.2 and of `run-02` in section 4.3.
 
-**The gold moved after `run-02`.** ADR-0006, ADR-0007 and ADR-0009 (11 Nov 2026, commits
-`74fbd2c` to `5221ef4`) changed the gold and the calculator. On the current files the stub baseline
-over all 22 development claims is Rs 112,102.91 total error, exact-match 0.864, edit rate 0.136,
-with only three real misses left (CLM-0008: the 6.2 specific wait has no list in the admissibility
-check; CLM-0021 and CLM-0022: the cataract sub-limit, clause 4.3, is informational in the
-calculator). The `run-02` tables are therefore the result on the 7 Nov gold, not on today's; a
-`run-03` with the real model is needed before the held-out run (REF-06 in the work log).
+**The gold moved after `run-02`, so `run-03` is the current result.** ADR-0006, ADR-0007 and
+ADR-0009 (11 Nov 2026, commits `74fbd2c` to `5221ef4`) changed the gold and the calculator. `run-03`
+reran the reviewed experiment on that gold: Rs 112,102.91 total error over 22 claims, exact-match
+0.864, edit rate 0.136, three real misses left (CLM-0008: the 6.2 specific wait has no list in the
+admissibility check; CLM-0021 and CLM-0022: the cataract sub-limit, clause 4.3, is informational in
+the calculator). All 16 proposed lessons were rejected with reasons; the frozen playbook has no
+approved lesson, so the held-out run will measure before == after by construction. New since
+`run-02`: a critic-rejection rate of 0.182, the critic refusing the DEC-04 duplicate-line deduction
+cited under clause 2 (REF-17, a critic item). Use `run-03/playbook.json` for the held-out run.
 
 ## 5. Decisions taken with the lead (walkthrough, Nov 2026)
 

@@ -1,0 +1,1043 @@
+{
+  "mode": "mode: REAL MODEL via OpenRouter | executor: local | calculator: reference | tolerance: Rs 1 | approval: CONSOLE",
+  "tolerance_rs": "1",
+  "baseline": {
+    "cases": 22,
+    "settlement_error_total_rs": "112102.91",
+    "settlement_error_mean_rs": "5095.59",
+    "exact_match_rate": 0.864,
+    "edit_rate": 0.136,
+    "critic_rejection_rate": 0.182
+  },
+  "after_runs": [
+    {
+      "cases": 22,
+      "settlement_error_total_rs": "112102.91",
+      "settlement_error_mean_rs": "5095.59",
+      "exact_match_rate": 0.864,
+      "edit_rate": 0.136,
+      "critic_rejection_rate": 0.182
+    },
+    {
+      "cases": 22,
+      "settlement_error_total_rs": "112102.91",
+      "settlement_error_mean_rs": "5095.59",
+      "exact_match_rate": 0.864,
+      "edit_rate": 0.136,
+      "critic_rejection_rate": 0.182
+    }
+  ],
+  "ablation": [],
+  "withdrawn": [],
+  "frozen_hash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+  "lessons": [
+    {
+      "lesson_id": "LSN-347a7fbf",
+      "text": "Verify that the clause explicitly permits the specific type of deduction before applying it (new_india_arogya_sanjeevani:2).",
+      "applies_when": "When processing deductions under the investigations category for Arogya Sanjeevani policy claims.",
+      "clause_ids": [
+        "new_india_arogya_sanjeevani:2"
+      ],
+      "source_case_id": "CLM-0005",
+      "status": "rejected",
+      "reviewer_id": "Dhruvi Ramani",
+      "review_note": "duplicate-line deduction is made by the calculator under clause 2 (DEC-04), not a clause choice; lesson is vague",
+      "created_at": "2026-11-11T20:26:39.887184Z"
+    },
+    {
+      "lesson_id": "LSN-72f035ed",
+      "text": "Verify that the clause explicitly permits the specific deduction type before applying it (new_india_arogya_sanjeevani:2).",
+      "applies_when": "When processing deductions under the investigations category for Arogya Sanjeevani policy claims.",
+      "clause_ids": [
+        "new_india_arogya_sanjeevani:2"
+      ],
+      "source_case_id": "CLM-0005",
+      "status": "rejected",
+      "reviewer_id": "Dhruvi Ramani",
+      "review_note": "duplicate of rejected lesson; duplicate-line deduction is calculator rule under clause 2 (DEC-04), not a clause choice",
+      "created_at": "2026-11-11T20:28:15.756223Z"
+    },
+    {
+      "lesson_id": "LSN-dcdd3e06",
+      "text": "Check that procedure category claims are adjudicated under clause 6.2, which specifies the applicable waiting period, rather than clause 4.1.",
+      "applies_when": "When adjudicating procedure category claims under the Arogya Sanjeevani policy.",
+      "clause_ids": [
+        "new_india_arogya_sanjeevani:6.2"
+      ],
+      "source_case_id": "CLM-0008",
+      "status": "rejected",
+      "reviewer_id": "Dhruvi Ramani",
+      "review_note": "specific waiting period is admissibility code (6.2 list missing, AGT-02), not a clause choice; lesson would misapply 6.2 to every procedure line",
+      "created_at": "2026-11-11T20:30:00.528530Z"
+    },
+    {
+      "lesson_id": "LSN-ea2aeb53",
+      "text": "Verify the correct clause governing the room category before adjudication, specifically apply clause 6.2 for room-related claims under the Arogya Sanjeevani policy.",
+      "applies_when": "When adjudicating room category bill lines under the Arogya Sanjeevani policy.",
+      "clause_ids": [
+        "new_india_arogya_sanjeevani:6.2"
+      ],
+      "source_case_id": "CLM-0008",
+      "status": "rejected",
+      "reviewer_id": "Dhruvi Ramani",
+      "review_note": "6.2 waiting period is admissibility code, not a per-line clause; would wrongly cite 6.2 on every room line",
+      "created_at": "2026-11-11T20:31:01.891333Z"
+    },
+    {
+      "lesson_id": "LSN-40d021e6",
+      "text": "Check that nursing bill lines are adjudicated under clause 6.2 as specified in the Arogya Sanjeevani policy.",
+      "applies_when": "When adjudicating nursing bill line categories under the Arogya Sanjeevani policy.",
+      "clause_ids": [
+        "new_india_arogya_sanjeevani:6.2"
+      ],
+      "source_case_id": "CLM-0008",
+      "status": "rejected",
+      "reviewer_id": "Dhruvi Ramani",
+      "review_note": "6.2 waiting period is admissibility code, not a per-line clause; would wrongly cite 6.2 on every nursing line",
+      "created_at": "2026-11-11T20:32:12.495264Z"
+    },
+    {
+      "lesson_id": "LSN-c3f47b16",
+      "text": "Check for specified illness waiting periods under clause 6.2 before approving medicines claims.",
+      "applies_when": "When adjudicating medicines category claims under the Arogya Sanjeevani policy.",
+      "clause_ids": [
+        "new_india_arogya_sanjeevani:6.2"
+      ],
+      "source_case_id": "CLM-0008",
+      "status": "rejected",
+      "reviewer_id": "Dhruvi Ramani",
+      "review_note": "6.2 waiting period is admissibility code, not a per-line clause; would wrongly cite 6.2 on every medicines line",
+      "created_at": "2026-11-11T20:32:59.914419Z"
+    },
+    {
+      "lesson_id": "LSN-f5989787",
+      "text": "Check the applicable clause for investigations category claims and apply clause 6.2 for specified illness waiting periods under the Arogya Sanjeevani policy.",
+      "applies_when": "When adjudicating investigations category claims under the Arogya Sanjeevani policy.",
+      "clause_ids": [
+        "new_india_arogya_sanjeevani:6.2"
+      ],
+      "source_case_id": "CLM-0008",
+      "status": "rejected",
+      "reviewer_id": "Dhruvi Ramani",
+      "review_note": "6.2 waiting period is admissibility code, not a per-line clause; would wrongly cite 6.2 on every investigations line",
+      "created_at": "2026-11-11T20:33:44.904097Z"
+    },
+    {
+      "lesson_id": "LSN-e48b3e25",
+      "text": "Verify claim admissibility criteria as specified in the Arogya Sanjeevani policy before approving any claim.",
+      "applies_when": "All health insurance claims under the Arogya Sanjeevani policy.",
+      "clause_ids": [
+        "Admissibility Criteria"
+      ],
+      "source_case_id": "CLM-0008",
+      "status": "rejected",
+      "reviewer_id": "Dhruvi Ramani",
+      "review_note": "vague, applies to everything, invented clause id; admissibility is deterministic code",
+      "created_at": "2026-11-11T20:34:25.618989Z"
+    },
+    {
+      "lesson_id": "LSN-ddf29848",
+      "text": "Verify that the clause explicitly permits deductions of the 'other' type before applying them (new_india_arogya_sanjeevani:2).",
+      "applies_when": "When processing investigations category bill lines under the Arogya Sanjeevani policy.",
+      "clause_ids": [
+        "new_india_arogya_sanjeevani:2"
+      ],
+      "source_case_id": "CLM-0009",
+      "status": "rejected",
+      "reviewer_id": "Dhruvi Ramani",
+      "review_note": "duplicate-line deduction is a calculator rule under clause 2 (DEC-04), not a clause choice; vague",
+      "created_at": "2026-11-11T20:35:57.320220Z"
+    },
+    {
+      "lesson_id": "LSN-8801151d",
+      "text": "Verify that the clause explicitly permits deductions of the 'other' type before applying them (new_india_arogya_sanjeevani:2).",
+      "applies_when": "When processing investigations category bill lines under the Arogya Sanjeevani policy.",
+      "clause_ids": [
+        "new_india_arogya_sanjeevani:2"
+      ],
+      "source_case_id": "CLM-0009",
+      "status": "rejected",
+      "reviewer_id": "Dhruvi Ramani",
+      "review_note": "duplicate of rejected lesson; duplicate-line deduction is a calculator rule under clause 2 (DEC-04), not a clause choice",
+      "created_at": "2026-11-11T20:36:44.278426Z"
+    },
+    {
+      "lesson_id": "LSN-2e80cde1",
+      "text": "Verify that the clause explicitly supports the type of deduction being applied before deducting any amount (new_india_arogya_sanjeevani:2).",
+      "applies_when": "When processing investigations category claims under the Arogya Sanjeevani policy.",
+      "clause_ids": [
+        "new_india_arogya_sanjeevani:2"
+      ],
+      "source_case_id": "CLM-0010",
+      "status": "rejected",
+      "reviewer_id": "Dhruvi Ramani",
+      "review_note": "duplicate-line deduction is a calculator rule under clause 2 (DEC-04), not a clause choice; vague",
+      "created_at": "2026-11-11T20:37:56.267191Z"
+    },
+    {
+      "lesson_id": "LSN-7a0d86b4",
+      "text": "Verify that the clause explicitly permits the specific type of deduction before applying it (new_india_arogya_sanjeevani:2).",
+      "applies_when": "When processing deductions under the investigations category for Arogya Sanjeevani policy claims.",
+      "clause_ids": [
+        "new_india_arogya_sanjeevani:2"
+      ],
+      "source_case_id": "CLM-0010",
+      "status": "rejected",
+      "reviewer_id": "Dhruvi Ramani",
+      "review_note": "duplicate of rejected lesson; duplicate-line deduction is a calculator rule under clause 2 (DEC-04), not a clause choice",
+      "created_at": "2026-11-11T20:38:57.744397Z"
+    },
+    {
+      "lesson_id": "LSN-83788bbf",
+      "text": "Verify that the clause explicitly permits the specific type of deduction before applying it (Arogya Sanjeevani clause 2).",
+      "applies_when": "When processing deductions under the investigations category for Arogya Sanjeevani policy claims.",
+      "clause_ids": [
+        "new_india_arogya_sanjeevani:2"
+      ],
+      "source_case_id": "CLM-0015",
+      "status": "rejected",
+      "reviewer_id": "Dhruvi Ramani",
+      "review_note": "duplicate-line deduction is a calculator rule under clause 2 (DEC-04), not a clause choice; vague",
+      "created_at": "2026-11-11T20:40:37.038641Z"
+    },
+    {
+      "lesson_id": "LSN-62b49014",
+      "text": "Verify that the clause explicitly supports the type of deduction being applied before deducting any amount (new_india_arogya_sanjeevani:2).",
+      "applies_when": "When processing deductions under the investigations category for Arogya Sanjeevani policy claims.",
+      "clause_ids": [
+        "new_india_arogya_sanjeevani:2"
+      ],
+      "source_case_id": "CLM-0015",
+      "status": "rejected",
+      "reviewer_id": "Dhruvi Ramani",
+      "review_note": "duplicate of rejected lesson; duplicate-line deduction is a calculator rule under clause 2 (DEC-04), not a clause choice",
+      "created_at": "2026-11-11T20:41:20.906777Z"
+    },
+    {
+      "lesson_id": "LSN-580262d9",
+      "text": "For procedure category claims under the Arogya Sanjeevani policy, verify and apply clause 4.3 as the governing clause.",
+      "applies_when": "When adjudicating procedure category bill lines under the Arogya Sanjeevani policy.",
+      "clause_ids": [
+        "new_india_arogya_sanjeevani:4.3"
+      ],
+      "source_case_id": "CLM-0021",
+      "status": "rejected",
+      "reviewer_id": "Dhruvi Ramani",
+      "review_note": "too broad: 4.3 is the cataract sub-limit, not every procedure; and 4.3 is informational in the calculator, so the lesson cannot change the amount",
+      "created_at": "2026-11-11T20:43:04.908603Z"
+    },
+    {
+      "lesson_id": "LSN-ee794076",
+      "text": "For procedure category claims under the Arogya Sanjeevani policy, verify and apply clause 4.3 as the governing clause, not clause 4.1.",
+      "applies_when": "When adjudicating procedure category bill lines under the Arogya Sanjeevani policy.",
+      "clause_ids": [
+        "new_india_arogya_sanjeevani:4.3"
+      ],
+      "source_case_id": "CLM-0022",
+      "status": "rejected",
+      "reviewer_id": "Dhruvi Ramani",
+      "review_note": "too broad: 4.3 is the cataract sub-limit, not every procedure; 4.3 is informational in the calculator, so the lesson cannot  change the amount",
+      "created_at": "2026-11-11T20:44:17.612328Z"
+    }
+  ],
+  "per_case_baseline": [
+    {
+      "case_id": "CLM-0001",
+      "proposed_total": "0",
+      "gold_total": "0",
+      "abs_error": "0",
+      "edited": false,
+      "lines_edited": 0,
+      "critic_rejections": 0,
+      "lessons_used": [],
+      "status": "repudiated",
+      "tolerance_rs": "1"
+    },
+    {
+      "case_id": "CLM-0002",
+      "proposed_total": "0",
+      "gold_total": "0",
+      "abs_error": "0",
+      "edited": false,
+      "lines_edited": 0,
+      "critic_rejections": 0,
+      "lessons_used": [],
+      "status": "repudiated",
+      "tolerance_rs": "1"
+    },
+    {
+      "case_id": "CLM-0003",
+      "proposed_total": "0",
+      "gold_total": "0",
+      "abs_error": "0",
+      "edited": false,
+      "lines_edited": 0,
+      "critic_rejections": 0,
+      "lessons_used": [],
+      "status": "repudiated",
+      "tolerance_rs": "1"
+    },
+    {
+      "case_id": "CLM-0004",
+      "proposed_total": "67067.10",
+      "gold_total": "67067",
+      "abs_error": "0.10",
+      "edited": false,
+      "lines_edited": 0,
+      "critic_rejections": 0,
+      "lessons_used": [],
+      "status": "settled",
+      "tolerance_rs": "1"
+    },
+    {
+      "case_id": "CLM-0005",
+      "proposed_total": "76886.60",
+      "gold_total": "76886",
+      "abs_error": "0.60",
+      "edited": false,
+      "lines_edited": 0,
+      "critic_rejections": 2,
+      "lessons_used": [],
+      "status": "settled",
+      "tolerance_rs": "1"
+    },
+    {
+      "case_id": "CLM-0006",
+      "proposed_total": "59141.58",
+      "gold_total": "59141",
+      "abs_error": "0.58",
+      "edited": false,
+      "lines_edited": 0,
+      "critic_rejections": 0,
+      "lessons_used": [],
+      "status": "settled",
+      "tolerance_rs": "1"
+    },
+    {
+      "case_id": "CLM-0007",
+      "proposed_total": "0",
+      "gold_total": "0",
+      "abs_error": "0",
+      "edited": false,
+      "lines_edited": 0,
+      "critic_rejections": 0,
+      "lessons_used": [],
+      "status": "repudiated",
+      "tolerance_rs": "1"
+    },
+    {
+      "case_id": "CLM-0008",
+      "proposed_total": "72198.11",
+      "gold_total": "0",
+      "abs_error": "72198.11",
+      "edited": true,
+      "lines_edited": 5,
+      "critic_rejections": 0,
+      "lessons_used": [],
+      "status": "settled",
+      "tolerance_rs": "1"
+    },
+    {
+      "case_id": "CLM-0009",
+      "proposed_total": "56078.11",
+      "gold_total": "56078",
+      "abs_error": "0.11",
+      "edited": false,
+      "lines_edited": 0,
+      "critic_rejections": 2,
+      "lessons_used": [],
+      "status": "settled",
+      "tolerance_rs": "1"
+    },
+    {
+      "case_id": "CLM-0010",
+      "proposed_total": "107538.62",
+      "gold_total": "107539",
+      "abs_error": "0.38",
+      "edited": false,
+      "lines_edited": 0,
+      "critic_rejections": 2,
+      "lessons_used": [],
+      "status": "settled",
+      "tolerance_rs": "1"
+    },
+    {
+      "case_id": "CLM-0011",
+      "proposed_total": "44047.63",
+      "gold_total": "44048",
+      "abs_error": "0.37",
+      "edited": false,
+      "lines_edited": 0,
+      "critic_rejections": 0,
+      "lessons_used": [],
+      "status": "settled",
+      "tolerance_rs": "1"
+    },
+    {
+      "case_id": "CLM-0012",
+      "proposed_total": "57971.15",
+      "gold_total": "57971",
+      "abs_error": "0.15",
+      "edited": false,
+      "lines_edited": 0,
+      "critic_rejections": 0,
+      "lessons_used": [],
+      "status": "settled",
+      "tolerance_rs": "1"
+    },
+    {
+      "case_id": "CLM-0013",
+      "proposed_total": "0",
+      "gold_total": "0",
+      "abs_error": "0",
+      "edited": false,
+      "lines_edited": 0,
+      "critic_rejections": 0,
+      "lessons_used": [],
+      "status": "repudiated",
+      "tolerance_rs": "1"
+    },
+    {
+      "case_id": "CLM-0014",
+      "proposed_total": "62542.71",
+      "gold_total": "62542",
+      "abs_error": "0.71",
+      "edited": false,
+      "lines_edited": 0,
+      "critic_rejections": 0,
+      "lessons_used": [],
+      "status": "settled",
+      "tolerance_rs": "1"
+    },
+    {
+      "case_id": "CLM-0015",
+      "proposed_total": "89481.74",
+      "gold_total": "89481",
+      "abs_error": "0.74",
+      "edited": false,
+      "lines_edited": 0,
+      "critic_rejections": 2,
+      "lessons_used": [],
+      "status": "settled",
+      "tolerance_rs": "1"
+    },
+    {
+      "case_id": "CLM-0016",
+      "proposed_total": "40825.14",
+      "gold_total": "40825",
+      "abs_error": "0.14",
+      "edited": false,
+      "lines_edited": 0,
+      "critic_rejections": 0,
+      "lessons_used": [],
+      "status": "settled",
+      "tolerance_rs": "1"
+    },
+    {
+      "case_id": "CLM-0017",
+      "proposed_total": "0",
+      "gold_total": "0",
+      "abs_error": "0",
+      "edited": false,
+      "lines_edited": 0,
+      "critic_rejections": 0,
+      "lessons_used": [],
+      "status": "repudiated",
+      "tolerance_rs": "1"
+    },
+    {
+      "case_id": "CLM-0018",
+      "proposed_total": "0",
+      "gold_total": "0",
+      "abs_error": "0",
+      "edited": false,
+      "lines_edited": 0,
+      "critic_rejections": 0,
+      "lessons_used": [],
+      "status": "repudiated",
+      "tolerance_rs": "1"
+    },
+    {
+      "case_id": "CLM-0019",
+      "proposed_total": "201962.52",
+      "gold_total": "201962",
+      "abs_error": "0.52",
+      "edited": false,
+      "lines_edited": 0,
+      "critic_rejections": 0,
+      "lessons_used": [],
+      "status": "settled",
+      "tolerance_rs": "1"
+    },
+    {
+      "case_id": "CLM-0020",
+      "proposed_total": "71833.40",
+      "gold_total": "71833",
+      "abs_error": "0.40",
+      "edited": false,
+      "lines_edited": 0,
+      "critic_rejections": 0,
+      "lessons_used": [],
+      "status": "settled",
+      "tolerance_rs": "1"
+    },
+    {
+      "case_id": "CLM-0021",
+      "proposed_total": "59850.00",
+      "gold_total": "38000",
+      "abs_error": "21850.00",
+      "edited": true,
+      "lines_edited": 1,
+      "critic_rejections": 0,
+      "lessons_used": [],
+      "status": "settled",
+      "tolerance_rs": "1"
+    },
+    {
+      "case_id": "CLM-0022",
+      "proposed_total": "32300.00",
+      "gold_total": "14250",
+      "abs_error": "18050.00",
+      "edited": true,
+      "lines_edited": 1,
+      "critic_rejections": 0,
+      "lessons_used": [],
+      "status": "settled",
+      "tolerance_rs": "1"
+    }
+  ],
+  "per_case_after": [
+    [
+      {
+        "case_id": "CLM-0001",
+        "proposed_total": "0",
+        "gold_total": "0",
+        "abs_error": "0",
+        "edited": false,
+        "lines_edited": 0,
+        "critic_rejections": 0,
+        "lessons_used": [],
+        "status": "repudiated",
+        "tolerance_rs": "1"
+      },
+      {
+        "case_id": "CLM-0002",
+        "proposed_total": "0",
+        "gold_total": "0",
+        "abs_error": "0",
+        "edited": false,
+        "lines_edited": 0,
+        "critic_rejections": 0,
+        "lessons_used": [],
+        "status": "repudiated",
+        "tolerance_rs": "1"
+      },
+      {
+        "case_id": "CLM-0003",
+        "proposed_total": "0",
+        "gold_total": "0",
+        "abs_error": "0",
+        "edited": false,
+        "lines_edited": 0,
+        "critic_rejections": 0,
+        "lessons_used": [],
+        "status": "repudiated",
+        "tolerance_rs": "1"
+      },
+      {
+        "case_id": "CLM-0004",
+        "proposed_total": "67067.10",
+        "gold_total": "67067",
+        "abs_error": "0.10",
+        "edited": false,
+        "lines_edited": 0,
+        "critic_rejections": 0,
+        "lessons_used": [],
+        "status": "settled",
+        "tolerance_rs": "1"
+      },
+      {
+        "case_id": "CLM-0005",
+        "proposed_total": "76886.60",
+        "gold_total": "76886",
+        "abs_error": "0.60",
+        "edited": false,
+        "lines_edited": 0,
+        "critic_rejections": 2,
+        "lessons_used": [],
+        "status": "settled",
+        "tolerance_rs": "1"
+      },
+      {
+        "case_id": "CLM-0006",
+        "proposed_total": "59141.58",
+        "gold_total": "59141",
+        "abs_error": "0.58",
+        "edited": false,
+        "lines_edited": 0,
+        "critic_rejections": 0,
+        "lessons_used": [],
+        "status": "settled",
+        "tolerance_rs": "1"
+      },
+      {
+        "case_id": "CLM-0007",
+        "proposed_total": "0",
+        "gold_total": "0",
+        "abs_error": "0",
+        "edited": false,
+        "lines_edited": 0,
+        "critic_rejections": 0,
+        "lessons_used": [],
+        "status": "repudiated",
+        "tolerance_rs": "1"
+      },
+      {
+        "case_id": "CLM-0008",
+        "proposed_total": "72198.11",
+        "gold_total": "0",
+        "abs_error": "72198.11",
+        "edited": true,
+        "lines_edited": 5,
+        "critic_rejections": 0,
+        "lessons_used": [],
+        "status": "settled",
+        "tolerance_rs": "1"
+      },
+      {
+        "case_id": "CLM-0009",
+        "proposed_total": "56078.11",
+        "gold_total": "56078",
+        "abs_error": "0.11",
+        "edited": false,
+        "lines_edited": 0,
+        "critic_rejections": 2,
+        "lessons_used": [],
+        "status": "settled",
+        "tolerance_rs": "1"
+      },
+      {
+        "case_id": "CLM-0010",
+        "proposed_total": "107538.62",
+        "gold_total": "107539",
+        "abs_error": "0.38",
+        "edited": false,
+        "lines_edited": 0,
+        "critic_rejections": 2,
+        "lessons_used": [],
+        "status": "settled",
+        "tolerance_rs": "1"
+      },
+      {
+        "case_id": "CLM-0011",
+        "proposed_total": "44047.63",
+        "gold_total": "44048",
+        "abs_error": "0.37",
+        "edited": false,
+        "lines_edited": 0,
+        "critic_rejections": 0,
+        "lessons_used": [],
+        "status": "settled",
+        "tolerance_rs": "1"
+      },
+      {
+        "case_id": "CLM-0012",
+        "proposed_total": "57971.15",
+        "gold_total": "57971",
+        "abs_error": "0.15",
+        "edited": false,
+        "lines_edited": 0,
+        "critic_rejections": 0,
+        "lessons_used": [],
+        "status": "settled",
+        "tolerance_rs": "1"
+      },
+      {
+        "case_id": "CLM-0013",
+        "proposed_total": "0",
+        "gold_total": "0",
+        "abs_error": "0",
+        "edited": false,
+        "lines_edited": 0,
+        "critic_rejections": 0,
+        "lessons_used": [],
+        "status": "repudiated",
+        "tolerance_rs": "1"
+      },
+      {
+        "case_id": "CLM-0014",
+        "proposed_total": "62542.71",
+        "gold_total": "62542",
+        "abs_error": "0.71",
+        "edited": false,
+        "lines_edited": 0,
+        "critic_rejections": 0,
+        "lessons_used": [],
+        "status": "settled",
+        "tolerance_rs": "1"
+      },
+      {
+        "case_id": "CLM-0015",
+        "proposed_total": "89481.74",
+        "gold_total": "89481",
+        "abs_error": "0.74",
+        "edited": false,
+        "lines_edited": 0,
+        "critic_rejections": 2,
+        "lessons_used": [],
+        "status": "settled",
+        "tolerance_rs": "1"
+      },
+      {
+        "case_id": "CLM-0016",
+        "proposed_total": "40825.14",
+        "gold_total": "40825",
+        "abs_error": "0.14",
+        "edited": false,
+        "lines_edited": 0,
+        "critic_rejections": 0,
+        "lessons_used": [],
+        "status": "settled",
+        "tolerance_rs": "1"
+      },
+      {
+        "case_id": "CLM-0017",
+        "proposed_total": "0",
+        "gold_total": "0",
+        "abs_error": "0",
+        "edited": false,
+        "lines_edited": 0,
+        "critic_rejections": 0,
+        "lessons_used": [],
+        "status": "repudiated",
+        "tolerance_rs": "1"
+      },
+      {
+        "case_id": "CLM-0018",
+        "proposed_total": "0",
+        "gold_total": "0",
+        "abs_error": "0",
+        "edited": false,
+        "lines_edited": 0,
+        "critic_rejections": 0,
+        "lessons_used": [],
+        "status": "repudiated",
+        "tolerance_rs": "1"
+      },
+      {
+        "case_id": "CLM-0019",
+        "proposed_total": "201962.52",
+        "gold_total": "201962",
+        "abs_error": "0.52",
+        "edited": false,
+        "lines_edited": 0,
+        "critic_rejections": 0,
+        "lessons_used": [],
+        "status": "settled",
+        "tolerance_rs": "1"
+      },
+      {
+        "case_id": "CLM-0020",
+        "proposed_total": "71833.40",
+        "gold_total": "71833",
+        "abs_error": "0.40",
+        "edited": false,
+        "lines_edited": 0,
+        "critic_rejections": 0,
+        "lessons_used": [],
+        "status": "settled",
+        "tolerance_rs": "1"
+      },
+      {
+        "case_id": "CLM-0021",
+        "proposed_total": "59850.00",
+        "gold_total": "38000",
+        "abs_error": "21850.00",
+        "edited": true,
+        "lines_edited": 1,
+        "critic_rejections": 0,
+        "lessons_used": [],
+        "status": "settled",
+        "tolerance_rs": "1"
+      },
+      {
+        "case_id": "CLM-0022",
+        "proposed_total": "32300.00",
+        "gold_total": "14250",
+        "abs_error": "18050.00",
+        "edited": true,
+        "lines_edited": 1,
+        "critic_rejections": 0,
+        "lessons_used": [],
+        "status": "settled",
+        "tolerance_rs": "1"
+      }
+    ],
+    [
+      {
+        "case_id": "CLM-0001",
+        "proposed_total": "0",
+        "gold_total": "0",
+        "abs_error": "0",
+        "edited": false,
+        "lines_edited": 0,
+        "critic_rejections": 0,
+        "lessons_used": [],
+        "status": "repudiated",
+        "tolerance_rs": "1"
+      },
+      {
+        "case_id": "CLM-0002",
+        "proposed_total": "0",
+        "gold_total": "0",
+        "abs_error": "0",
+        "edited": false,
+        "lines_edited": 0,
+        "critic_rejections": 0,
+        "lessons_used": [],
+        "status": "repudiated",
+        "tolerance_rs": "1"
+      },
+      {
+        "case_id": "CLM-0003",
+        "proposed_total": "0",
+        "gold_total": "0",
+        "abs_error": "0",
+        "edited": false,
+        "lines_edited": 0,
+        "critic_rejections": 0,
+        "lessons_used": [],
+        "status": "repudiated",
+        "tolerance_rs": "1"
+      },
+      {
+        "case_id": "CLM-0004",
+        "proposed_total": "67067.10",
+        "gold_total": "67067",
+        "abs_error": "0.10",
+        "edited": false,
+        "lines_edited": 0,
+        "critic_rejections": 0,
+        "lessons_used": [],
+        "status": "settled",
+        "tolerance_rs": "1"
+      },
+      {
+        "case_id": "CLM-0005",
+        "proposed_total": "76886.60",
+        "gold_total": "76886",
+        "abs_error": "0.60",
+        "edited": false,
+        "lines_edited": 0,
+        "critic_rejections": 2,
+        "lessons_used": [],
+        "status": "settled",
+        "tolerance_rs": "1"
+      },
+      {
+        "case_id": "CLM-0006",
+        "proposed_total": "59141.58",
+        "gold_total": "59141",
+        "abs_error": "0.58",
+        "edited": false,
+        "lines_edited": 0,
+        "critic_rejections": 0,
+        "lessons_used": [],
+        "status": "settled",
+        "tolerance_rs": "1"
+      },
+      {
+        "case_id": "CLM-0007",
+        "proposed_total": "0",
+        "gold_total": "0",
+        "abs_error": "0",
+        "edited": false,
+        "lines_edited": 0,
+        "critic_rejections": 0,
+        "lessons_used": [],
+        "status": "repudiated",
+        "tolerance_rs": "1"
+      },
+      {
+        "case_id": "CLM-0008",
+        "proposed_total": "72198.11",
+        "gold_total": "0",
+        "abs_error": "72198.11",
+        "edited": true,
+        "lines_edited": 5,
+        "critic_rejections": 0,
+        "lessons_used": [],
+        "status": "settled",
+        "tolerance_rs": "1"
+      },
+      {
+        "case_id": "CLM-0009",
+        "proposed_total": "56078.11",
+        "gold_total": "56078",
+        "abs_error": "0.11",
+        "edited": false,
+        "lines_edited": 0,
+        "critic_rejections": 2,
+        "lessons_used": [],
+        "status": "settled",
+        "tolerance_rs": "1"
+      },
+      {
+        "case_id": "CLM-0010",
+        "proposed_total": "107538.62",
+        "gold_total": "107539",
+        "abs_error": "0.38",
+        "edited": false,
+        "lines_edited": 0,
+        "critic_rejections": 2,
+        "lessons_used": [],
+        "status": "settled",
+        "tolerance_rs": "1"
+      },
+      {
+        "case_id": "CLM-0011",
+        "proposed_total": "44047.63",
+        "gold_total": "44048",
+        "abs_error": "0.37",
+        "edited": false,
+        "lines_edited": 0,
+        "critic_rejections": 0,
+        "lessons_used": [],
+        "status": "settled",
+        "tolerance_rs": "1"
+      },
+      {
+        "case_id": "CLM-0012",
+        "proposed_total": "57971.15",
+        "gold_total": "57971",
+        "abs_error": "0.15",
+        "edited": false,
+        "lines_edited": 0,
+        "critic_rejections": 0,
+        "lessons_used": [],
+        "status": "settled",
+        "tolerance_rs": "1"
+      },
+      {
+        "case_id": "CLM-0013",
+        "proposed_total": "0",
+        "gold_total": "0",
+        "abs_error": "0",
+        "edited": false,
+        "lines_edited": 0,
+        "critic_rejections": 0,
+        "lessons_used": [],
+        "status": "repudiated",
+        "tolerance_rs": "1"
+      },
+      {
+        "case_id": "CLM-0014",
+        "proposed_total": "62542.71",
+        "gold_total": "62542",
+        "abs_error": "0.71",
+        "edited": false,
+        "lines_edited": 0,
+        "critic_rejections": 0,
+        "lessons_used": [],
+        "status": "settled",
+        "tolerance_rs": "1"
+      },
+      {
+        "case_id": "CLM-0015",
+        "proposed_total": "89481.74",
+        "gold_total": "89481",
+        "abs_error": "0.74",
+        "edited": false,
+        "lines_edited": 0,
+        "critic_rejections": 2,
+        "lessons_used": [],
+        "status": "settled",
+        "tolerance_rs": "1"
+      },
+      {
+        "case_id": "CLM-0016",
+        "proposed_total": "40825.14",
+        "gold_total": "40825",
+        "abs_error": "0.14",
+        "edited": false,
+        "lines_edited": 0,
+        "critic_rejections": 0,
+        "lessons_used": [],
+        "status": "settled",
+        "tolerance_rs": "1"
+      },
+      {
+        "case_id": "CLM-0017",
+        "proposed_total": "0",
+        "gold_total": "0",
+        "abs_error": "0",
+        "edited": false,
+        "lines_edited": 0,
+        "critic_rejections": 0,
+        "lessons_used": [],
+        "status": "repudiated",
+        "tolerance_rs": "1"
+      },
+      {
+        "case_id": "CLM-0018",
+        "proposed_total": "0",
+        "gold_total": "0",
+        "abs_error": "0",
+        "edited": false,
+        "lines_edited": 0,
+        "critic_rejections": 0,
+        "lessons_used": [],
+        "status": "repudiated",
+        "tolerance_rs": "1"
+      },
+      {
+        "case_id": "CLM-0019",
+        "proposed_total": "201962.52",
+        "gold_total": "201962",
+        "abs_error": "0.52",
+        "edited": false,
+        "lines_edited": 0,
+        "critic_rejections": 0,
+        "lessons_used": [],
+        "status": "settled",
+        "tolerance_rs": "1"
+      },
+      {
+        "case_id": "CLM-0020",
+        "proposed_total": "71833.40",
+        "gold_total": "71833",
+        "abs_error": "0.40",
+        "edited": false,
+        "lines_edited": 0,
+        "critic_rejections": 0,
+        "lessons_used": [],
+        "status": "settled",
+        "tolerance_rs": "1"
+      },
+      {
+        "case_id": "CLM-0021",
+        "proposed_total": "59850.00",
+        "gold_total": "38000",
+        "abs_error": "21850.00",
+        "edited": true,
+        "lines_edited": 1,
+        "critic_rejections": 0,
+        "lessons_used": [],
+        "status": "settled",
+        "tolerance_rs": "1"
+      },
+      {
+        "case_id": "CLM-0022",
+        "proposed_total": "32300.00",
+        "gold_total": "14250",
+        "abs_error": "18050.00",
+        "edited": true,
+        "lines_edited": 1,
+        "critic_rejections": 0,
+        "lessons_used": [],
+        "status": "settled",
+        "tolerance_rs": "1"
+      }
+    ]
+  ]
+}

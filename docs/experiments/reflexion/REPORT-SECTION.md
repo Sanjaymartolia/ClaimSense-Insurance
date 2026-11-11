@@ -259,11 +259,59 @@ this set is the 18 refusals, each with a written reason, which is what the brief
 to provide. A measurable improvement needs development cases where the clause choice decides the
 amount (section 8).
 
-### 4.4 Held-out, 60 claims — PENDING
+### 4.4 Reviewed run on the final gold (`run-03`, 12 November 2026, tolerance Rs 1) — the current result
+
+Same setup as `run-02` (`openai/gpt-4.1-mini` for every agent and the reflector, reference
+calculator, reviewer Dhruvi Ramani at the terminal) on the gold as it stands after ADR-0006,
+ADR-0007 and ADR-0009: 22 development claims, 14 admissible. Files:
+`docs/experiments/reflexion/run-03/`.
+
+| metric | before | after run 1 | after run 2 |
+|---|---|---|---|
+| settlement_error_total_rs | 112102.91 | 112102.91 | 112102.91 |
+| settlement_error_mean_rs | 5095.59 | 5095.59 | 5095.59 |
+| exact_match_rate | 0.864 | 0.864 | 0.864 |
+| edit_rate | 0.136 | 0.136 | 0.136 |
+| critic_rejection_rate | 0.182 | 0.182 | 0.182 |
+
+Where the baseline error comes from: 7 cases exact, 12 within Rs 1 (rounding, counted as matches),
+3 real misses: CLM-0008 (specific waiting period, clause 6.2: the admissibility check has no 6.2
+list yet, AGT-02), CLM-0021 and CLM-0022 (cataract sub-limit, clause 4.3, informational in the
+calculator). The gold fixes of 11 November removed the other seven misses of `run-02`.
+
+**Lessons: 16 proposed, 0 approved, 16 rejected, 0 withdrawn.** Frozen playbook hash
+`4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945`. Every lesson, as stored in
+`run-03/playbook.json`:
+
+| Lessons | From | Clauses cited | Lesson text (shortened) | Decision | Reviewer's reason |
+|---|---|---|---|---|---|
+| LSN-347a7fbf, LSN-72f035ed | CLM-0005 | 2 | Verify that the clause explicitly permits the specific type of deduction before applying it | rejected | duplicate-line deduction is made by the calculator under clause 2 (DEC-04), not a clause choice; vague |
+| LSN-ddf29848, LSN-8801151d | CLM-0009 | 2 | same | rejected | same reason |
+| LSN-2e80cde1, LSN-7a0d86b4 | CLM-0010 | 2 | same | rejected | same reason |
+| LSN-83788bbf, LSN-62b49014 | CLM-0015 | 2 | same | rejected | same reason |
+| LSN-dcdd3e06 | CLM-0008 | 6.2 | Procedure claims are adjudicated under clause 6.2 rather than 4.1 | rejected | specific waiting period is admissibility code (6.2 list missing, AGT-02), not a clause choice; would misapply 6.2 to every procedure line |
+| LSN-ea2aeb53, LSN-40d021e6, LSN-c3f47b16, LSN-f5989787 | CLM-0008 | 6.2 | Apply clause 6.2 to room / nursing / medicines / investigations lines | rejected | 6.2 waiting period is admissibility code, not a per-line clause; would wrongly cite 6.2 on every such line |
+| LSN-e48b3e25 | CLM-0008 | (invented id) | Verify claim admissibility criteria before approving any claim | rejected | vague, applies to everything, invented clause id; admissibility is deterministic code |
+| LSN-580262d9, LSN-ee794076 | CLM-0021, CLM-0022 | 4.3 | For procedure claims apply clause 4.3 as the governing clause | rejected | too broad: 4.3 is the cataract sub-limit, not every procedure; 4.3 is informational in the calculator, so the lesson cannot change the amount |
+
+Ablation and withdrawal had nothing to act on. Both after runs equal the baseline.
+
+**Reading of the result.** Zero approved lessons is the right outcome on this gold, and the gate
+earned it: eight of the sixteen proposals came from a new source, critic rejections of the DEC-04
+duplicate-line deduction (the critic's keyword check does not recognise a deduction of reason
+`other` cited under clause 2; REF-17 in the work log, a critic item, not a Reflexion one), five
+tried to turn one waiting-period repudiation into "cite 6.2 on every line", and two generalised the
+cataract sub-limit to every procedure. None is a clause the coverage analyst could have chosen
+better. The frozen `run-03` playbook is therefore empty of approved lessons; the held-out run with
+it will show before == after by construction, which is itself the honest statement that, on the
+final gold, every remaining miss is a code or gold gap. Where the real model *does* leave headroom
+is the citation, not the money: section 9 measures that and GEPA closes it.
+
+### 4.5 Held-out, 60 claims — PENDING
 
 Run once by the Evaluation owner with `scripts/run_reflexion_heldout.py` against the frozen
-`run-02` playbook; before/after table and the spread over 3 repeats to be pasted from its
-`heldout_report.md`.
+`run-03` playbook (hash above); before/after table and the spread over 3 repeats to be pasted from
+its `heldout_report.md`.
 
 ## 5. Design decisions
 
@@ -309,7 +357,7 @@ Capstone guide page 10, signature challenge B and the L12 row of "What you build
 | Any lesson can be withdrawn | `Playbook.withdraw()`, `review_cli withdraw`, automatic after ablation | `test_reflexion.py::test_ablation_finds_and_withdraws_a_harmful_lesson` |
 | Measure settlement error and adjudicator edit rate before and after | `metrics.summarize()`, `compare_table()`; after pass run twice | tables in section 4 |
 | Identify lessons that made results worse | `loop.ablate()` leave-one-out; "Lessons that made results worse" in every `report.md` | 4.2: none in `run-01` |
-| L12: run the loop on development claims, then freeze it before the held-out run | `Playbook.freeze()` SHA-256; `run_heldout()` refuses an unfrozen or changed playbook | `test_reflexion.py::test_heldout_refuses_unfrozen_or_leaky_playbook` |
+| L12: run the loop on development claims, then freeze it before the held-out run | `Playbook.freeze()` SHA-256; `run_heldout()` refuses an unfrozen or changed playbook | `test_reflexion.py::test_heldout_refuses_unfrozen_or_leaky_playbook`; `run-03` frozen hash in 4.4 |
 | Step 9: adjudicator corrections become candidate lessons, used only after review | status flow PROPOSED → APPROVED; PROPOSED lessons are never retrieved | section 1.2 |
 | L12 §6-7: DSPy signatures, modules and metrics; BootstrapFewShot, a stronger teacher, GEPA; one table beside the playbook | `reflexion/dspy_coverage.py`, `reflexion/optimizers.py`, `scripts/run_reflexion_dspy.py` | section 9; `tests/orchestration/test_dspy_coverage.py` |
 
@@ -346,14 +394,16 @@ Each of these shows up as a baseline miss that no lesson can remove. They are li
   non-payable items); lessons quote ids verbatim.
 - **Small set.** 20 development claims, of which 7 are not admissible in the current gold, leaves 13
   payable claims to learn from. Both after runs are reported for that reason.
-- **Held-out is pending.** `run-02` is the current reviewed run (corrected gold, tolerance Rs 1);
-  `run-01` is kept as the strict-scoring run on the pre-audit gold.
+- **Held-out is pending.** `run-03` is the current reviewed run (final gold, tolerance Rs 1);
+  `run-02` describes the 7 Nov gold and `run-01` the pre-audit gold under strict scoring.
 - **The gold moved after `run-02`.** ADR-0006, ADR-0007 and ADR-0009 (11 Nov 2026) changed the
-  gold and the calculator; the dev set now has 22 claims, 14 of them admissible. On today's files
-  the stub baseline is Rs 112,102.91 total error over 22 claims, exact-match 0.864, edit rate
-  0.136, and only three real misses remain (CLM-0008, specific waiting period; CLM-0021 and
-  CLM-0022, cataract sub-limit). The `run-02` tables describe the 7 Nov gold. A `run-03` with the
-  real model on the final gold is the next step before the held-out run.
+  gold and the calculator; the dev set now has 22 claims, 14 of them admissible. `run-03` (4.4) is
+  the rerun on that gold: Rs 112,102.91 total error, exact-match 0.864, edit rate 0.136, three real
+  misses (CLM-0008, CLM-0021, CLM-0022), zero approvable lessons.
+- **Critic rejects the duplicate-line deduction.** Since DEC-04 the calculator deducts an in-bill
+  duplicate under clause 2 with reason `other`; the critic's keyword table has no entry for it, so
+  four claims now carry a critic rejection (rate 0.182) and eight useless lesson proposals. A
+  critic item (REF-17), reported to the orchestration owner.
 
 ## 9. DSPy and GEPA on the clause choice (L12 §6-7): the prompt levers beside the memory lever
 

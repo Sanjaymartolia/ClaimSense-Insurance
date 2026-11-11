@@ -4,7 +4,7 @@
 **Scope:** `src/claimsense/reflexion/`, `scripts/run_reflexion_experiment.py`,
 `scripts/run_reflexion_heldout.py`, `tests/orchestration/test_cases.py`,
 `tests/orchestration/test_reflexion.py`, `docs/experiments/reflexion/`.
-**Written:** 8 November 2026, from the files on `main` at commit `86cf567`. **Updated:** 12 November 2026 (DSPy / GEPA comparison, real run `dspy-run-01`, REF-13 to REF-16).
+**Written:** 8 November 2026, from the files on `main` at commit `86cf567`. **Updated:** 12 November 2026 (DSPy / GEPA comparison, real run `dspy-run-01`, `run-03` on the final gold, REF-13 to REF-17).
 **Style:** ASD-STE100 (Simplified Technical English). Short sentences. One instruction per
 sentence. Active voice. The same word for the same thing.
 
@@ -92,7 +92,8 @@ This Mac has no virtual environment, so the numbers were not run again on 8 Nove
 | `docs/experiments/reflexion/README.md` | How to run in stub mode and in real mode. Env vars. Model override. Results table. Open findings. |
 | `docs/experiments/reflexion/REPORT-SECTION.md` | The report section. What Reflexion is. The loop. Method. All results. Every lesson with its reason. Design decisions. Brief-to-code map. |
 | `docs/experiments/reflexion/run-01/` | Reviewed run, 1 Nov 2026, pre-audit gold, strict scoring. |
-| `docs/experiments/reflexion/run-02/` | Reviewed run, 7 Nov 2026, corrected gold, tolerance Rs 1. **This is the current result.** |
+| `docs/experiments/reflexion/run-02/` | Reviewed run, 7 Nov 2026, corrected gold, tolerance Rs 1. |
+| `docs/experiments/reflexion/run-03/` | Reviewed run, 12 Nov 2026, final gold, tolerance Rs 1. **This is the current result.** 0 approved lessons; frozen. |
 | `docs/experiments/reflexion/harness-check-stub/` | Stub run, auto-approved. Marked "HARNESS CHECK ONLY". Not a result. |
 | `docs/experiments/reflexion/langgraph-check/` | Real-model baseline through the LangGraph executor. Same numbers as the local runner. |
 | `docs/experiments/reflexion/dspy-harness-check-stub/` | The L12 §6-7 comparison in stub mode, 12 Nov 2026. Marked "HARNESS CHECK ONLY". Not a result. |
@@ -202,7 +203,8 @@ All numbers are copied from `report.md` files in `docs/experiments/reflexion/`. 
 | run-01 | 1 Nov | pre-audit | gpt-4.1-mini | Rs 0 | Rs 65,989.27 | Rs 65,989.27 | 14 proposed, 2 approved, 12 rejected |
 | harness-check-stub | 7 Nov | corrected | stub | Rs 1 | Rs 186,368.94 | Rs 186,368.94 | 6 template lessons, auto-approved |
 | run-02 | 7 Nov | corrected | gpt-4.1-mini | Rs 1 | Rs 186,368.94 | Rs 186,368.94 | 19 proposed, 1 approved, 18 rejected |
-| held-out | pending | — | — | Rs 1 | — | — | run-02 playbook, frozen |
+| run-03 | 12 Nov | final (ADR-0006/7/9) | gpt-4.1-mini | Rs 1 | Rs 112,102.91 | Rs 112,102.91 | 16 proposed, 0 approved, 16 rejected |
+| held-out | pending | — | — | Rs 1 | — | — | run-03 playbook, frozen `4f53cda1…` |
 
 Other metrics for run-02: exact-match rate 0.50, edit rate 0.30, critic-rejection rate 0.00.
 The after values are identical in both after runs. No lesson was withdrawn.
@@ -252,6 +254,16 @@ ChainOfThought 0.917; BootstrapFewShot 0.952 (4 bootstrapped demos); BootstrapFe
 in every row: no lever moved a rupee. GEPA chosen. Its instruction (2,777 characters) states the
 run-01/run-02 approved lesson as a rule and hard-codes Rs 5,000 per day, which is only right for a
 sum insured of Rs 2.5 lakh or more (REF-16). Full reading in `REPORT-SECTION.md` 9.4.
+
+### 5.4c run-03: the Reflexion experiment on the final gold (12 Nov 2026)
+
+Real model, reviewer Dhruvi Ramani at the console. Before and after: Rs 112,102.91, exact-match
+0.864, edit rate 0.136, critic-rejection rate 0.182, identical in both after runs. 16 lessons
+proposed, 0 approved, 16 rejected with reasons: 8 from critic rejections of the duplicate-line
+deduction (REF-17), 6 from CLM-0008 (waiting period is admissibility code), 2 from the cataract
+claims (4.3 is informational in the calculator). Frozen hash
+`4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945`. This playbook goes to the
+held-out run. Reading in `REPORT-SECTION.md` 4.4.
 
 ### 5.5 The gold moved after run-02
 
@@ -373,7 +385,7 @@ the gold worksheets and the calculator. The dev set now has 22 claims.
 Rs 112,102.91 over 22 claims with three real misses (section 5.5).
 **Fix:** Rerun `run_reflexion_experiment.py` with the real model on the final gold (`run-03`), review
 the lessons at the console, update the report. Then freeze.
-**Status:** Open. Blocks the held-out run.
+**Status:** Closed 12 Nov 2026. `run-03` done and frozen (section 5.4c).
 
 ### REF-14: Two gold clauses are never among the stub retriever's candidates
 
@@ -409,6 +421,19 @@ constant with the rule ("2% of the sum insured, at most Rs 5,000"), or add a low
 claim so the metric catches it.
 **Status:** Open. Blocks wiring the GEPA program into the coverage agent.
 
+### REF-17: The critic rejects the DEC-04 duplicate-line deduction
+
+**Where:** `agents/critic.py` (`REASON_KEYWORDS`), `agents/services.py::reference_calculate`.
+**Symptom:** Since DEC-04 (ADR-0009) an in-bill duplicate line is deducted in full with reason
+`other` under clause 2 (Operative Clause). The critic's keyword table has no entry for reason
+`other`, so it reports the deduction as unsupported. Claims CLM-0005, 0009, 0010, 0015.
+**Effect:** Critic-rejection rate 0.182 in run-03 (0.0 in run-02). Each rejection produced two
+useless lesson proposals (8 of the 16 in run-03). The settlement is unchanged.
+**Fix:** Teach the critic the duplicate rule: accept a reason-`other` deduction when the line is in
+`in_bill_duplicates(claim)` and the clause is `C.OPERATIVE`; or give the deduction its own reason
+code. Owner of `agents/critic.py`.
+**Status:** Open. Reported 12 Nov 2026. Not a Reflexion bug.
+
 ---
 
 ## 7. Gold versus calculator: the five disagreements
@@ -432,11 +457,12 @@ claim so the metric catches it.
 | 3 | Apply the remaining gold fixes in one commit. Tell the Reflexion owner first. | Sanjay Martolia, Shashank Belligatti | Rerun, freeze |
 | 4 | Rerun the Reflexion experiment once on the final gold. Update the report. | Dhruvi Ramani | Held-out |
 | 5 | Freeze the gold. | Team | Held-out |
-| 6 | Run the held-out set with the frozen playbook. Paste the tables into REPORT-SECTION.md 4.4. | Eval & Red-Team | Final report |
+| 6 | Run the held-out set with the frozen `run-03` playbook. Paste the tables into REPORT-SECTION.md 4.5. | Eval & Red-Team | Final report |
 | 7 | Add development claims with headroom (REF-09). | Domain & Product | Better result |
 | 8 | ~~Run `scripts/run_reflexion_dspy.py` with real models (`dspy-run-01`). Paste the table into REPORT-SECTION 9.4. Choose the method.~~ Done 12 Nov 2026: GEPA. | Dhruvi Ramani | — |
 | 11 | Review the GEPA instruction with the Domain lead (REF-16), then decide whether it replaces the inline coverage prompt via `config/prompts/`. | Dhruvi Ramani, Domain & Product | Wiring the prompt |
-| 9 | Rerun the Reflexion experiment on the final gold (`run-03`, REF-13). | Dhruvi Ramani | Held-out |
+| 9 | ~~Rerun the Reflexion experiment on the final gold (`run-03`, REF-13).~~ Done 12 Nov 2026, frozen `4f53cda1…`. | Dhruvi Ramani | — |
+| 12 | Teach the critic the DEC-04 duplicate-line deduction (REF-17). | Agents & Orchestration (critic owner) | Clean critic rate |
 | 10 | Make nursing and cataract clauses retrievable in the stub search (REF-14). | Agents & Orchestration | Ceiling |
 
 ---
