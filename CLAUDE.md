@@ -22,9 +22,7 @@ freely, but no edits by default.
 3. **A person approves the exact change.** `settle_claim` runs only with an `ApprovalToken` whose
    `worksheet_hash` matches the current worksheet. Any edit invalidates the approval.
 4. **No real data, no secrets.** Synthetic claims only. Never read or print `.env`. Never log health
-   details unmasked. Keys come from environment variables. `Reference_code_files/` (gitignored, with
-   `.env.*` and `.ipynb_checkpoints/`) holds course notebooks with real OpenRouter keys: never print,
-   commit or copy them out.
+   details unmasked. Keys come from environment variables.
 5. **Held-out eval cases are off-limits.** Do not read, generate or modify held-out cases. They live
    outside this repo in `../claimsense-heldout/`; only a person from Eval & Red-Team runs and scores
    them, once, with everything frozen. Do not put gold answers into prompts or tools.
@@ -65,7 +63,7 @@ this to run offline and free. `scripts/run_one.py` refuses to run in stub mode.
 | `src/claimsense/ingestion/`, `retrieval/`, `memory/` | Knowledge & Memory | L4–L6, L9 |
 | `src/claimsense/graph/`, `agents/`, `reflexion/` | Agents & Orchestration | L8, L10–L12 |
 | `src/claimsense/calc/`, `mcp_servers/`, `hooks/`, `guardrails/` | Tools & Security | L7, L14, L15 |
-| `eval/` (`harness/`, `agent_suite/`, `monitoring/`, `observability/`, `deepeval_suite/`, `full.py`) | Eval & Red-Team | L13, L14, L15 |
+| `eval/` | Eval & Red-Team | L13, L15 |
 | `src/claimsense/api/`, `ui/`, `docker-compose.yml`, `.github/`, `monitoring/` | Deploy & Ops | L13 CI, L16 |
 | `data/`, `docs/` | Domain & Product (data), everyone (docs) | — |
 | `course/` (template, read-only for students), `exercises/<name>/` (each person's copy) | everyone; `course/` changes reviewed by Eval & Red-Team | L5–L8 practice |
@@ -107,6 +105,7 @@ python -m claimsense.ingestion.extract_policy_clauses        # -> data/processed
 python -m claimsense.ingestion.build_policy_knowledge_base   # -> data/knowledge_base/
 python eval/redteam/build_cases.py                           # -> eval/redteam/claims+gold
 python scripts/build_team_guide.py                           # docs/TEAM_GUIDE.md -> PDF, DOCX, diagram
+python scripts/run_reflexion_dspy.py --out <dir> --tolerance-rs 1   # L12 §6-7 DSPy/GEPA vs playbook; needs .[reflexion]; stub = harness check
 
 # course kit (needs .[dev,agents,retrieval,course]); work in exercises/<name>/, never course/
 python course/scripts/new_student.py <name>
@@ -138,74 +137,13 @@ python -m eval.tools.rubric_score [--plan] [--insurance] [--json]              #
 - `harness/loader.py` strips answer-revealing fields before anything reaches an adapter; keep it that way.
 - Results and limitations: `docs/EVAL_HARNESS_REPORT.md` (DOCX built by `eval/tools/build_report_docx.py`).
   The judge is uncalibrated and weighted 0.00: `agents/coverage.py::choose_clauses` drops the model's rationale.
-- Adding an eval test changes the count stated in `docs/EVAL_HARNESS_REPORT.md` (292 today);
-  `eval/tests/test_report_doc.py` fails until you update it and rebuild that DOCX.
-
-### Agent suite, combined run, live monitoring (`eval/`, Eval & Red-Team)
-```bash
-python -m eval.agent_suite --stub --label X [--variant v1,guarded] [--show CLM-0004]  # traces + gate.yaml; exit 1 = gate fails
-python -m eval.full --stub --label X         # harness self-check + one traced pass scored by both; exit 1 = does not ship
-python -m eval.monitoring setup              # once: Prometheus + Grafana, SHA-256 pinned, into ~/.claimsense/monitoring_stack (~1.5 GB)
-python -m eval.monitoring run --stub --label X [--open] [--keep]   # 4-min incident drill (~6 min) -> runs/monitoring/X/
-python -m eval.monitoring down               # stop servers an interrupted run left behind
-python -m eval.monitoring export --out runs/monitoring/export      # alert rules + dashboard for Deploy & Ops
-```
-- **Pass `--stub` unless you mean to pay.** A key in the shell (VS Code loads `.env` into its
-  terminals) switches the agents to real models; a real 4-minute drill cost $0.17. Claude's own
-  shell has no key: never read `.env` to get one; ask the user to run real-model commands.
-- `eval.monitoring run` exit codes: 0 drill ok, 1 drill failed, 2 cannot start or another run holds
-  the lock (one run at a time), 3 inconclusive (traffic generator stalled or Prometheus read-back
-  failed; rerun). The drill is enforced only in stub mode, full length, arms `v1,guarded`.
-- Thresholds in `eval/agent_suite/gate.yaml` and `eval/monitoring/alert_rules.yml` are proposals:
-  never loosen one to get a pass. `test_monitoring.py` checks that rules, dashboard queries and
-  metric names agree. Never edit `monitoring/` (Deploy & Ops); `export` refuses to write there.
-- `run_traced(prepare=, fraud_screen=)` are eval-only seams (fault injection, the L13 7.1 `lean-pr`
-  variant). Monitoring findings MON-01 to MON-04 are in `docs/MONITORING_REPORT_CARD.md`.
-- A run label that exists is overwritten (`runs/monitoring/<label>/`). Never reuse the labels the
-  reports quote (`drill-2`, `drill-3`, `real-drill`); a reused label already lost drill 1's evidence.
-- Reports: `docs/AGENT_SUITE_REPORT.md`, `docs/MONITORING_REPORT_CARD.md`, and all evaluation work
-  in one ASD-STE100-style report, `docs/TECHNICAL_REPORT_EVAL_AND_MONITORING.md`.
-
-### Observability and DeepEval (`eval/`, Eval & Red-Team)
-```bash
-pip install -e ".[dev,agents,observability,deepeval,docs]"
-python -m eval.observability show --stub [CLAIM_ID ...] [--json]   # simple way: OTel spans in memory, one tree
-python -m eval.observability setup                                # once: Jaeger 2.22.0, SHA-256 pinned, ~/.claimsense/observability_stack
-python -m eval.observability run --stub --label X [--keep] [--backend jaeger|otlp-env|memory]   # normal + tariff outage -> runs/observability/X/
-python -m eval.observability down
-DEEPEVAL_DISABLE_DOTENV=1 DEEPEVAL_TELEMETRY_OPT_OUT=1 CLAIMSENSE_LLM=stub deepeval test run eval/deepeval_suite   # 74 tests, free; CLAIMSENSE_DEEPEVAL_JUDGE=1 adds the paid judge
-```
-- Spans open live through `eval/agent_suite/trace.py::run_traced(observer=...)`; with no observer
-  the run is unchanged. Every exporter sits behind `otel.RedactingExporter` (an attribute
-  allowlist, rule 4); `test_spans_hold_no_claim_text` checks all 52 dev and red-team claims.
-- `run` refuses a label that already exists. Exit codes: 0 every check holds, 1 a check failed,
-  2 cannot start. Real mode: model calls become `chat` spans with content capture off
-  (`TRACELOOP_TRACE_CONTENT=false`). Instrument LangChain only through `otel.instrument_langchain`:
-  the 0.63 instrumentation records nothing after an uninstrument and a second instrument.
-- Checks must be able to fail: `exported_spans_redacted` uses a canary span, and
-  `backend_accepted_every_span` counts exporter results (the SDK's `force_flush` returns True even
-  when the backend refuses every batch). A Jaeger 404 means "no traces", not "cannot start".
-- LangSmith gets spans over OTLP (`--backend otlp-env`). Its own tracing (`LANGSMITH_TRACING=true`)
-  is refused by `eval.observability` and the DeepEval suite: HIDE_INPUTS/OUTPUTS do not hide a
-  run's error text, which can quote the model's reply (rule 4).
-- Report: `docs/OBSERVABILITY_REPORT.md` (production eval tools, DeepEval, tracing, step-by-step guide).
-
 Full how-to for teammates: `docs/TEAM_GUIDE.md` (also PDF and DOCX). Edit the Markdown, then rebuild;
 never edit the generated PDF/DOCX/HTML by hand.
 
 ## Tooling that acts on its own
 - `.claude/settings.json` runs `ruff format .` and `ruff check --fix .` over the **whole repo**
   after every Edit/Write, so a diff can contain files you did not touch; check `git status` before
-  committing. It also denies reading `.env` and `../claimsense-heldout/`. The hook calls the
-  system `python`; where that has no ruff it silently does nothing, so run
-  `.venv/Scripts/python -m ruff check <files>` and `... ruff format <files>` yourself.
-- On Windows the console is cp1252: run Python that prints Unicode with `-X utf8`.
-- `import deepeval` copies `.env` into the environment (with a key there, "stub" tests would call
-  real models), and the `deepeval` extra installs a pytest plugin that loads in every pytest run.
-  `pyproject.toml` `addopts` blocks the plugin with `-p no:deepeval` (keep it; a subprocess that
-  clears addopts must pass it again), and `eval/deepeval_suite/conftest.py` sets
-  `DEEPEVAL_DISABLE_DOTENV=1` before the import. The `deepeval` CLI imports DeepEval before
-  pytest starts, so export `DEEPEVAL_DISABLE_DOTENV=1` and `DEEPEVAL_TELEMETRY_OPT_OUT=1` first.
+  committing. It also denies reading `.env` and `../claimsense-heldout/`.
 - CI (`.github/workflows/ci.yml`) is Python 3.12 with `.[dev]` only: `ruff check`,
   `ruff format --check`, `pytest`. A test that needs another extra (langgraph, chromadb, ragas,
   docx…) must start with `pytest.importorskip`, or CI breaks.

@@ -15,6 +15,8 @@ words and how it differs from the adjudicator approval in the graph.
 | `harness-check-stub/` | a complete stub-mode run, auto-approved, stamped "HARNESS CHECK ONLY", proving the loop runs on the current gold (rerun 7 Nov 2026) |
 | `langgraph-check/` | the real-model baseline run through the LangGraph executor instead of the local runner, same numbers |
 | `run-02/` | the reviewed run of 7 Nov 2026 on the gold as corrected by the 4 Nov 2026 audit, tolerance Rs 1: the current result |
+| `dspy-harness-check-stub/` | the L12 §6-7 comparison (DSPy Predict/ChainOfThought, BootstrapFewShot, BootstrapFewShot + coach, GEPA, the playbook, the retrieval ceiling) run offline with stub LMs on 12 Nov 2026: proves the loop, stamped "HARNESS CHECK ONLY" |
+| `dspy-run-01/` | the same comparison with the real models, 12 Nov 2026: GEPA reaches the retrieval ceiling (1.0) and is the chosen method; `REPORT-SECTION.md` section 9.4 |
 
 ## Files of this part
 
@@ -30,11 +32,18 @@ words and how it differs from the adjudicator approval in the graph.
 | `src/claimsense/reflexion/reporting.py` | Markdown/JSON rendering shared by both scripts |
 | `scripts/run_reflexion_experiment.py` | Day 4: `baseline`, `experiment`, `status`. Writes `baseline.md/json`, `report.md/json`, `playbook.json` into `--out`. |
 | `scripts/run_reflexion_heldout.py` | Day 5, for the Evaluation owner: before/after on the held-out set with the frozen playbook, 3 repeats, spread. Refuses anything inside the repo. |
+| `src/claimsense/reflexion/dspy_coverage.py` | L12 §6-7 on ClaimSense: the `ChooseClauses` DSPy signature (the shipped coverage prompt as its instruction), `render_inputs` (the same facts as `CoverageAgent._ask_model`), `coverage_examples`, the clause-accuracy metric with GEPA feedback (`make_metric`), `program_chooser` (plugs a compiled program into the agent), offline `StubLM` / `OracleStubLM`, `configure_dspy` (models from `agents.llm.MODELS`) |
+| `src/claimsense/reflexion/optimizers.py` | the comparison: `split_cases` (admissible dev claims, alternating train/test), `compile_bootstrap`, `compile_gepa`, `measure` (clause accuracy + the pipeline's settlement error / edit rate per row), `choose_winner`, `comparison_md`, `plot`, `save_program` / `load_program` |
+| `scripts/run_reflexion_dspy.py` | runs the eight rows of the notebook's §9 table on the dev claims and writes `report.md`, `results.json`, `plot.png`, `programs/*.json` into `--out` |
+| `tests/orchestration/test_dspy_coverage.py` | 13 tests, offline: examples leak nothing, metric and reachable lines, stub LM == stub analyst through the pipeline, oracle coach bootstraps demos, program save/load, GEPA runs offline, the `chooser` seam is validated, winner rule, the script end to end (skipped when `dspy` is not installed) |
 | `tests/orchestration/test_cases.py` | 11 tests: loading, contract validity, gold reconciliation, reason-code mapping, the 4 Nov gold relabels, unknown codes raise, stub dry run of all 20, the tolerance, both scripts end to end including every refusal |
 | `tests/orchestration/test_reflexion.py` | 5 harness tests: learn → approve → improve → ablate → freeze on synthetic cases |
 
-Nothing outside these files is touched by this part. `agents/coverage.py` reads the playbook
-(`CoverageAgent.lessons_for()`), but that hook already existed.
+Outside these files this part touches `agents/coverage.py` and `agents/__init__.py` only: the
+playbook hook (`CoverageAgent.lessons_for()`) already existed, and on 12 Nov 2026 a `chooser`
+argument was added (four lines) so a compiled DSPy program can replace the clause-selection call
+alone, with the agent's candidate validation, admissibility and calculator untouched. `loop.py`'s
+run functions pass it through.
 
 ## 1. Run it without a model (stub mode, anyone, two minutes)
 
@@ -130,6 +139,40 @@ reported exactly; only `exact_match_rate` and the mistake list change. The toler
 the banner and stored in every result file. Agreed with the lead: this belongs in the evaluator,
 the gold is not changed.
 
+## 2b. The L12 §6-7 comparison: DSPy, BootstrapFewShot, GEPA against the playbook
+
+The L12 hands-on notebook (`L12_self_improvement_handson.ipynb`, sections 6-9) builds a DSPy
+signature for its claims assistant, compiles it with BootstrapFewShot (alone and with a stronger
+teacher) and GEPA, and puts every lever in one table beside the Reflexion playbook.
+`scripts/run_reflexion_dspy.py` does the same on ClaimSense, with one difference that follows from
+project rule 1: the DSPy program picks *clauses*, never rupees, so the metric is clause accuracy and
+the money is measured beside it through the ordinary pipeline. Full description in
+`REPORT-SECTION.md` section 9.
+
+```bash
+pip install -e ".[dev,agents,reflexion]"      # the reflexion extra is dspy (+ matplotlib for the plot)
+pytest tests/orchestration/test_dspy_coverage.py -q
+
+# offline harness check (stub LMs; stamped HARNESS CHECK ONLY, never a result)
+python scripts/run_reflexion_dspy.py --out docs/experiments/reflexion/dspy-harness-check-stub \
+    --tolerance-rs 1 --gepa-metric-calls 30
+
+# the real run (your own key; a few hundred model calls, cents; GEPA is the slow part)
+export OPENROUTER_API_KEY="<your own key>"
+export CLAIMSENSE_MODEL_REFLECTOR="openai/gpt-4.1-mini"    # the course key has no gpt-4.1
+python scripts/run_reflexion_dspy.py --out docs/experiments/reflexion/dspy-run-01 --tolerance-rs 1
+```
+
+The banner must say `mode: REAL MODEL via OpenRouter`; a `STUB` banner means the key is not in the
+environment. Switches: `--gepa-metric-calls N` (default 100; the notebook used 150 on 12 training
+claims), `--bootstrap-demos N` (default 4), `--skip bootstrap coach gepa` to leave out slow rows,
+`--threads N` for GEPA, `--seed N`, `--playbook <path>` (default: the frozen `run-02` playbook) and
+`--calculator team`. The script refuses any `--cases` path that names the held-out set.
+
+Outputs in `--out`: `report.md` (banner, split, the one table, the chosen method and why, every
+optimised instruction, per-case rows), `results.json`, `plot.png`, and `programs/*.json`, one file
+per compiled program (instruction + demos: the notebook's "the improvement is a file", §7.5).
+
 ## 3. Day 5: held-out run (Evaluation owner only)
 
 ```bash
@@ -152,6 +195,8 @@ tables into `REPORT-SECTION.md` section 4.4.
 | `run-01/` (1 Nov 2026, reviewed) | pre-audit | `openai/gpt-4.1-mini`, reviewer Dhruvi Ramani at the console | 0 | Rs 65,989.27 / exact 0.30 / edit 0.20 → identical, both after runs | 14 proposed, 2 approved, 12 rejected with reasons, 0 withdrawn; frozen hash `6b4c530d…` |
 | `harness-check-stub/` (7 Nov 2026, not a result) | post-audit (4 Nov) | stub, auto-approved | Rs 1 | Rs 186,368.94 / exact 0.50 / edit 0.30 → identical | 6 template lessons, none harmful |
 | `run-02/` (7 Nov 2026, reviewed) | post-audit (4 Nov) | `openai/gpt-4.1-mini`, reviewer Dhruvi Ramani at the console | Rs 1 | Rs 186,368.94 / exact 0.50 / edit 0.30 → identical, both after runs | 19 proposed, 1 approved, 18 rejected with reasons, 0 withdrawn; frozen hash `b5666378…` |
+| `dspy-harness-check-stub/` (12 Nov 2026, not a result) | current (ADR-0006/0007/0009) | stub LMs (student = top candidate, coach = gold replay) | Rs 1 | test half (7 claims): clause accuracy 0.574 for every method, 1.0 for the retrieval ceiling; settlement error Rs 18,052.33 for every row | all eight rows run, 5 programs saved, GEPA loop runs offline |
+| `dspy-run-01/` (12 Nov 2026, real models, Dhruvi Ramani's key) | current | `openai/gpt-4.1-mini` as student, coach and reflector | Rs 1 | test clause accuracy: agent prompt 0.645, + playbook 0.61, Predict 0.574, ChainOfThought 0.917, BootstrapFewShot 0.952, + coach 0.952, **GEPA 1.0** (= ceiling); settlement error Rs 18,052.33 in every row | **GEPA chosen**; its 2,777-char instruction is `dspy-run-01/programs/gepa.json`; reading in `REPORT-SECTION.md` 9.4 |
 
 Why the stub baseline error grew from Rs 65,989 to Rs 186,369 between the two gold versions: the
 audit relabelled CLM-0018 (caesarean, excluded under clause 7.15, gold now Rs 0) and the pipeline
@@ -159,6 +204,14 @@ has no exclusion check yet, and it re-filed CLM-0016's ICU line, where the calcu
 the proportional cut to the other lines and the gold does not. Both are listed in
 `RULE_DISAGREEMENTS` and in `REPORT-SECTION.md` section 7. Full reading of `run-01` in
 `REPORT-SECTION.md` section 4.2 and of `run-02` in section 4.3.
+
+**The gold moved after `run-02`.** ADR-0006, ADR-0007 and ADR-0009 (11 Nov 2026, commits
+`74fbd2c` to `5221ef4`) changed the gold and the calculator. On the current files the stub baseline
+over all 22 development claims is Rs 112,102.91 total error, exact-match 0.864, edit rate 0.136,
+with only three real misses left (CLM-0008: the 6.2 specific wait has no list in the admissibility
+check; CLM-0021 and CLM-0022: the cataract sub-limit, clause 4.3, is informational in the
+calculator). The `run-02` tables are therefore the result on the 7 Nov gold, not on today's; a
+`run-03` with the real model is needed before the held-out run (REF-06 in the work log).
 
 ## 5. Decisions taken with the lead (walkthrough, Nov 2026)
 

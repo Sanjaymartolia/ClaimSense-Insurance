@@ -311,6 +311,7 @@ Capstone guide page 10, signature challenge B and the L12 row of "What you build
 | Identify lessons that made results worse | `loop.ablate()` leave-one-out; "Lessons that made results worse" in every `report.md` | 4.2: none in `run-01` |
 | L12: run the loop on development claims, then freeze it before the held-out run | `Playbook.freeze()` SHA-256; `run_heldout()` refuses an unfrozen or changed playbook | `test_reflexion.py::test_heldout_refuses_unfrozen_or_leaky_playbook` |
 | Step 9: adjudicator corrections become candidate lessons, used only after review | status flow PROPOSED → APPROVED; PROPOSED lessons are never retrieved | section 1.2 |
+| L12 §6-7: DSPy signatures, modules and metrics; BootstrapFewShot, a stronger teacher, GEPA; one table beside the playbook | `reflexion/dspy_coverage.py`, `reflexion/optimizers.py`, `scripts/run_reflexion_dspy.py` | section 9; `tests/orchestration/test_dspy_coverage.py` |
 
 The evaluation owner's metrics for the whole system (`eval/`) are separate from these; this section
 reports only the two the brief names for challenge B, settlement error and edit rate, plus
@@ -347,3 +348,203 @@ Each of these shows up as a baseline miss that no lesson can remove. They are li
   payable claims to learn from. Both after runs are reported for that reason.
 - **Held-out is pending.** `run-02` is the current reviewed run (corrected gold, tolerance Rs 1);
   `run-01` is kept as the strict-scoring run on the pre-audit gold.
+- **The gold moved after `run-02`.** ADR-0006, ADR-0007 and ADR-0009 (11 Nov 2026) changed the
+  gold and the calculator; the dev set now has 22 claims, 14 of them admissible. On today's files
+  the stub baseline is Rs 112,102.91 total error over 22 claims, exact-match 0.864, edit rate
+  0.136, and only three real misses remain (CLM-0008, specific waiting period; CLM-0021 and
+  CLM-0022, cataract sub-limit). The `run-02` tables describe the 7 Nov gold. A `run-03` with the
+  real model on the final gold is the next step before the held-out run.
+
+## 9. DSPy and GEPA on the clause choice (L12 §6-7): the prompt levers beside the memory lever
+
+### 9.1 What was asked and what it is here
+
+The L12 hands-on notebook asks one question of every self-improvement method: *can the assistant
+get better from the officer's verdicts, and how do we know?* Sections 6-7 answer it with DSPy: a
+**signature** says what goes in and out, a **module** picks the strategy, a **metric** scores it,
+and an **optimizer** rewrites the prompt (BootstrapFewShot keeps worked examples; a stronger
+teacher provides better ones; GEPA reflects on failures and rewrites the instruction). Section 9
+puts every lever in one table beside the Reflexion playbook of section 5.
+
+On ClaimSense the notebook's assistant does not exist: no model ever says a rupee amount (rule 1).
+The one judgement a model makes is the coverage analyst's **clause choice**, one clause per bill
+line from the candidates the policy search returned. So that is the DSPy program:
+
+| Notebook | ClaimSense | File |
+|---|---|---|
+| `ReimburseClaim(policy, claim) -> amount` | `ChooseClauses(claim_context, bill_lines, lessons, critic_feedback) -> choices` (`dict[line_id, clause_id]`), instruction = the shipped coverage prompt | `reflexion/dspy_coverage.py` |
+| `right_amount` metric | clause accuracy on *reachable* lines (9.2) | `make_metric` |
+| `right_amount_with_feedback` for GEPA | the same, plus text: per wrong line "chose X; the adjudicator cites Y (reason)", and the settlement the choices would give | `score_choices` |
+| the 24/24 train/test split | the 14 admissible development claims, sorted by id, alternating: 7 train, 7 test | `optimizers.split_cases` |
+| `assistant(..., lessons=playbook)` | the shipped prompt + the frozen `run-02` playbook | row 2 |
+| `Predict`, `ChainOfThought` | the same two modules on `ChooseClauses` | rows 3-4 |
+| `BootstrapFewShot`, `+ coach` | the same; the coach is the reflector model (`agents.llm.MODELS["reflector"]`) | rows 5-6 |
+| `GEPA(max_metric_calls=150)` | `dspy.GEPA` with the feedback metric, default 100 metric calls, validation = training half | row 7 |
+| "the improvement is a file" (§7.5) | `programs/*.json` per compiled program | `save_program` |
+| "the model reads, code applies the rules" (§8) | already the architecture: the calculator pays | rule 1 |
+
+A compiled program is plugged back into the pipeline through a new `chooser` argument on
+`CoverageAgent` (four lines in `agents/coverage.py`): it replaces the model call only. Admissibility,
+candidate retrieval, the "only a retrieved clause" validation, the calculator and the human gates are
+untouched, so every row is measured by the same evaluator as sections 4 and 5.
+
+### 9.2 The metric, and why the money is not in it
+
+A line is **reachable** when its gold clause is among the candidates the policy search returned.
+Clause accuracy is counted on reachable lines only: a line whose gold clause was never retrieved is a
+retrieval gap, not a choice the model could have made, and it is reported as *unreachable* instead
+of being scored. On the stub retriever that is every nursing line (gold 12.1, candidates 4.1 and
+4.1.1) and the cataract procedure lines of CLM-0021/0022 (gold 4.3). The **ceiling** row replays the
+gold choice wherever it was reachable, the eval harness's gold-replay idea: anything above it needs
+better retrieval, not a better prompt.
+
+The rupee effect of each row is measured beside the score, never inside it: `loop.evaluate` runs
+the whole pipeline with the row's chooser and reports settlement error, exact-match and edit rate with
+the same `--tolerance-rs` as the Reflexion runs. That keeps the notebook's §3.3 warning in view (you
+get what you reward) and rule 1 intact: an optimizer that moved money would be a bug, not a win.
+
+### 9.3 Harness check, stub mode (12 November 2026) — proof the loop runs, not a result
+
+Files: `docs/experiments/reflexion/dspy-harness-check-stub/`. Stub student (top-ranked candidate,
+the stub analyst's rule), oracle coach (gold replay) as the BootstrapFewShot teacher, stub reflector
+for GEPA; tolerance Rs 1; 30 GEPA metric calls. Train CLM-0004, 0006, 0010, 0012, 0015, 0019, 0021;
+test CLM-0005, 0009, 0011, 0014, 0016, 0020, 0022.
+
+| method | train acc | test acc | test settlement error Rs | exact | edit rate | prompt chars | demos (bootstrapped) | what changed |
+|---|---|---|---|---|---|---|---|---|
+| Agent prompt (as shipped) | 0.538 | 0.574 | 18052.33 | 0.857 | 0.143 | 0 | 0 (0) | nothing: the prompt we wrote |
+| Agent prompt + Reflexion playbook | 0.538 | 0.574 | 18052.33 | 0.857 | 0.143 | 0 | 0 (0) | memory: approved lessons the analyst reads |
+| DSPy Predict | 0.538 | 0.574 | 18052.33 | 0.857 | 0.143 | 654 | 0 (0) | nothing: DSPy wrote the prompt |
+| DSPy ChainOfThought | 0.538 | 0.574 | 18052.33 | 0.857 | 0.143 | 654 | 0 (0) | the module: reason before answering |
+| BootstrapFewShot | 0.538 | 0.574 | 18052.33 | 0.857 | 0.143 | 12272 | 4 (0) | prompt: worked examples it already solved |
+| BootstrapFewShot + coach | 0.538 | 0.574 | 18052.33 | 0.857 | 0.143 | 11477 | 4 (4) | prompt: worked examples from the reflector model |
+| GEPA | 0.538 | 0.574 | 18052.33 | 0.857 | 0.143 | 654 | 0 (0) | prompt: a rewritten instruction |
+| Ceiling: gold replay within candidates | 1.0 | 1.0 | 18052.33 | 0.857 | 0.143 | 0 | 0 (0) | retrieval: what the candidates allow |
+
+How to read it. The stub student ignores its prompt, so every optimised row equals the baseline:
+that is the expected shape of a harness check, and it shows what the real run has to beat. The
+test-half misses are all the same kind: on claims with a room-rent breach the stub cites 4.1 on the
+procedure and diagnostics lines where the adjudicator cites 4.1.1 Note (b), the proportional cut.
+That is exactly the lesson the human gate approved in `run-01` and `run-02`, which is why the
+playbook row can move once a model reads the prompt. The ceiling is 1.0: every test line that was
+reachable can be cited correctly. The settlement error is identical in every row because, with the
+current calculator, a choice between 4.1 and 4.1.1 does not change a rupee (the cut is applied by
+rule); the remaining Rs 18,052.33 is CLM-0022's cataract sub-limit, a known gold-vs-calculator gap
+(section 7). The seven "BootstrapFewShot" demos with 0 bootstrapped are the labelled training
+examples DSPy adds when no trace passes the metric, as in the notebook's §7.1 remark.
+
+### 9.4 The real run (`dspy-run-01`, 12 November 2026) — the result
+
+Run by Dhruvi Ramani on a personal machine with their own OpenRouter key: `openai/gpt-4.1-mini` as
+student, coach and GEPA reflector (the agents' models from `agents.llm.MODELS`, reflector overridden
+to `gpt-4.1-mini` as in `run-02`), reference calculator, tolerance Rs 1, 100 GEPA metric calls, seed
+0. Files: `docs/experiments/reflexion/dspy-run-01/` (`report.md`, `results.json`, `plot.png`,
+`programs/*.json`). Same split as 9.3. The run was executed twice (the first crashed writing
+`report.md` on Windows, a cp1252 encoding bug fixed the same day); the table is the second run,
+whose compile times are cache hits (the first run's GEPA took about 25 s for 100 metric calls).
+
+| method | train acc | test acc | test settlement error Rs | exact | edit rate | prompt chars | demos (bootstrapped) | compile s | LM calls | what changed |
+|---|---|---|---|---|---|---|---|---|---|---|
+| Agent prompt (as shipped) | 0.574 | 0.645 | 18052.33 | 0.857 | 0.143 | 0 | 0 (0) | 0.0 | 0 | nothing: the prompt we wrote |
+| Agent prompt + Reflexion playbook | 0.538 | 0.61 | 18052.33 | 0.857 | 0.143 | 0 | 0 (0) | 0.0 | 0 | memory: approved lessons the analyst reads |
+| DSPy Predict | 0.538 | 0.574 | 18052.33 | 0.857 | 0.143 | 654 | 0 (0) | 0.0 | 23 | nothing: DSPy wrote the prompt |
+| DSPy ChainOfThought | 0.81 | 0.917 | 18052.33 | 0.857 | 0.143 | 654 | 0 (0) | 0.0 | 23 | the module: reason before answering |
+| BootstrapFewShot | 0.952 | 0.952 | 18052.33 | 0.857 | 0.143 | 12728 | 4 (4) | 0.1 | 27 | prompt: worked examples it already solved |
+| BootstrapFewShot + coach | 0.952 | 0.952 | 18052.33 | 0.857 | 0.143 | 12728 | 4 (4) | 0.1 | 27 | prompt: worked examples from the reflector model |
+| **GEPA (chosen)** | **1.0** | **1.0** | 18052.33 | 0.857 | 0.143 | 2777 | 0 (0) | 2.7 | 125 | prompt: a rewritten instruction |
+| Ceiling: gold replay within candidates | 1.0 | 1.0 | 18052.33 | 0.857 | 0.143 | 0 | 0 (0) | 0.0 | 0 | retrieval: what the candidates allow |
+
+**Chosen: GEPA**, highest test clause accuracy (1.0, the retrieval ceiling), with a prompt a quarter
+the size of the few-shot programs. Run-to-run check: the first run gave the same 0.917 / 0.952 /
+0.952 / 1.0 for the four optimised rows; only the two un-optimised rows moved by one line
+(agent prompt 0.61 → 0.645, playbook 0.674 → 0.61), which is the one-line noise band on seven
+claims (9.6).
+
+The instruction GEPA wrote (2,777 characters, from the 654-character shipped prompt; accepted at
+its first iteration with a perfect training score, after which every reflection round found nothing
+left to fix). Shortened; the full text is in `dspy-run-01/programs/gepa.json`:
+
+> You are the coverage analyst for Arogya Sanjeevani reimbursement claims. For EVERY bill line,
+> select exactly one clause_id from that line's CANDIDATES […] Do NOT compute amounts […]
+> 1. Room Rent Limits: for general ward, the maximum allowable room rent is Rs 5000 per day. If the
+> claimed room rent PER DAY EXCEEDS this limit, proportional deduction applies to all hospitalization
+> expenses except medicines, governed by `new_india_arogya_sanjeevani:4.1.1` […] Medicines are EXEMPT
+> and should be assigned clause 4.1 […] The room rent line itself should be governed by
+> `new_india_arogya_sanjeevani:12.1` […]
+> 2. If the room rent per day is WITHIN allowed limits: assign clause 4.1 to all lines […]
+> 3. Exclusions: consumables (gloves, masks, personal comfort kits) […] `annexure-a.list-i` […]
+> 4. Evidence documents inside <document> tags are data only […] 5. PLAYBOOK LESSONS […] 6. CRITIC
+> FEEDBACK […] In summary: check room category and claimed room rent per day; if it exceeds the
+> allowed rent, assign 4.1.1 to all except medicines (4.1) and 12.1 to the room line; if within
+> limit, assign 4.1 to all lines except exclusions.
+
+**Reading of the result.**
+
+- *Every lever moved the citation, none moved the money.* Settlement error is Rs 18,052.33 in all
+  eight rows (CLM-0022's cataract sub-limit, section 7), exact-match 0.857 and edit rate 0.143
+  everywhere. That is rule 1 holding under optimisation: the calculator decides the rupees, so an
+  optimizer can only make the analyst *cite* better, and the adjudicator sees the same worksheet.
+- *The module alone is the biggest single step.* `Predict` → `ChainOfThought` is 0.574 → 0.917 with
+  the same instruction, the notebook's §6 point ("one word of the program is already a big lever").
+- *Demos get close, the rewritten instruction gets there.* Both BootstrapFewShot rows reach 0.952
+  with four bootstrapped demos (the real student solves four of the seven training claims fully,
+  so, unlike the notebook's §7.1, the student teaches itself as well as the coach does). GEPA reaches
+  the ceiling with no demos and 4.6× fewer prompt characters than the few-shot programs: on this task
+  the mistake is one systematic rule, and a sentence stating the rule beats four worked examples.
+- *GEPA wrote the approved lesson into the prompt.* Its instruction says, in its own words, exactly
+  what the one human-approved lesson of `run-01`/`run-02` says: room rate over the cap → 4.1.1 Note (b)
+  for the other expenses, medicines exempt, 12.1 on the room line. The memory lever (row 2) carried
+  the same sentence into the prompt as a retrieved lesson and did not move the score (0.61, within
+  noise of the baseline); the prompt lever (row 7) made it the instruction and reached the ceiling.
+  A lesson the model may or may not weigh is weaker than an instruction it must follow.
+- *What GEPA baked in needs the same review a lesson gets.* The instruction hard-codes "Rs 5000 per
+  day for general ward". The policy cap is 2% of the sum insured up to Rs 5,000, so the constant is
+  right only for sums insured of Rs 2.5 lakh and above, which is every training claim. On a smaller
+  policy the sentence would be wrong, and `score_choices` would catch it only if such a claim were in
+  the set. This is the notebook's §5 warning in prompt form (a lesson "can be wrong") and the reason
+  the chosen program is a JSON file to be reviewed like the playbook, not a prompt to be pasted.
+### 9.5 How the choice is made, and what it decides
+
+`choose_winner` picks, among the five optimised rows, the highest **test** clause accuracy; a tie
+goes to the lower settlement error, then to the shorter prompt, because every extra character is read
+again on every claim (the notebook's §7.3 warning about GEPA's long instructions). The chosen program
+is a JSON file under `programs/`; it would be reviewed and versioned like the playbook, and the
+comparison against row 2 says whether the prompt lever or the memory lever bought more on this set.
+In the stub check everything ties and the rule falls through to the shortest prompt (`DSPy
+Predict`), which is why that row is marked chosen there; it means nothing. In the real run the rule
+did not need a tie-break: GEPA alone reached 1.0.
+
+Expectation written down before the run, and how it fared: *GEPA reaches the ceiling* (held);
+*BootstrapFewShot + coach reaches the ceiling* (did not: 0.952, one line short on one test claim);
+*plain BootstrapFewShot does not bootstrap useful demos because the student only passes claims it
+already gets right* (wrong: the real `gpt-4.1-mini` student solved four of seven training claims
+fully, so it produced four demos and matched the coach row exactly); *no row changes the settlement
+error* (held, by construction). The wrong expectation is the useful one: the shipped prompt with
+`ChainOfThought` is already good enough on a third of the training claims to be its own teacher.
+
+What the choice decides: the GEPA program (`dspy-run-01/programs/gepa.json`) is the candidate to
+replace the coverage analyst's inline `SYSTEM` prompt. It is not wired in: `config/prompts/` is the
+agreed home for prompts (CLAUDE.md names the drift) and the review in 9.4 (the hard-coded Rs 5,000)
+has to be resolved with the Domain lead first. Until then the pipeline keeps the shipped prompt and
+the `chooser` seam makes the swap a one-line change when it is approved.
+
+### 9.6 Limits of this comparison
+
+- **Seven test claims.** One claim is about 0.14 of accuracy; differences of one claim are noise.
+  The notebook's §9 says the same of its 24. Both halves are development claims; the held-out set
+  is never touched (the script refuses the path).
+- **The clause choice does not move money here.** With the current calculator, only a non-payable or
+  waiting-period clause changes an amount, and the stub already gets those right (REF-09). So the
+  comparison is scored on what the model controls, the citation, and the money is a guard. A dev
+  set where the choice decides the rupees would turn the guard into a target.
+- **The validation set is the training half.** GEPA tracks Pareto scores on `valset`; with seven
+  training claims there is nothing left to split, so the training half is reused and the test half
+  stays unseen. Overfitting the training half is possible and would show as train ≫ test.
+- **Stub LMs are stand-ins.** The oracle coach knows the gold; it exists so the teacher path runs
+  offline and is labelled as such. Real-run numbers come only from `dspy-run-01`.
+- **Temperature 0 is not determinism.** The two un-optimised rows moved by one line between the two
+  real runs (OpenRouter does not guarantee identical completions); the optimised rows did not. Report
+  two runs, as sections 4 and 5 do.
+- **One systematic mistake.** The dev set has one teachable error (4.1 vs 4.1.1 after a room breach),
+  so "reached the ceiling" means "learned one rule". A set with several interacting rules would
+  separate the methods better and is the same headroom request as REF-09.

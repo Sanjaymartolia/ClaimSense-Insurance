@@ -12,10 +12,10 @@ from .settlement import OutputGuardError, SettlementAgent
 class Team:
     """The five specialists sharing one Services object (one per graph)."""
 
-    def __init__(self, services: Services, playbook=None):
+    def __init__(self, services: Services, playbook=None, chooser=None):
         self.services = services
         self.extraction = ExtractionAgent(services)
-        self.coverage = CoverageAgent(services, playbook=playbook)
+        self.coverage = CoverageAgent(services, playbook=playbook, chooser=chooser)
         self.fraud = FraudAgent(services)
         self.critic = CriticAgent(services)
         self.settlement = SettlementAgent(services)

@@ -4,7 +4,7 @@
 **Scope:** `src/claimsense/reflexion/`, `scripts/run_reflexion_experiment.py`,
 `scripts/run_reflexion_heldout.py`, `tests/orchestration/test_cases.py`,
 `tests/orchestration/test_reflexion.py`, `docs/experiments/reflexion/`.
-**Written:** 8 November 2026, from the files on `main` at commit `86cf567`.
+**Written:** 8 November 2026, from the files on `main` at commit `86cf567`. **Updated:** 12 November 2026 (DSPy / GEPA comparison, real run `dspy-run-01`, REF-13 to REF-16).
 **Style:** ASD-STE100 (Simplified Technical English). Short sentences. One instruction per
 sentence. Active voice. The same word for the same thing.
 
@@ -64,6 +64,10 @@ cites. The calculator computes every amount. A person approves every settlement.
 | `reflexion/reporting.py` | Writes `report.md` and `report.json`. | `test_cases.py` |
 | `scripts/run_reflexion_experiment.py` | Commands `baseline`, `experiment`, `status`. | `test_cases.py` |
 | `scripts/run_reflexion_heldout.py` | Held-out run with a frozen playbook. Refuses an unfrozen, changed or leaky playbook. Refuses a path inside the repository. | `test_cases.py` |
+| `reflexion/dspy_coverage.py` | L12 §6-7. The `ChooseClauses` DSPy signature. Renders the same facts as the agent prompt. Builds examples from dev cases. The clause-accuracy metric with GEPA feedback. Plugs a compiled program into the agent (`program_chooser`). Offline stub LMs. | `test_dspy_coverage.py` |
+| `reflexion/optimizers.py` | The comparison. Train/test split. BootstrapFewShot and GEPA compile. One `measure()` per row: clause accuracy and the pipeline's rupees. Winner rule. Table and plot. Program save/load. | `test_dspy_coverage.py` |
+| `scripts/run_reflexion_dspy.py` | Runs the eight rows of the notebook's §9 table. Writes `report.md`, `results.json`, `plot.png`, `programs/*.json`. | `test_dspy_coverage.py` |
+| `agents/coverage.py`, `agents/__init__.py` | New `chooser` argument (four lines). Replaces only the clause-selection call. Validation, admissibility and calculator unchanged. | `test_dspy_coverage.py` |
 
 The harness files (`evaluator.py`, `loop.py`, `playbook.py`, `reflector.py`, `metrics.py`,
 `review_cli.py`) started as Spandan Basu's boilerplate. `cases.py`, `reporting.py`, both scripts
@@ -75,6 +79,7 @@ and `test_cases.py` are new.
 |---|---|---|
 | `tests/orchestration/test_cases.py` | 11 | Loading, contract validity, gold reconciliation, reason-code mapping, the 4 Nov gold relabels, unknown codes raise, stub run of all 20 claims, the tolerance, both scripts end to end with every refusal. |
 | `tests/orchestration/test_reflexion.py` | 5 | Learn, approve, improve, ablate, freeze on synthetic cases. Held-out refuses an unfrozen or leaky playbook. |
+| `tests/orchestration/test_dspy_coverage.py` | 13 | Examples leak no eval-only field. Metric scores reachable lines and names the expected clause. Stub LM equals the stub analyst through the whole pipeline. Oracle coach bootstraps demos; program saves and loads. GEPA runs offline. The `chooser` seam is validated like the model. Winner rule. The script end to end. Skipped when `dspy` is not installed (CI). |
 
 Recorded status on 7 November 2026: all tests in `tests/orchestration/` pass (51 tests, this
 includes Spandan's tests). `ruff check` on the Reflexion files reports 0 problems.
@@ -90,6 +95,8 @@ This Mac has no virtual environment, so the numbers were not run again on 8 Nove
 | `docs/experiments/reflexion/run-02/` | Reviewed run, 7 Nov 2026, corrected gold, tolerance Rs 1. **This is the current result.** |
 | `docs/experiments/reflexion/harness-check-stub/` | Stub run, auto-approved. Marked "HARNESS CHECK ONLY". Not a result. |
 | `docs/experiments/reflexion/langgraph-check/` | Real-model baseline through the LangGraph executor. Same numbers as the local runner. |
+| `docs/experiments/reflexion/dspy-harness-check-stub/` | The L12 §6-7 comparison in stub mode, 12 Nov 2026. Marked "HARNESS CHECK ONLY". Not a result. |
+| `docs/experiments/reflexion/dspy-run-01/` | The same comparison with real models, 12 Nov 2026. **GEPA chosen, test clause accuracy 1.0.** |
 | `CONTRIBUTIONS.md` | Rows for 1 Nov and 7 Nov 2026. |
 
 ### 3.4 Commits
@@ -148,6 +155,27 @@ python scripts/run_reflexion_experiment.py experiment --reviewer "<your name>" \
 python scripts/run_reflexion_experiment.py status --out docs/experiments/reflexion/run-03
 ```
 
+### 4.2b DSPy and GEPA comparison (L12 §6-7)
+
+```bash
+pip install -e ".[dev,agents,reflexion]"
+pytest tests/orchestration/test_dspy_coverage.py -q
+
+# stub mode: harness check only
+python scripts/run_reflexion_dspy.py --out docs/experiments/reflexion/dspy-harness-check-stub \
+    --tolerance-rs 1 --gepa-metric-calls 30
+
+# real mode: the result
+export OPENROUTER_API_KEY="<your own key>"
+export CLAIMSENSE_MODEL_REFLECTOR="openai/gpt-4.1-mini"
+python scripts/run_reflexion_dspy.py --out docs/experiments/reflexion/dspy-run-01 --tolerance-rs 1
+```
+
+The first printed line is the banner. It must say `REAL MODEL`. The script writes `report.md`,
+`results.json`, `plot.png` and `programs/*.json` into `--out`. Copy the one table into
+`REPORT-SECTION.md` section 9.4. Switches: `--gepa-metric-calls`, `--bootstrap-demos`, `--skip`,
+`--threads`, `--seed`, `--playbook`, `--calculator`.
+
 ### 4.3 Held-out run (Eval & Red-Team only)
 
 ```bash
@@ -204,6 +232,34 @@ The 4 Nov gold audit changed two claims:
   proportional cut to the other lines. The gold does not.
 
 Both are listed in `cases.RULE_DISAGREEMENTS`.
+
+---
+
+### 5.4 DSPy and GEPA, stub mode (12 Nov 2026, harness check)
+
+Seven test claims. Clause accuracy on reachable lines: 0.574 for every method, 1.0 for the gold
+replay ceiling. Settlement error Rs 18,052.33 in every row. The stub student ignores its prompt, so
+no optimiser can move it. The test misses are all one mistake: 4.1 cited where the adjudicator
+cites 4.1.1 Note (b) on procedure and diagnostics lines after a room-rent breach. Real numbers
+come from `dspy-run-01` (pending). Details in `REPORT-SECTION.md` section 9.
+
+### 5.4b DSPy and GEPA, real models (12 Nov 2026, `dspy-run-01`)
+
+`openai/gpt-4.1-mini` for student, coach and reflector. Seven test claims. Clause accuracy on
+reachable lines: agent prompt 0.645; agent prompt + playbook 0.61; DSPy Predict 0.574; DSPy
+ChainOfThought 0.917; BootstrapFewShot 0.952 (4 bootstrapped demos); BootstrapFewShot + coach 0.952;
+**GEPA 1.0**, equal to the ceiling. Settlement error Rs 18,052.33, exact-match 0.857, edit rate 0.143
+in every row: no lever moved a rupee. GEPA chosen. Its instruction (2,777 characters) states the
+run-01/run-02 approved lesson as a rule and hard-codes Rs 5,000 per day, which is only right for a
+sum insured of Rs 2.5 lakh or more (REF-16). Full reading in `REPORT-SECTION.md` 9.4.
+
+### 5.5 The gold moved after run-02
+
+ADR-0006, ADR-0007 and ADR-0009 (11 Nov 2026) changed the gold and the calculator. The stub
+baseline on today's 22 dev claims is Rs 112,102.91 total error, exact-match 0.864, edit rate 0.136.
+Three real misses remain: CLM-0008 (specific waiting period, no 6.2 list in admissibility),
+CLM-0021 and CLM-0022 (cataract sub-limit, clause 4.3, informational in the calculator). The
+run-02 tables describe the 7 Nov gold. See REF-13.
 
 ---
 
@@ -309,6 +365,52 @@ consumables versus medicines, the cataract sub-limit, or waiting-period edges.
 
 ---
 
+### REF-13: The gold moved after run-02; the reviewed run is stale
+
+**Cause:** ADR-0006, ADR-0007 and ADR-0009 (11 Nov 2026, commits `74fbd2c` to `5221ef4`) changed
+the gold worksheets and the calculator. The dev set now has 22 claims.
+**Effect:** The `run-02` before/after tables no longer reproduce. The stub baseline is now
+Rs 112,102.91 over 22 claims with three real misses (section 5.5).
+**Fix:** Rerun `run_reflexion_experiment.py` with the real model on the final gold (`run-03`), review
+the lessons at the console, update the report. Then freeze.
+**Status:** Open. Blocks the held-out run.
+
+### REF-14: Two gold clauses are never among the stub retriever's candidates
+
+**Where:** `agents/services.py::_SEARCH` (stub `policy_search`).
+**Symptom:** Nursing lines (gold 12.1 since DEC-01) get candidates 4.1 and 4.1.1 only. Cataract
+procedure lines (gold 4.3) get 4.1 and 4.1.1 only. No prompt can cite a clause that was not
+retrieved; the agent falls back to the top candidate.
+**Effect:** These lines are "unreachable" in the DSPy comparison and are excluded from clause
+accuracy. The ceiling row shows what retrieval allows.
+**Fix:** Add `NURSING: [ROOM_RENT_LIMIT, HOSPITALISATION]` to the stub search, and route cataract
+procedures to 4.3; or run the comparison with the real policy-kb retriever.
+**Status:** Open. Owner of `agents/services.py` (Agents & Orchestration); real retriever is
+Knowledge & Memory.
+
+### REF-15: In stub mode the DSPy rows cannot differ from the baseline
+
+**Cause:** The stub student answers every prompt with the top-ranked candidate, whatever the
+instruction or demos say.
+**Effect:** The stub comparison proves the loop and the plumbing, nothing else. All eight rows tie
+except the ceiling.
+**Status:** By design. The result is `dspy-run-01` with real models.
+
+### REF-16: GEPA's instruction hard-codes a rupee constant
+
+**Where:** `docs/experiments/reflexion/dspy-run-01/programs/gepa.json`.
+**Symptom:** The instruction says "maximum allowable room rent is Rs 5000 per day". The policy cap
+is 2% of the sum insured, at most Rs 5,000. Every training claim has a sum insured of Rs 2.5 lakh
+or more, so the constant was never wrong in training.
+**Effect:** On a smaller policy the instruction would tell the analyst the wrong cap. The
+calculator would still pay correctly (rule 1), but the citation and rationale could be wrong.
+**Fix:** Review the instruction like a lesson before it replaces the shipped prompt. Replace the
+constant with the rule ("2% of the sum insured, at most Rs 5,000"), or add a low-sum-insured dev
+claim so the metric catches it.
+**Status:** Open. Blocks wiring the GEPA program into the coverage agent.
+
+---
+
 ## 7. Gold versus calculator: the five disagreements
 
 | # | Disagreement | Claims | Decision | Problem id |
@@ -332,6 +434,10 @@ consumables versus medicines, the cataract sub-limit, or waiting-period edges.
 | 5 | Freeze the gold. | Team | Held-out |
 | 6 | Run the held-out set with the frozen playbook. Paste the tables into REPORT-SECTION.md 4.4. | Eval & Red-Team | Final report |
 | 7 | Add development claims with headroom (REF-09). | Domain & Product | Better result |
+| 8 | ~~Run `scripts/run_reflexion_dspy.py` with real models (`dspy-run-01`). Paste the table into REPORT-SECTION 9.4. Choose the method.~~ Done 12 Nov 2026: GEPA. | Dhruvi Ramani | — |
+| 11 | Review the GEPA instruction with the Domain lead (REF-16), then decide whether it replaces the inline coverage prompt via `config/prompts/`. | Dhruvi Ramani, Domain & Product | Wiring the prompt |
+| 9 | Rerun the Reflexion experiment on the final gold (`run-03`, REF-13). | Dhruvi Ramani | Held-out |
+| 10 | Make nursing and cataract clauses retrievable in the stub search (REF-14). | Agents & Orchestration | Ceiling |
 
 ---
 

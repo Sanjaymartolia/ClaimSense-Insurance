@@ -61,12 +61,16 @@ If CRITIC FEEDBACK is given, fix exactly the problems it names and keep other ch
 class CoverageAgent:
     name = AgentName.COVERAGE
 
-    def __init__(self, services: Services, playbook=None, lesson_k: int = 3):
+    def __init__(self, services: Services, playbook=None, lesson_k: int = 3, chooser=None):
         self.svc = services
         self.belt = ToolBelt(self.name, services.registry(), services.tool_log)
         self.llm = get_llm("coverage")
         self.playbook = playbook  # reflexion.Playbook | None; only APPROVED lessons come out
         self.lesson_k = lesson_k
+        # Optional replacement for the clause-selection call only (L12 §6-7: a compiled DSPy
+        # program, see reflexion/dspy_coverage.py). Same inputs as _ask_model, same validation
+        # below; admissibility, candidates and the calculator are untouched.
+        self.chooser = chooser
 
     # ---------------- admissibility (deterministic) ----------------
     def check_admissibility(self, claim: Claim) -> Admissibility:
@@ -135,7 +139,9 @@ class CoverageAgent:
         lessons = self.lessons_for(claim, cands)
         notes: list[str] = []
 
-        if self.llm is None:
+        if self.chooser is not None:
+            choices = self.chooser(claim, cands, lessons, critic_feedback, previous)
+        elif self.llm is None:
             # Stub: top-ranked candidate; a lesson whose 'applies when' names the line category
             # re-points it to the lesson's first clause. Crude, but it lets the Reflexion harness
             # show a before/after effect offline. The real model reads lessons from the prompt.

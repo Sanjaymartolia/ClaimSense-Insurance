@@ -4,7 +4,7 @@
 #   pip install -r requirements.txt
 #
 # Source of truth is pyproject.toml. This file mirrors its [project] dependencies and every
-# optional extra with the same version ranges (as of 2026-11-11). If you change a dependency, change
+# optional extra with the same version ranges (as of 2026-11-10). If you change a dependency, change
 # pyproject.toml first, then this file. To install only what your area needs, use the extras
 # instead, e.g. pip install -e ".[dev,agents]".
 
@@ -43,19 +43,8 @@ sentence-transformers>=3.0
 ragas>=0.4,<0.5
 langchain-community>=0.3,<0.4  # also satisfies the course kit's >=0.3
 
-# --- observability: OpenTelemetry traces (eval/observability) ---
-# Pinned to one minor version: the GenAI parts of OpenTelemetry still change their names.
-opentelemetry-sdk>=1.45,<1.46
-opentelemetry-exporter-otlp-proto-http>=1.45,<1.46
-opentelemetry-instrumentation-langchain>=0.63,<0.64
-
-# --- deepeval: pytest-style eval suite (eval/deepeval_suite) ---
-# It downgrades click to 8.3.x (uvicorn accepts it). `import deepeval` copies .env into the
-# environment, and it installs a pytest plugin that loads in every pytest run. pyproject.toml's
-# addopts "-p no:deepeval" keeps the plugin off (keep that flag); the suite's conftest.py sets
-# DEEPEVAL_DISABLE_DOTENV=1. Before `deepeval test run`, export DEEPEVAL_DISABLE_DOTENV=1 and
-# DEEPEVAL_TELEMETRY_OPT_OUT=1.
-deepeval>=4.3,<4.4
+# --- reflexion: DSPy / GEPA prompt optimizers for the L12 comparison ---
+dspy>=3.4,<4
 
 # --- docs and course kit: charts and DOCX builds ---
 matplotlib>=3.8

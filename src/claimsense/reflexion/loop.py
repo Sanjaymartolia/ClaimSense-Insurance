@@ -33,27 +33,33 @@ ServicesFactory = Callable[[DevCase], Services]
 ApproveFn = Callable[[Lesson], tuple[bool, str, str | None]]
 
 
-def local_run_fn(services_factory: ServicesFactory, tool_hooks: bool = False) -> RunFn:
-    """tool_hooks=True runs every case under the tool hooks, with a fresh budget per case."""
+def local_run_fn(
+    services_factory: ServicesFactory, tool_hooks: bool = False, chooser=None
+) -> RunFn:
+    """tool_hooks=True runs every case under the tool hooks, with a fresh budget per case.
+    `chooser` replaces only the coverage analyst's clause-selection call (a compiled DSPy
+    program, see dspy_coverage.py); everything else in the pipeline is unchanged."""
     from claimsense.graph import LocalRunner
 
     extra = {"tool_hooks": True} if tool_hooks else {}
 
     def run(case, playbook, reviewer):
-        team = Team(services_factory(case), playbook=playbook)
+        team = Team(services_factory(case), playbook=playbook, chooser=chooser)
         return LocalRunner(team, **extra).run(case.packet, reviewer)
 
     return run
 
 
-def langgraph_run_fn(services_factory: ServicesFactory, tool_hooks: bool = False) -> RunFn:
+def langgraph_run_fn(
+    services_factory: ServicesFactory, tool_hooks: bool = False, chooser=None
+) -> RunFn:
     from claimsense.graph import build_graph, memory_checkpointer, run_claim
 
     extra = {"tool_hooks": True} if tool_hooks else {}
 
     def run(case, playbook, reviewer):
         app = build_graph(
-            Team(services_factory(case), playbook=playbook),
+            Team(services_factory(case), playbook=playbook, chooser=chooser),
             checkpointer=memory_checkpointer(),
             **extra,
         )
