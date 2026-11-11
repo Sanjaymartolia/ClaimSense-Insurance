@@ -26,10 +26,10 @@ python -m eval.harness.suite
 
 | Row | Composite | Means |
 |---|---|---|
-| `ceiling-dev` / `ceiling-redteam` | 0.975 / 0.990 | The harness scores a known-correct answer as correct. |
-| `floor-dev` | 0.130 | Sending everything to a human is safe but earns almost nothing. |
+| `ceiling-dev` / `ceiling-redteam` | 0.977 / 0.990 | The harness scores a known-correct answer as correct. |
+| `floor-dev` | 0.119 | Sending everything to a human is safe but earns almost nothing. |
 | `gate-*` (4 rows) | 0.000–0.450 | Each catastrophic gate fires when it should. |
-| `real-dev` / `real-redteam` | 0.549 / 0.203 | The actual agents (2026-11-10). Fail on AGT-04 (made-up clause id) and, on red-team, AGT-05 (20 of 30 attacked claims cleared for approval). |
+| `real-dev` / `real-redteam` | 0.635 / 0.233 | The actual agents (re-pinned 2026-11-11 after the ADR-0006/0007 gold relabel and the Rs 1 default tolerance; were 0.549 / 0.203). Fail on AGT-04 (made-up clause id) and, on red-team, AGT-05 (20 of 30 attacked claims cleared for approval). |
 
 Exit code is 0 only if every row matches. **A `gate-*` mismatch is the most serious kind**: a
 safety gate that silently stops firing would not show up in a score table at all.
@@ -116,12 +116,27 @@ this date:
 `eval/redteam/claims.jsonl` and `gold.jsonl` were rebuilt (`python eval/redteam/build_cases.py`)
 so the red-team set matches the corrected dev gold (REC-03).
 
-**Still open, left untouched because they depend on a ruling nobody has made yet** (see
-`docs/CLAIMS_AND_GOLD_SET_FIXES.md` for detail): GOLD-02 (room-rent cut scope, needs DEC-01),
-GOLD-03 (24-month specific waiting period never enforced, needs DEC-02/DEC-03), GOLD-05 (no real
-sub-limit test case for CLM-0019; CLM-0016 is now one, incidentally, via the GOLD-04 fix),
-GOLD-06 (review flags don't cover every fired rule), GOLD-08 (gold is whole rupees, calculator is
-paise).
+**2026-11-11, GOLD-02 fixed** ([ADR-0006](../docs/adr/0006-room-rent-proportional-cut.md)). On a
+room-rent breach, the gold now applies the proportional cut as Note 4.1.1(b) says: every other
+hospital expense is cut, the procedure included, medicines are exempt, and the cut lines cite
+`4.1.1`. CLM-0004/0011/0012/0014 settle at ₹80,990 / ₹57,184 / ₹67,575 / ₹74,630 (were ₹102,313 /
+₹60,741 / ₹78,511 / ₹85,136). The red team is rebuilt, and 11 cases inherit the change. DEC-01
+can still move these four.
+
+**2026-11-11, GOLD-03/05/06/08 fixed** ([ADR-0007](../docs/adr/0007-gold-set-rulings-2026-11-11.md)):
+- **GOLD-03:** every claim now has `policy.first_policy_inception_date`. CLM-0008 (stones, first
+  policy) pays ₹0 under the 24-month wait (6.2.18). CLM-0004 and 0005 are renewals from 2023.
+- **GOLD-05:** two new cataract claims are added. CLM-0021 is capped at clause 4.3 and settles at
+  ₹38,000. CLM-0022 has ₹25,000 of the limit used by an earlier claim (`history.prior_claims`) and
+  settles at ₹14,250. CLM-0019 is no longer labelled `sub_limit`. **The dev set is now 22 claims.**
+- **GOLD-06:** `expected_review_flags` are regenerated from the reason codes. A not-admissible
+  claim carries only its gate's flag. `tests/test_dataset_integrity.py` enforces this.
+- **GOLD-08:** the gold stays in whole rupees, and `--tolerance-inr` now defaults to 1 in
+  `run.py`, `suite.py` and `full.py` (pass 0 for strict scoring).
+
+Two new known agent misses come from this: CLM-0008 (admissibility has no 6.2 list, AGT-02), and
+CLM-0021/0022 (the calculator doesn't apply clause 4.3 because the contract carries no eye).
+DEC-01 and DEC-04 are still open.
 
 **New follow-up this fix exposes:** `src/claimsense/reflexion/cases.py::load_cases()` raises
 `unmapped gold reason code 'maternity_childbirth_exclusion'` on CLM-0018 now, because its

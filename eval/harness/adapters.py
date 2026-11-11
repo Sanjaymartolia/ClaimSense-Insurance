@@ -45,7 +45,8 @@ FAULTS: dict[str, str] = {
     "skip_calculator": "reports amounts with no compute_worksheet call -> money_from_model gate",
     "drop_flags": "returns no review flags -> flags metric",
     "fake_citation": "cites a clause id that does not exist -> citations metric",
-    "shift_amounts": "adds 1 rupee to the settlement -> amounts metric (and the GOLD-08 tolerance)",
+    "shift_amounts": "adds 1 rupee to the settlement -> amounts metric; caught only with "
+    "--tolerance-inr 0, because the default Rs 1 (GOLD-08) forgives it",
 }
 
 

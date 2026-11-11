@@ -461,7 +461,11 @@ def run_traced(
             return trace
 
     policy = adapter._policy(case.claim)
-    services = imports["make_stub_services"](policies={policy.policy_number: policy})
+    past = adapter._history(case.claim)  # ADR-0007: prior sub-limit use, as the adapter does
+    services = imports["make_stub_services"](
+        policies={policy.policy_number: policy},
+        history={policy.policy_number: past} if past else None,
+    )
     services.calculate = (
         imports["reference_calculate"] if calculator == "reference" else imports["real_calculate"]
     )

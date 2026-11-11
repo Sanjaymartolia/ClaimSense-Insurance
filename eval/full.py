@@ -177,7 +177,12 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     p.add_argument("--stub", action="store_true", help="free deterministic agents, even with a key")
     p.add_argument("--variant", default="v1", help=f"comma list from {sorted(agent.VARIANTS)}")
     p.add_argument("--splits", default="dev,redteam", help="comma list: dev, redteam")
-    p.add_argument("--tolerance-inr", type=int, default=0, help="rupee tolerance (GOLD-08)")
+    p.add_argument(
+        "--tolerance-inr",
+        type=int,
+        default=1,
+        help="rupee tolerance (GOLD-08, ADR-0007; default 1)",
+    )
     p.add_argument("--workers", type=int, default=1, help="claims in parallel (real-model runs)")
     p.add_argument("--show", default="", help="claim ids whose full trace to print")
     p.add_argument("--judge", action="store_true", help="agent-suite payload judge (costs money)")

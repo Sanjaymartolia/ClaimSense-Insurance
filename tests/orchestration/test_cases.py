@@ -17,6 +17,7 @@ from claimsense.reflexion import Playbook, evaluate, local_run_fn, run_case, sum
 from claimsense.reflexion.cases import (
     MATERNITY_EXCLUSION,
     gold_from_fixture,
+    history_from_fixture,
     load_cases,
     packet_from_fixture,
     policy_from_fixture,
@@ -44,8 +45,8 @@ def raw():
 
 
 def test_loads_every_dev_claim_once(cases):
-    assert len(cases) == 20
-    assert len({c.case_id for c in cases}) == 20
+    assert len(cases) == 22
+    assert len({c.case_id for c in cases}) == 22
     assert all(c.split == "dev" for c in cases)
 
 
@@ -94,6 +95,8 @@ def test_gold_clause_choices_follow_the_reason_codes(cases, raw):
                 assert want == C.ICU_LIMIT and cats[line_id] == "icu"
             elif "room_rent_proportional_reduction" in codes[line_id]:
                 assert want == C.OTHER_EXPENSES
+            elif "cataract_sub_limit" in codes[line_id]:
+                assert want == C.CATARACT
             else:
                 assert want == C.HOSPITALISATION
         # a duplicate line is a fraud finding, not a clause choice
@@ -131,6 +134,42 @@ def test_gold_audit_relabels_are_mapped(cases, raw):
     assert c16.gold_worksheet.total_payable == Decimal("59346")
 
 
+#: GOLD-02 / ADR-0006: settlement after the Note 4.1.1(b) cut (whole rupees, GOLD-08).
+GOLD_02_SETTLEMENTS = {
+    "CLM-0004": Decimal("80990"),
+    "CLM-0011": Decimal("57184"),
+    "CLM-0012": Decimal("67575"),
+    "CLM-0014": Decimal("74630"),
+}
+
+
+@pytest.mark.parametrize("claim_id", sorted(GOLD_02_SETTLEMENTS))
+def test_gold_room_rent_cut_follows_note_4_1_1_b(cases, raw, claim_id):
+    """GOLD-02 / ADR-0006: on a room-rent breach, every other hospital expense is cut in
+    proportion, *except medicines* (procedure included), citing Note 4.1.1(b)."""
+    claims, golds = raw
+    cats = {
+        b["line_id"]: b["category"]
+        for b in next(x for x in claims if x["claim_id"] == claim_id)["bill_lines"]
+    }
+    for li in golds[claim_id]["line_items"]:
+        cat = cats[li["line_id"]]
+        if cat == "room_rent":
+            assert li["reason_codes"] == ["room_rent_daily_cap"]
+        elif cat == "pharmacy":
+            assert li["reason_codes"] == [] and li["deduction_before_copay_inr"] == 0
+        else:
+            assert li["reason_codes"] == ["room_rent_proportional_reduction"], li["line_id"]
+            assert li["clause_id"] == C.OTHER_EXPENSES
+            assert li["deduction_before_copay_inr"] > 0
+
+    case = next(c for c in cases if c.case_id == claim_id)
+    assert case.gold_worksheet.total_payable == GOLD_02_SETTLEMENTS[claim_id]
+    # the reference calculator follows the note too: only paise-level rounding separates them
+    result, _ = run_case(local_run_fn(stub_services_factory()), case, None)
+    assert result.abs_error < 1, (claim_id, result.proposed_total, result.gold_total)
+
+
 @pytest.mark.parametrize(
     ("diagnosis", "excluded"),
     [
@@ -164,6 +203,32 @@ def test_policy_record_comes_from_the_fixture(raw):
     assert packet_from_fixture(fx)["fixture_policy"]["policy_number"] == pol.policy_number
 
 
+def test_waiting_periods_run_from_the_first_policy_inception(raw):
+    """GOLD-03 / ADR-0007: CLM-0004 is a renewal first insured in 2023; CLM-0008 is a first policy.
+    Fixtures without the field (held-out predates it) fall back to the policy start."""
+    claims, _ = raw
+    by_id = {c["claim_id"]: c for c in claims}
+    assert str(policy_from_fixture(by_id["CLM-0004"]).first_inception) == "2023-01-01"
+    assert str(policy_from_fixture(by_id["CLM-0008"]).first_inception) == "2026-01-01"
+    old = json.loads(json.dumps(by_id["CLM-0004"]))
+    del old["policy"]["first_policy_inception_date"]
+    assert str(policy_from_fixture(old).first_inception) == old["policy"]["policy_start_date"]
+
+
+def test_prior_claims_reach_the_claim_history(cases, raw):
+    """GOLD-05 / ADR-0007: CLM-0022's earlier cataract claim used Rs 25,000 of clause 4.3; the fraud
+    agent's claim_history must see it."""
+    claims, _ = raw
+    fx = next(c for c in claims if c["claim_id"] == "CLM-0022")
+    (past,) = history_from_fixture(fx)
+    assert past.policy_number == fx["policy"]["policy_id"]
+    assert past.sub_limits_used == {C.CATARACT: Decimal("25000")}
+    case = next(c for c in cases if c.case_id == "CLM-0022")
+    svc = stub_services_factory()(case)
+    assert svc.claim_history(policy_number=fx["policy"]["policy_id"]) == [past]
+    assert history_from_fixture(claims[0]) == []
+
+
 def test_unknown_reason_code_or_category_raises(raw):
     claims, golds = raw
     fx, g = json.loads(json.dumps(claims[3])), json.loads(json.dumps(golds[claims[3]["claim_id"]]))
@@ -182,14 +247,16 @@ def test_unknown_reason_code_or_category_raises(raw):
 #: the check exists: the test below then fails loudly if the id is still listed but no longer
 #: missed. CLM-0018 (caesarean, clause 7.15; GOLD-01 / AGT-02) was removed on 2026-11-11 when
 #: `check_admissibility` gained the maternity exclusion.
-KNOWN_UNIMPLEMENTED_EXCLUSIONS: set[str] = set()
+#: CLM-0008 (ureteroscopy for stones on a first policy: 24-month wait, clause 6.2.18; GOLD-03 /
+#: ADR-0007) stays until `check_admissibility` learns the 6.2 list (AGT-02).
+KNOWN_UNIMPLEMENTED_EXCLUSIONS: set[str] = {"CLM-0008"}
 
 
 def test_stub_dry_run_of_all_dev_claims_completes(cases):
     """The plan's day-1 dry run: every case ends settled or repudiated, nothing crashes, and the
     not-admissible cases come out at Rs 0 like their gold, except the documented exclusion gap."""
     results = evaluate(local_run_fn(stub_services_factory()), cases, None)
-    assert len(results) == 20
+    assert len(results) == 22
     assert {r.status for r in results} <= {"settled", "repudiated"}
     for r, c in zip(results, cases, strict=True):
         if c.case_id in KNOWN_UNIMPLEMENTED_EXCLUSIONS:
@@ -199,7 +266,7 @@ def test_stub_dry_run_of_all_dev_claims_completes(cases):
         elif not c.gold_admissible:
             assert r.abs_error == 0, (c.case_id, r.proposed_total, r.gold_total)
     s = summarize(results)
-    assert s["cases"] == 20
+    assert s["cases"] == 22
     assert 0 <= s["exact_match_rate"] <= 1
 
 
@@ -311,7 +378,7 @@ def test_day5_heldout_script_guards_and_runs(tmp_path, monkeypatch):
         ho.main(["--playbook", str(pb_path), "--heldout", DEV, "--out", str(tmp_path / "res")])
     ho.main(args + ["--repeat", "2", "--tolerance-rs", "1"])
     report = (tmp_path / "res" / "heldout_report.md").read_text()
-    assert "held-out cases: 20" in report and "Spread across 2" in report
+    assert "held-out cases: 22" in report and "Spread across 2" in report
     assert "tolerance: Rs 1" in report
     data = json.loads((tmp_path / "res" / "heldout_report.json").read_text())
     assert data["playbook_hash"] == pb.frozen_hash and len(data["after_runs"]) == 2

@@ -11,6 +11,11 @@ DEC-04 are unchanged and still need a ruling. The GOLD-01 fix also surfaced a ne
 Agents & Orchestration adds one (plus a clause-7.15 constant in `agents/clauses.py`). Not fixed
 here because both files are outside `eval/`.
 
+**2026-11-11 update:** GOLD-02 is fixed by [ADR-0006](adr/0006-room-rent-proportional-cut.md),
+which applies the room-rent cut per Note 4.1.1(b). GOLD-03, GOLD-05, GOLD-06, GOLD-08, DEC-02 and
+DEC-03 are fixed by [ADR-0007](adr/0007-gold-set-rulings-2026-11-11.md); the dev set is now 22
+claims. Still open: DEC-01 and DEC-04.
+
 ## Summary
 **The JSONL files are well formed, and the gold's arithmetic is right. The problem is the rules behind the gold.** The gold was generated from a demo ruleset (`data/README.md`) that disagrees with the policy wording in several places. A wrong answer can therefore score as correct: the real-model run paid CLM-0018, a Caesarean the policy excludes, at ₹111,406.50, and that counted as a ₹0.50 rounding difference.
 
@@ -18,9 +23,9 @@ This doesn't block agent building, because no agent code reads these files. It d
 
 | Priority | Fix first | IDs |
 |---|---|---|
-| Critical | Wrong payouts in gold and the agent gaps that hide them | ~~GOLD-01~~ (fixed 2026-11-04), GOLD-02, GOLD-03, AGT-01, AGT-02, DEC-01 |
-| High | Missing test cases, unverified labels, no evaluation harness | ~~GOLD-04~~ (fixed 2026-11-04), GOLD-05, ~~GOLD-07~~ (partially fixed 2026-11-04), CLAIM-01, CLAIM-03, RET-01, RET-02, EVAL-01, AGT-03 to AGT-07, AGT-10, AGT-11, AGT-12, AGT-14, DEC-02, DEC-04 |
-| Medium | Consistency and accuracy | GOLD-06, GOLD-08, CLAIM-02, CLAIM-04, RET-03, RET-04, RET-05, EVAL-02, AGT-08, AGT-09, AGT-13, DEC-03, REC-01 to REC-04 |
+| Critical | Wrong payouts in gold and the agent gaps that hide them | ~~GOLD-01~~ (fixed 2026-11-04), ~~GOLD-02~~ (fixed 2026-11-11), ~~GOLD-03~~ (fixed 2026-11-11), AGT-01, AGT-02, DEC-01 |
+| High | Missing test cases, unverified labels, no evaluation harness | ~~GOLD-04~~ (fixed 2026-11-04), ~~GOLD-05~~ (fixed 2026-11-11), ~~GOLD-07~~ (partially fixed 2026-11-04), CLAIM-01, CLAIM-03, RET-01, RET-02, EVAL-01, AGT-03 to AGT-07, AGT-10, AGT-11, AGT-12, AGT-14, DEC-02, DEC-04 |
+| Medium | Consistency and accuracy | ~~GOLD-06~~, ~~GOLD-08~~ (fixed 2026-11-11), CLAIM-02, CLAIM-04, RET-03, RET-04, RET-05, EVAL-02, AGT-08, AGT-09, AGT-13, DEC-03, REC-01 to REC-04 |
 | Low | Tidying | REC-05, REC-06, REC-07 |
 
 See the "2026-11-04 update" note above for exactly what changed and the one new follow-up it created.
@@ -67,7 +72,7 @@ Each item was reproduced from the data or code.
 - **Still open:** `CLAIM_REASONS` in `src/claimsense/reflexion/cases.py` has no entry for `maternity_childbirth_exclusion` yet, so `load_cases()` raises on CLM-0018. That file and `agents/clauses.py` (needs a 7.15 constant) are outside `eval/`, owned by Agents & Orchestration — not changed here.
 - **Depends on:** Domain lead sign-off on this relabel (not yet obtained — applied here directly from clause 7.15's text, which this audit already read as unambiguous; still worth a second look); AGT-02, so the pipeline can reach the same answer.
 
-### GOLD-02: The room-rent cut is applied to the wrong lines
+### GOLD-02: The room-rent cut is applied to the wrong lines — **Fixed 2026-11-11**
 - **Priority:** Critical
 - **Where:** `gold_worksheets.jsonl`, CLM-0004, 0011, 0012 and 0014; 11 red-team cases; the rule wording in `data/README.md`.
 - **Issue:** Gold cuts medicines and leaves the procedure line uncut. Note 4.1.1(b) cuts "all other expenses incurred at the Hospital, with the exception of cost of medicines". The data also contradicts itself: all 20 procedure lines have `room_linked: true`, and `data/README.md` says room-linked charges are cut, yet gold never cuts them.
@@ -82,14 +87,17 @@ Each item was reproduced from the data or code.
 
 - **Fix:** Agree one reading in an ADR, correct `data/README.md`, relabel the four claims and rebuild the red-team set. These figures may change again with DEC-01 and GOLD-03.
 - **Depends on:** Domain lead and T15 owners. `docs/experiments/reflexion/README.md` on `main` already lists this as an open finding.
+- **Done:** The Domain lead ruled for the note in [ADR-0006](adr/0006-room-rent-proportional-cut.md). The four claims are relabelled: procedure, nursing and diagnostics are cut and cite `4.1.1`, and medicines are paid in full. New gold: ₹80,990, ₹57,184, ₹67,575 and ₹74,630, each within ₹1 of the calculator (GOLD-08 rounding). `data/README.md` is corrected. The red team is rebuilt (11 cases changed). Test: `tests/orchestration/test_cases.py::test_gold_room_rent_cut_follows_note_4_1_1_b`.
+- **Still open:** DEC-01 (nursing inside the room limit?) can still move these four figures.
 
-### GOLD-03: Gold ignores the 24-month specific waiting period
+### GOLD-03: Gold ignores the 24-month specific waiting period — **Fixed 2026-11-11**
 - **Priority:** Critical
 - **Where:** `gold_worksheets.jsonl`, CLM-0008 (certain if DEC-02 confirms the first-policy date), CLM-0004 and CLM-0005 (conditional); 8 red-team cases. The demo ruleset in `data/README.md` has no such rule.
 - **Issue:** Every claim has `specific_illness_waiting_months: 24` and a policy start of 2026-01-01. Gold applies the 30-day wait from that date, so it treats the date as the first policy, but it never applies clause 6.2. CLM-0008 ("Ureteroscopy with stone removal", admitted 2026-03-16) is labelled `normal_admissible` and pays ₹79,843, although 6.2.18 lists calculi in the urinary system under the 24-month wait. CLM-0004 and CLM-0005 are gallbladder removals. Clause 6.2.18 also lists the gall bladder, but those claims don't state the cause.
 - **Expected:** CLM-0008 pays ₹0 or goes to review if this is the first policy. CLM-0004 and CLM-0005 need a stated cause (DEC-03).
 - **Fix:** Add the rule to the ruleset, relabel the claims, and add a clear specific-wait test case.
 - **Depends on:** CLAIM-01, DEC-02, DEC-03, AGT-02.
+- **Done (ADR-0007):** Every claim states `policy.first_policy_inception_date`. CLM-0008 is a first policy, so it pays ₹0 under 6.2.18 (`specific_illness_waiting_period`). CLM-0004 and 0005 are renewals from 2023-01-01, so the wait has passed and DEC-03 no longer matters. The agent gap (no 6.2 check, AGT-02) is listed in `KNOWN_UNIMPLEMENTED_EXCLUSIONS`.
 
 ### GOLD-04: CLM-0016 pays an ICU day above the ICU limit — **Partially fixed 2026-11-04**
 - **Priority:** High
@@ -101,21 +109,23 @@ Each item was reproduced from the data or code.
 - **Still open:** The "6 ward nights plus 1 ICU day for a 6-night stay" overlap is **not resolved** — nobody has decided whether the ICU day is one of the 6 nights (so room nights should drop to 5) or an additional day. Left as billed.
 - **Depends on:** Domain lead, specifically for the overlapping-day question above; the calculator's ICU rule (T15).
 
-### GOLD-05: The `sub_limit` scenario tests no sub-limit
+### GOLD-05: The `sub_limit` scenario tests no sub-limit — **Fixed 2026-11-11**
 - **Priority:** High
 - **Where:** `gold_worksheets.jsonl`, CLM-0016 and CLM-0019; 4 red-team cases.
 - **Issue:** Both claims have the flag `sub_limit`, but no gold line uses a `sub_limit` reason code. Cataract, the only sub-limit in the demo rules, appears in no dev claim. `history.sub_limit_used_inr` is 0 and `prior_claims` is empty on all 20. Capstone guide p.10 requires "sub-limits partly used by earlier claims".
 - **Expected:** At least one claim where a sub-limit changes the amount, and one where an earlier claim used part of it.
 - **Fix:** Add cataract claims, including a partly used limit. Relabel CLM-0016 and CLM-0019.
 - **Depends on:** T22, T39; prior-claim mapping in `policy_from_fixture`, which currently raises if `prior_claims` is present.
+- **Done (ADR-0007):** Added CLM-0021 (cataract, capped at clause 4.3, ₹38,000) and CLM-0022 (₹25,000 of 4.3 used by an earlier claim on the same eye, ₹14,250). `prior_claims` is mapped by `history_from_fixture`. CLM-0019 is relabelled `normal_admissible` with no flag. The calculator still doesn't apply 4.3, because the contract has no eye field.
 
-### GOLD-06: Review flags don't match reason codes
+### GOLD-06: Review flags don't match reason codes — **Fixed 2026-11-11**
 - **Priority:** Medium
 - **Where:** `gold_worksheets.jsonl`; `eval/redteam/gold.jsonl`.
 - **Issue:** CLM-0001, 0002, 0003 and 0017 fail on the waiting period but have no `waiting_period` flag. CLM-0008 and 0020 deduct a non-payable line but have no `non_payable_items` flag. Five red-team cases inherit the second problem. `docs/TEAM_GUIDE.md` notes that flags follow the scenario rather than every rule.
 - **Expected:** A flag for every rule that fired, or a documented rule that flags name only the main scenario. Flag scoring can't be trusted until one of these is chosen.
 - **Fix:** Generate flags from the reason codes.
 - **Depends on:** T39, T41.
+- **Done (ADR-0007):** Flags are derived from reason codes, and a not-admissible claim carries only its gate's flag. Enforced by `tests/test_dataset_integrity.py::test_gold_flags_follow_reason_codes` (also REC-02, in part).
 
 ### GOLD-07: Gold has no clause IDs — **Partially fixed 2026-11-04**
 - **Priority:** High
@@ -127,13 +137,14 @@ Each item was reproduced from the data or code.
 - **Still open:** `duplicate_line` deductions (CLM-0005, 0009, 0010, 0015) have no `clause_id` — that is DEC-04, not a lookup gap. CLM-0013's `admission_or_discharge_outside_policy_period` gate also has none: no clause number for policy-period validity has been confirmed anywhere in the docs reviewed. AGT-01's four placeholder constants in `agents/clauses.py` are also still unresolved (outside `eval/`).
 - **Depends on:** AGT-01; RET-02; DEC-04 (duplicate lines); a confirmed policy-period clause (CLM-0013).
 
-### GOLD-08: Gold uses whole rupees, the calculator uses paise
+### GOLD-08: Gold uses whole rupees, the calculator uses paise — **Fixed 2026-11-11**
 - **Priority:** Medium
 - **Where:** `gold_worksheets.jsonl`; `Money` in `src/claimsense/contracts/claim.py`; the evaluator on `main`.
 - **Issue:** Six dev claims differ from the pipeline only by rounding, and cut lines can differ by up to ₹0.50, which the simulated adjudicator counts as an edit.
 - **Expected:** Rounding never counts as a mistake.
 - **Fix:** Relabel gold to paise, or add a tolerance. `docs/experiments/reflexion/README.md` names Spandan's evaluator as the place for a tolerance.
 - **Depends on:** Eval & Red-Team, Spandan.
+- **Done (ADR-0007):** The gold stays in rupees, and the eval harness CLIs default `--tolerance-inr` to 1. The Reflexion scripts keep their explicit `--tolerance-rs`.
 
 ## Claim fixture data
 
@@ -388,14 +399,14 @@ These need a person's ruling. The wording and the current behaviour were checked
 - **Recommendation:** Treat nursing as inside the cap unless the Domain lead finds a reason not to, because that is the plain wording. This would change nearly every paid amount, so decide it first.
 - **Depends on:** Domain lead and T15 owners, before 2026-11-13.
 
-### DEC-02: Is 2026-01-01 the first policy date?
+### DEC-02: Is 2026-01-01 the first policy date? — **Decided 2026-11-11 (ADR-0007)**
 - **Priority:** High
 - **Where:** `claims.jsonl`; `policy_from_fixture` on `main`.
 - **Issue:** If yes, clause 6.2's waits apply to all 20 claims. If some are renewals, the 30-day ₹0 outcomes may change as well.
 - **Recommendation:** State it per claim (CLAIM-01), with a mix of first policies and renewals.
 - **Depends on:** Domain lead.
 
-### DEC-03: Was the gallbladder removal for gallstones?
+### DEC-03: Was the gallbladder removal for gallstones? — **Moot 2026-11-11 (ADR-0007: renewals past the wait)**
 - **Priority:** Medium
 - **Where:** CLM-0004, CLM-0005.
 - **Issue:** Clause 6.2.18 depends on calculi, and these claims don't state the cause.

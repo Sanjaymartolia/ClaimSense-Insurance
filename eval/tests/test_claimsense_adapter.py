@@ -209,3 +209,14 @@ def test_the_pipeline_still_cites_the_agt04_policy_schedule_placeholder(adapter,
     offenders = {k: v for k, v in offenders.items() if v}
     assert offenders, "AGT-04 appears fixed: delete this test and the note in the report"
     assert offenders == {"CLM-0013": ["policy_schedule:period"]}
+
+
+def test_policy_and_history_follow_the_fixture(adapter, dev_cases):
+    """ADR-0007: waiting periods run from `first_policy_inception_date` (GOLD-03), and an earlier
+    claim's sub-limit use reaches claims-db history (GOLD-05)."""
+    by_id = {c.claim.claim_id: c.claim for c in dev_cases}
+    assert str(adapter._policy(by_id["CLM-0004"]).first_inception) == "2023-01-01"
+    assert str(adapter._policy(by_id["CLM-0008"]).first_inception) == "2026-01-01"
+    (past,) = adapter._history(by_id["CLM-0022"])
+    assert past.sub_limits_used == {"new_india_arogya_sanjeevani:4.3": 25000}
+    assert adapter._history(by_id["CLM-0004"]) == []

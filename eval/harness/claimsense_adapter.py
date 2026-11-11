@@ -162,7 +162,13 @@ class ClaimSenseAdapter:
     def _load() -> dict[str, Any]:
         """Import the product once, and explain clearly if it cannot be imported."""
         try:
-            from claimsense.agents import PolicyInfo, Team, make_stub_services, reference_calculate
+            from claimsense.agents import (
+                PastClaim,
+                PolicyInfo,
+                Team,
+                make_stub_services,
+                reference_calculate,
+            )
 
             # Not re-exported from `claimsense.agents`, so it comes from its own module. Imported
             # here rather than inside the "real" branch so a missing symbol fails at construction
@@ -174,6 +180,7 @@ class ClaimSenseAdapter:
                 f'cannot import the ClaimSense pipeline ({e}). Run: pip install -e ".[dev]"'
             ) from e
         return {
+            "PastClaim": PastClaim,
             "PolicyInfo": PolicyInfo,
             "Team": Team,
             "make_stub_services": make_stub_services,
@@ -282,9 +289,11 @@ class ClaimSenseAdapter:
             policy_number=policy.get("policy_id", "UNKNOWN"),
             period_start=start,
             period_end=date.fromisoformat(policy["policy_end_date"]),
-            # The fixture states no first-inception date, so the demo rules run the waiting period
-            # from the policy start. Defect CLAIM-01 and decision DEC-02 cover this assumption.
-            first_inception=start,
+            # Waiting periods run from the first policy (ADR-0007, GOLD-03). A fixture without the
+            # field (made before it existed) falls back to the old first-policy assumption.
+            first_inception=date.fromisoformat(policy["first_policy_inception_date"])
+            if policy.get("first_policy_inception_date")
+            else start,
             sum_insured=Decimal(str(policy.get("sum_insured_inr", 0))),
             insured_pseudonym=(raw.get("policyholder") or {}).get("synthetic_person_id", "UNKNOWN"),
             declared_peds=[stay["diagnosis"]]
@@ -292,6 +301,25 @@ class ClaimSenseAdapter:
             else [],
             city_tier=(raw.get("hospital") or {}).get("city_tier", "tier_1"),
         )
+
+    def _history(self, claim: ClaimRecord) -> list:
+        """`history.prior_claims` -> claims-db history for this policy (ADR-0007, GOLD-05)."""
+        from datetime import date
+
+        raw = claim.model_dump()
+        policy_number = (raw.get("policy") or {}).get("policy_id", "UNKNOWN")
+        return [
+            self._imports["PastClaim"](
+                claim_id=pc["claim_id"],
+                policy_number=policy_number,
+                bill_fingerprints=[],
+                sub_limits_used={
+                    k: Decimal(str(v)) for k, v in pc.get("sub_limits_used_inr", {}).items()
+                },
+                admission_date=date.fromisoformat(pc["admission_date"]),
+            )
+            for pc in (raw.get("history") or {}).get("prior_claims", [])
+        ]
 
     # ------------------------------------------------------------------ state -> AgentOutput
     @staticmethod
@@ -406,7 +434,11 @@ class ClaimSenseAdapter:
         packet = self._packet(claim)
         policy = self._policy(claim)
 
-        services = imports["make_stub_services"](policies={policy.policy_number: policy})
+        past = self._history(claim)
+        services = imports["make_stub_services"](
+            policies={policy.policy_number: policy},
+            history={policy.policy_number: past} if past else None,
+        )
         services.calculate = (
             imports["reference_calculate"]
             if self.calculator == "reference"

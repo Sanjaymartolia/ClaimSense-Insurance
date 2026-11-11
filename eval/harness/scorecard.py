@@ -183,9 +183,9 @@ def build_report(
         "amount_tolerance_inr": tolerance_inr,
         "cases": [s.model_dump() for s in case_scores],
         "gold_caveat": (
-            "Gold is demo-rule and partly wrong: GOLD-02, GOLD-03, GOLD-05, GOLD-06 and GOLD-08 "
-            "are open in docs/CLAIMS_AND_GOLD_SET_FIXES.md. A high score means 'agrees with "
-            "today's gold', not 'correct under the policy wording'."
+            "Gold is demo-rule, relabelled against the policy wording by ADR-0006/0007; DEC-01 "
+            "and DEC-04 are still open in docs/CLAIMS_AND_GOLD_SET_FIXES.md. A high score means "
+            "'agrees with today's gold', not 'correct under the policy wording'."
         ),
     }
 
