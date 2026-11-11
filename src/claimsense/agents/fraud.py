@@ -39,6 +39,21 @@ class FraudAgent:
         if dups:
             flags.append(f"duplicate bill lines already claimed: {', '.join(dups)}")
 
+        # 1b. the same line billed twice inside this bill (B5 / AGT-03): same category, same
+        # description (case and spacing ignored) and same amount under a new line id. A person
+        # decides whether it is a real repeat (e.g. two identical visits) or a double charge;
+        # how a duplicate is deducted is DEC-04, so the amount is left alone here.
+        first_seen: dict[tuple, str] = {}
+        repeats = []
+        for line in claim.bill_lines:
+            key = (line.category, " ".join(line.description.lower().split()), line.amount)
+            if key in first_seen:
+                repeats.append(f"{line.line_id} repeats {first_seen[key]}")
+            else:
+                first_seen[key] = line.line_id
+        if repeats:
+            flags.append(f"duplicate bill lines within this bill: {', '.join(repeats)}")
+
         # 2. sub-limits already used this policy year (the calculator must also receive these).
         # Sub-limits reset at renewal, and renewals keep the policy number, so only past claims
         # admitted inside the current period count. Duplicates (step 1) still use all history.

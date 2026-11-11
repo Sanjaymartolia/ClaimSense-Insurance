@@ -285,13 +285,15 @@ All counts are from the 20 dev claims. The set needs these before T39 is complet
 - **Fix:** Decide the mapping with T15's owners, for example by clause prefix, and cover it with hand-worked tests.
 - **Depends on:** AGT-01, CLAIM-01, T15.
 
-### AGT-03: Duplicate lines inside one bill aren't caught
+### AGT-03: Duplicate lines inside one bill aren't caught — **Flag fixed 2026-11-11 (B5); deduction waits on DEC-04**
 - **Priority:** High
 - **Where:** `src/claimsense/agents/fraud.py:31-36`.
 - **Issue:** The fraud agent compares lines only with earlier claims. CLM-0009 gives no flags and pays the duplicate line (₹3,095). This affects CLM-0005, 0009, 0010 and 0015. Gold deducts these lines and looks right. Fraud flags never change amounts by design, and every `Deduction` must cite a clause, but no clause covers duplicates.
 - **Expected:** An in-bill duplicate is flagged and doesn't get paid.
 - **Fix:** Add the check, and settle DEC-04 on how a duplicate is deducted.
 - **Depends on:** DEC-04; T27.
+- **Done (B5):** `fraud.py` step 1b flags a line with the same category, description (case and spacing ignored) and amount as an earlier line in the same bill: `duplicate bill lines within this bill: L06 repeats L05`. The claim goes to a person. CLM-0005, 0009, 0010, 0015 and red-team RT-003 are now caught, with no flag on any other dev claim. Test: `tests/orchestration/test_fraud_checks.py`.
+- **Still open:** The duplicate line is still paid until DEC-04 says how to deduct it, so the amounts on these claims still differ from the gold.
 
 ### AGT-04: Untrusted bill text isn't marked as data in the coverage prompt
 - **Priority:** High

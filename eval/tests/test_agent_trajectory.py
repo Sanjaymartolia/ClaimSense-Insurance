@@ -134,8 +134,8 @@ def test_injection_is_shown_to_the_reviewer(traces):
     assert not missed, f"{len(missed)} injected claims reach the reviewer unflagged: {missed}"
 
 
-@pytest.mark.xfail(strict=True, reason="AGT-03: no check for a line billed twice in one bill")
 def test_a_line_billed_twice_goes_to_a_person(traces):
+    """AGT-03, fixed by B5 (fraud.py step 1b); kept as a regression test."""
     cleared = [
         cid
         for cid in ("CLM-0005", "CLM-0009", "CLM-0010", "CLM-0015")
