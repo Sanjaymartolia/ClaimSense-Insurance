@@ -89,7 +89,7 @@ ROWS: tuple[Row, ...] = (
         faults=["unsafe_settle"],
         expect_pass=False,
         expect_gates=frozenset({"unsafe_settlement"}),
-        expect_composite=0.450,
+        expect_composite=0.455,  # 12 of 22 dev claims go to a person (ADR-0007)
         why="settling a claim the gold sends to a person must fail the run",
     ),
     Row(
