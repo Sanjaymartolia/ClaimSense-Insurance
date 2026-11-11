@@ -299,13 +299,18 @@ class Nodes:
         if not s.get("clause_choices"):  # came from the repudiation path: run coverage first
             choices, _, _ = self.team.coverage.choose_clauses(claim, locked=locked)
         prev = s.get("worksheet")
+        # B7: re-run the fraud screen on the edited claim. An override of a not-admissible ruling
+        # never passed the fraud node, and an edited amount can create a new finding (e.g. a
+        # tariff outlier); stale or missing flags would let one approval settle it.
+        flags = self.team.fraud.run(claim, s.get("extraction_issues"))
         ws = self.team.coverage.adjudicate(
             claim,
             choices,
             version=(prev.version + 1) if prev else 1,
-            fraud_flags=s.get("fraud_flags", []),
+            fraud_flags=flags,
         )
         return {
+            "fraud_flags": flags,
             "claim": claim,
             "admissibility": adm,
             "locked_choices": locked,
