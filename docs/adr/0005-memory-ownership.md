@@ -33,15 +33,16 @@ each kind of memory the policy asks for, in their own folders:
 
 ## Consequences
 - **Tools & Security (claims-db):**
-  1. `record_history` stores a `SUB_LIMIT` deduction's amount (what was cut) as `sub_limits_used`,
-     but the fraud agent reads it as what was used. Limit 40,000 on a 50,000 bill stores 10,000,
-     not 40,000. Store the line's payable amount instead. `tests/memory` has this as a strict xfail;
-     remove the marker when it's fixed.
-  2. Add `delete_history(claim_id)` so a wrongly recorded claim can be corrected. `record_history`
-     ignores a claim that is already recorded, so a corrected claim can't be re-recorded today.
+  1. *Done 2026-11-11 (`b88416d`).* `record_history` stored a `SUB_LIMIT` deduction's amount (what
+     was cut) as `sub_limits_used`, but the fraud agent reads it as what was used. Limit 40,000 on a
+     50,000 bill stored 10,000, not 40,000. It now stores the line's payable amount, and
+     `tests/memory` checks it.
+  2. *Done 2026-11-11 (`57124cb`).* `delete_history(claim_id)` lets a wrongly recorded claim be
+     corrected: delete it, then record it again. It is part of `memory.HistoryStore`, and
+     `tests/memory` checks it.
 - **Agents & Orchestration:** `real_services()` already binds `claim_history` and `record_history`
-  to claims-db. `fraud.py` says "sub-limits already used this policy year" but sums every year in
-  history; filter by the policy period (`PolicyInfo.period_start`, `period_end`).
+  to claims-db. *Done 2026-11-10 (`b7ac6ca`):* `fraud.py` summed sub-limits from every year in
+  history; it now counts only claims admitted inside the current policy period.
 - **Knowledge & Memory:** keep `docs/memory-policy.md` and `tests/memory/` current. If claim history
   ever moves, the new store must pass `tests/memory/` unchanged.
 

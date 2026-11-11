@@ -23,9 +23,12 @@ __all__ = ["HistoryStore"]
 class HistoryStore(Protocol):
     """What `Services.claim_history` and `Services.record_history` are bound to.
 
-    Stores pseudonymised ids and fingerprints only, never diagnosis or bill text.
+    Stores pseudonymised ids and fingerprints only, never diagnosis or bill text. A wrong record
+    is corrected with `delete_history`, then recorded again (docs/memory-policy.md).
     """
 
     def claim_history(self, policy_number: str) -> "list[PastClaim]": ...
 
     def record_history(self, claim: "Claim", worksheet: "Worksheet | None" = None) -> None: ...
+
+    def delete_history(self, claim_id: str) -> None: ...
