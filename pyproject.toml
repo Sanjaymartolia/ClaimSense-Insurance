@@ -33,6 +33,9 @@ retrieval = [
 dev = ["pytest>=8.0", "ruff>=0.6", "pypdf>=5.0,<7.0"]  # pypdf: ingestion tests
 course = ["matplotlib>=3.8", "langchain-community>=0.3"]  # + agents,retrieval; see course/README
 docs = ["matplotlib>=3.8", "python-docx>=1.1"]  # scripts/build_team_guide.py
+# L12 §6-7 prompt optimizers for the Reflexion comparison (reflexion/dspy_coverage.py). Its own
+# extra: dspy pulls litellm and optuna, which CI does not need; the tests importorskip it.
+reflexion = ["dspy>=3.4,<4", "matplotlib>=3.8"]
 # RAGAS judge metrics (EVAL-02). Its own extra, not dev: ragas pulls langchain-core, datasets and
 # pandas, which CI does not need. langchain-openai wraps the `judge` model from config/models.yaml.
 # langchain-community pin: ragas 0.4.3 has an unguarded `from langchain_community.chat_models

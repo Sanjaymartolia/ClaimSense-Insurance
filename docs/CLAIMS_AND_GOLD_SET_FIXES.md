@@ -15,7 +15,9 @@ here because both files are outside `eval/`.
 which applies the room-rent cut per Note 4.1.1(b). GOLD-03, GOLD-05, GOLD-06, GOLD-08, DEC-02 and
 DEC-03 are fixed by [ADR-0007](adr/0007-gold-set-rulings-2026-11-11.md); the dev set is now 22
 claims. DEC-01, DEC-04 and the CLM-0016 ICU questions are decided by
-[ADR-0009](adr/0009-room-cap-nursing-duplicates-icu.md).
+[ADR-0009](adr/0009-room-cap-nursing-duplicates-icu.md). Since 2026-11-12, both calculators
+(`agents/services.py::reference_calculate` and `calc/adjudication.py`) apply ADR-0009 and agree
+with each other on every paid dev claim.
 
 ## Summary
 **The JSONL files are well formed, and the gold's arithmetic is right. The problem is the rules behind the gold.** The gold was generated from a demo ruleset (`data/README.md`) that disagrees with the policy wording in several places. A wrong answer can therefore score as correct: the real-model run paid CLM-0018, a Caesarean the policy excludes, at ₹111,406.50, and that counted as a ₹0.50 rounding difference.

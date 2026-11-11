@@ -115,8 +115,11 @@ within ₹1 on every dev claim except the three documented gaps (CLM-0008, CLM-0
 `RULE_DISAGREEMENTS` entries for duplicates and the ICU cut are removed.
 
 **Still to do.**
-- **Tools & Security:** apply the same three rules in `calc/adjudication.py`, with hand-worked tests
-  first.
+- ~~**Tools & Security:** apply the same three rules in `calc/adjudication.py`, with hand-worked
+  tests first.~~ **Done** in commit `0f43d1f`. Checked 2026-11-12: on the gold clause choices,
+  `adjudicate` and `reference_calculate` give the same total, to the paisa, on all 14 paid dev
+  claims. Both are within ₹1 of the gold, except on the two cataract claims, where neither applies
+  4.3 (GOLD-05 gap).
 - **Eval & Red-Team:** the course kit's `rules.py` is still on the old demo rules.
 
 ## Links

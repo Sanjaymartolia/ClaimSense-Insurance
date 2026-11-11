@@ -107,6 +107,7 @@ python -m claimsense.ingestion.extract_policy_clauses        # -> data/processed
 python -m claimsense.ingestion.build_policy_knowledge_base   # -> data/knowledge_base/
 python eval/redteam/build_cases.py                           # -> eval/redteam/claims+gold
 python scripts/build_team_guide.py                           # docs/TEAM_GUIDE.md -> PDF, DOCX, diagram
+python scripts/run_reflexion_dspy.py --out <dir> --tolerance-rs 1   # L12 §6-7 DSPy/GEPA vs playbook; needs .[reflexion]; stub = harness check
 
 # course kit (needs .[dev,agents,retrieval,course]); work in exercises/<name>/, never course/
 python course/scripts/new_student.py <name>

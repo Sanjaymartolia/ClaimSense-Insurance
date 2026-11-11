@@ -96,25 +96,25 @@
       },
       "efficiency": {
         "latency_seconds": {
-          "value": 9.056042,
+          "value": 8.912077,
           "detail": {
-            "p50": 9.056,
-            "p95": 21.9161,
-            "max": 23.7962
+            "p50": 8.9121,
+            "p95": 20.5613,
+            "max": 25.367
           }
         },
         "tokens_per_claim": {
-          "value": 1965.846154,
+          "value": 1966.75,
           "detail": {
-            "mean": 1965.8,
-            "total": 102224
+            "mean": 1966.8,
+            "total": 102271
           }
         },
         "cost_usd_per_claim": {
-          "value": 0.001383,
+          "value": 0.001342,
           "detail": {
-            "mean_usd": 0.001383,
-            "total_usd": 0.071893,
+            "mean_usd": 0.001342,
+            "total_usd": 0.069789,
             "budget_usd_per_claim": 0.2
           }
         }
@@ -987,8 +987,8 @@
       "forbidden_tool_calls": 0.0,
       "pipeline_errors": 0.0,
       "mean_steps": 7.019230769230769,
-      "p95_seconds": 21.916051625001273,
-      "cost_per_claim_usd": 0.0013825538461538461,
+      "p95_seconds": 20.561250958999153,
+      "cost_per_claim_usd": 0.0013420923076923076,
       "judge_pass_rate": null
     }
   },
