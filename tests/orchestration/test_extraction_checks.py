@@ -8,7 +8,7 @@ import json
 
 import pytest
 
-from claimsense.agents.extraction import ExtractionAgent, detect_injections
+from claimsense.agents.extraction import ExtractionAgent, detect_injections, find_date_conflicts
 from claimsense.contracts import Claim
 from claimsense.reflexion.cases import load_cases
 
@@ -64,3 +64,59 @@ def test_clean_dev_claims_raise_no_injection_issue():
         docs = {d["document_id"]: d["synthetic_text"] for d in fixtures[case.case_id]["documents"]}
         claim = Claim.model_validate(case.packet["claim"])
         assert detect_injections(docs, claim) == [], case.case_id
+
+
+# --------------------------------------------------------------------- B6: date conflicts
+# room_breach_packet: admitted 2026-05-10, discharged 2026-05-13.
+DATE_PREFIX = "date conflict in "
+
+
+def _date_issues(services, text, name="discharge_summary"):
+    packet = room_breach_packet()
+    packet["documents"] = {"bill.txt": "row", name: text}
+    _, issues = ExtractionAgent(services).run(packet)
+    return [i for i in issues if i.startswith(DATE_PREFIX)]
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "Patient discharged on 2026-05-15.",
+        "Discharge date: 15/05/2026",
+        "Discharged home 15-05-2026 in stable condition.",
+        "The patient was discharged on 15 May 2026.",
+        "Date of discharge 15th Sept 2026",
+    ],
+)
+def test_a_document_discharge_date_that_disagrees_is_flagged(services, text):
+    issues = _date_issues(services, text)
+    assert len(issues) == 1
+    assert issues[0].startswith(DATE_PREFIX + "discharge_summary: discharge")
+    assert "2026-05-13" in issues[0]  # names the claim-form date it disagrees with
+
+
+def test_an_admission_date_that_disagrees_is_flagged(services):
+    issues = _date_issues(services, "Admitted on 08/05/2026 with abdominal pain.")
+    assert len(issues) == 1 and "admission" in issues[0] and "2026-05-10" in issues[0]
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "Patient discharged on 2026-05-13.",  # agrees with the claim form
+        "Admitted on 10/05/2026, discharged on 13 May 2026.",  # both agree, one sentence
+        "Report printed 2026-06-01. Follow up in two weeks.",  # a date with no admit/discharge
+        "Paracetamol administered 2026-05-11.",  # "administered" is not "admitted"
+    ],
+)
+def test_agreeing_or_unrelated_dates_are_not_flagged(services, text):
+    assert _date_issues(services, text) == []
+
+
+def test_clean_dev_documents_raise_no_date_conflict():
+    fixtures = [json.loads(line) for line in open("eval/golden_dev/claims.jsonl", encoding="utf-8")]
+    cases = {c.case_id: c for c in load_cases("eval/golden_dev")}
+    for fx in fixtures:
+        docs = {d["document_id"]: d["synthetic_text"] for d in fx["documents"]}
+        claim = Claim.model_validate(cases[fx["claim_id"]].packet["claim"])
+        assert find_date_conflicts(docs, claim) == [], fx["claim_id"]

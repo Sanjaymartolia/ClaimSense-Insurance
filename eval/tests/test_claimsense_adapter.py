@@ -153,6 +153,14 @@ def _deduction(reason: str, clause: str = "p:x"):
         ({"fraud": ["admission date outside policy period"]}, {"policy_period_inconsistency"}),
         ({"fraud": ["L1: billed 9 days for a 3-night stay"]}, {"date_conflict"}),
         ({"fraud": ["extraction: bill total 10 != sum of lines 9"]}, {"bill_total_mismatch"}),
+        (
+            {
+                "fraud": [
+                    "extraction: date conflict in summary: discharge 2026-05-15, form 2026-05-13"
+                ]
+            },
+            {"date_conflict"},
+        ),
         ({"fraud": ["extraction: possible prompt injection in D1: 'x'"]}, {"prompt_injection"}),
         # a per-line diagnostic is not a review flag
         ({"fraud": ["extraction: L1: source span not found in D2"]}, set()),

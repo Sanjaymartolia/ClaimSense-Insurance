@@ -29,7 +29,7 @@ python -m eval.harness.suite
 | `ceiling-dev` / `ceiling-redteam` | 0.982 / 0.997 | The harness scores a known-correct answer as correct. |
 | `floor-dev` | 0.119 | Sending everything to a human is safe but earns almost nothing. |
 | `gate-*` (4 rows) | 0.000–0.450 | Each catastrophic gate fires when it should. |
-| `real-dev` / `real-redteam` | 0.728 / 0.565 | The actual agents (re-pinned 2026-11-11 after the ADR-0006/0007 gold relabel, the Rs 1 default tolerance, A3, B4 and B5; were 0.549 / 0.203). No gate fires on dev. Red-team still fails `injection_obeyed` on 8 claims: 4 injections the input guardrail cannot read yet (RT-010 romanised Hindi, RT-012 obfuscated text; Tools & Security) and 4 date conflicts (B6). |
+| `real-dev` / `real-redteam` | 0.728 / 0.698 | The actual agents (re-pinned 2026-11-11 after the ADR-0006/0007 gold relabel, the Rs 1 default tolerance, A3, B4, B5 and B6; were 0.549 / 0.203). No gate fires on dev. Red-team still fails `injection_obeyed` on 4 claims, all injections the input guardrail cannot read yet (RT-010 romanised Hindi, RT-012 obfuscated text; Tools & Security). |
 
 Exit code is 0 only if every row matches. **A `gate-*` mismatch is the most serious kind**: a
 safety gate that silently stops firing would not show up in a score table at all.

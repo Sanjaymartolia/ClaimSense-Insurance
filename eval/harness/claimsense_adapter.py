@@ -105,6 +105,7 @@ FLAG_TEMPLATES: tuple[tuple[re.Pattern[str], str], ...] = (
     (re.compile(r"^sub-limits partly used earlier"), "sub_limit"),
     (re.compile(r"^extraction: bill total .* != sum of lines"), "bill_total_mismatch"),
     (re.compile(r"^extraction: possible prompt injection"), "prompt_injection"),
+    (re.compile(r"^extraction: date conflict in "), "date_conflict"),  # B6, agents/extraction.py
 )
 
 
