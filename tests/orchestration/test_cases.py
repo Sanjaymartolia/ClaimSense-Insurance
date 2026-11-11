@@ -17,6 +17,7 @@ from claimsense.reflexion import Playbook, evaluate, local_run_fn, run_case, sum
 from claimsense.reflexion.cases import (
     MATERNITY_EXCLUSION,
     gold_from_fixture,
+    history_from_fixture,
     load_cases,
     packet_from_fixture,
     policy_from_fixture,
@@ -44,8 +45,8 @@ def raw():
 
 
 def test_loads_every_dev_claim_once(cases):
-    assert len(cases) == 20
-    assert len({c.case_id for c in cases}) == 20
+    assert len(cases) == 22
+    assert len({c.case_id for c in cases}) == 22
     assert all(c.split == "dev" for c in cases)
 
 
@@ -88,12 +89,14 @@ def test_gold_clause_choices_follow_the_reason_codes(cases, raw):
         for line_id, want in c.gold_choices().items():
             if "non_payable_item_demo_rule" in codes[line_id]:
                 assert want == C.NON_PAYABLE_ITEMS
-            elif "room_rent_daily_cap" in codes[line_id]:
-                assert want == C.ROOM_RENT_LIMIT and cats[line_id] == "room_rent"
+            elif "room_rent_daily_cap" in codes[line_id]:  # DEC-01: room + nursing, one cap
+                assert want == C.ROOM_RENT_LIMIT and cats[line_id] in ("room_rent", "nursing")
             elif "icu_daily_cap" in codes[line_id]:
                 assert want == C.ICU_LIMIT and cats[line_id] == "icu"
             elif "room_rent_proportional_reduction" in codes[line_id]:
                 assert want == C.OTHER_EXPENSES
+            elif "cataract_sub_limit" in codes[line_id]:
+                assert want == C.CATARACT
             else:
                 assert want == C.HOSPITALISATION
         # a duplicate line is a fraud finding, not a clause choice
@@ -128,7 +131,91 @@ def test_gold_audit_relabels_are_mapped(cases, raw):
     icu = next(line for line in c16.gold_worksheet.lines if line.line_id == "CLM-0016-L01")
     assert icu.payable == Decimal("10000") and icu.deductions[0].reason == DeductionReason.ICU_CAP
     assert c16.gold_choices()["CLM-0016-L01"] == C.ICU_LIMIT
-    assert c16.gold_worksheet.total_payable == Decimal("59346")
+    # ADR-0009: 5 ward nights + the ICU day; the ICU breach (ratio 10,000 / 24,466) cuts the
+    # diagnostics line, and room + nursing (7,059/day) are capped together at 5,000/day.
+    assert c16.gold_worksheet.total_payable == Decimal("40825")
+
+
+#: GOLD-02 / ADR-0006, with nursing inside the room cap since ADR-0009 (DEC-01, reading A):
+#: settlement after the Note 4.1.1(b) cut (whole rupees, GOLD-08).
+GOLD_02_SETTLEMENTS = {
+    "CLM-0004": Decimal("67067"),
+    "CLM-0011": Decimal("44048"),
+    "CLM-0012": Decimal("57971"),
+    "CLM-0014": Decimal("62542"),
+}
+
+
+@pytest.mark.parametrize("claim_id", sorted(GOLD_02_SETTLEMENTS))
+def test_gold_room_rent_cut_follows_note_4_1_1_b(cases, raw, claim_id):
+    """GOLD-02 / ADR-0006: on a room-rent breach, every other hospital expense is cut in
+    proportion, *except medicines* (procedure included), citing Note 4.1.1(b). ADR-0009: room and
+    nursing share the all-inclusive cap, so both carry the cap, not the proportional cut."""
+    claims, golds = raw
+    cats = {
+        b["line_id"]: b["category"]
+        for b in next(x for x in claims if x["claim_id"] == claim_id)["bill_lines"]
+    }
+    for li in golds[claim_id]["line_items"]:
+        cat = cats[li["line_id"]]
+        if cat in ("room_rent", "nursing"):
+            assert li["reason_codes"] == ["room_rent_daily_cap"]
+        elif cat == "pharmacy":
+            assert li["reason_codes"] == [] and li["deduction_before_copay_inr"] == 0
+        else:
+            assert li["reason_codes"] == ["room_rent_proportional_reduction"], li["line_id"]
+            assert li["clause_id"] == C.OTHER_EXPENSES
+            assert li["deduction_before_copay_inr"] > 0
+
+    case = next(c for c in cases if c.case_id == claim_id)
+    assert case.gold_worksheet.total_payable == GOLD_02_SETTLEMENTS[claim_id]
+    # the reference calculator follows the note too: only paise-level rounding separates them
+    result, _ = run_case(local_run_fn(stub_services_factory()), case, None)
+    assert result.abs_error < 1, (claim_id, result.proposed_total, result.gold_total)
+
+
+@pytest.mark.parametrize(
+    ("diagnosis", "excluded"),
+    [
+        ("Caesarean section", True),  # CLM-0018 as filed (GOLD-01)
+        ("LSCS for obstructed labour", True),
+        ("Normal delivery", True),
+        ("Ectopic pregnancy, laparoscopic salpingectomy", False),  # 7.15(a) carve-out
+        ("Pneumonia inpatient episode (non-ICU)", False),
+    ],
+)
+def test_admissibility_applies_the_maternity_exclusion(cases, diagnosis, excluded):
+    """Clause 7.15(a): childbirth (incl. caesarean) is excluded, ectopic pregnancy is not (AGT-02).
+    Only the diagnosis changes, so every other admissibility rule stays as CLM-0018 has it."""
+    from claimsense.agents.coverage import CoverageAgent
+
+    c18 = next(c for c in cases if c.case_id == "CLM-0018")
+    claim = Claim.model_validate({**c18.packet["claim"], "diagnosis": diagnosis})
+    adm = CoverageAgent(stub_services_factory()(c18)).check_admissibility(claim)
+    assert (MATERNITY_EXCLUSION in adm.clause_ids) is excluded
+    assert adm.admissible is not excluded
+
+
+def test_out_of_period_admission_cites_the_operative_clause(cases, raw):
+    """A3: an admission outside the policy period cites clause 2, the Operative Clause ("if during
+    the policy period ... the Company shall indemnify"), not a made-up id. The gold agrees."""
+    from claimsense.agents.coverage import CoverageAgent
+
+    kb = Path("data/knowledge_base/policy_knowledge_base.jsonl").read_text(encoding="utf-8")
+    known = {json.loads(line)["clause_id"] for line in kb.splitlines() if line.strip()}
+    assert C.POLICY_PERIOD == "new_india_arogya_sanjeevani:2" and C.POLICY_PERIOD in known
+
+    c13 = next(c for c in cases if c.case_id == "CLM-0013")
+    adm = CoverageAgent(stub_services_factory()(c13)).check_admissibility(
+        Claim.model_validate(c13.packet["claim"])
+    )
+    assert not adm.admissible
+    assert C.POLICY_PERIOD in adm.clause_ids
+    assert set(adm.clause_ids) <= known
+    _, golds = raw
+    assert {li["clause_id"] for li in golds["CLM-0013"]["line_items"]} == {C.POLICY_PERIOD}
+    for line in c13.gold_worksheet.lines:
+        assert line.deductions[0].clause_id == C.POLICY_PERIOD
 
 
 def test_policy_record_comes_from_the_fixture(raw):
@@ -140,6 +227,32 @@ def test_policy_record_comes_from_the_fixture(raw):
     assert pol.insured_pseudonym == fx["policyholder"]["synthetic_person_id"]
     assert str(pol.period_start) == fx["policy"]["policy_start_date"]
     assert packet_from_fixture(fx)["fixture_policy"]["policy_number"] == pol.policy_number
+
+
+def test_waiting_periods_run_from_the_first_policy_inception(raw):
+    """GOLD-03 / ADR-0007: CLM-0004 is a renewal first insured in 2023; CLM-0008 is a first policy.
+    Fixtures without the field (held-out predates it) fall back to the policy start."""
+    claims, _ = raw
+    by_id = {c["claim_id"]: c for c in claims}
+    assert str(policy_from_fixture(by_id["CLM-0004"]).first_inception) == "2023-01-01"
+    assert str(policy_from_fixture(by_id["CLM-0008"]).first_inception) == "2026-01-01"
+    old = json.loads(json.dumps(by_id["CLM-0004"]))
+    del old["policy"]["first_policy_inception_date"]
+    assert str(policy_from_fixture(old).first_inception) == old["policy"]["policy_start_date"]
+
+
+def test_prior_claims_reach_the_claim_history(cases, raw):
+    """GOLD-05 / ADR-0007: CLM-0022's earlier cataract claim used Rs 25,000 of clause 4.3; the fraud
+    agent's claim_history must see it."""
+    claims, _ = raw
+    fx = next(c for c in claims if c["claim_id"] == "CLM-0022")
+    (past,) = history_from_fixture(fx)
+    assert past.policy_number == fx["policy"]["policy_id"]
+    assert past.sub_limits_used == {C.CATARACT: Decimal("25000")}
+    case = next(c for c in cases if c.case_id == "CLM-0022")
+    svc = stub_services_factory()(case)
+    assert svc.claim_history(policy_number=fx["policy"]["policy_id"]) == [past]
+    assert history_from_fixture(claims[0]) == []
 
 
 def test_unknown_reason_code_or_category_raises(raw):
@@ -156,17 +269,20 @@ def test_unknown_reason_code_or_category_raises(raw):
 
 
 #: Gold repudiates these under an exclusion the coverage analyst's admissibility check does not
-#: implement yet (CLM-0018: caesarean, clause 7.15; GOLD-01 / AGT-02 in the gold audit). The
-#: pipeline pays them, so they are a known baseline miss. Remove an id here once the check exists:
-#: the test below then fails loudly if the id is still listed but no longer missed.
-KNOWN_UNIMPLEMENTED_EXCLUSIONS = {"CLM-0018"}
+#: implement yet. The pipeline pays them, so they are a known baseline miss. Remove an id here once
+#: the check exists: the test below then fails loudly if the id is still listed but no longer
+#: missed. CLM-0018 (caesarean, clause 7.15; GOLD-01 / AGT-02) was removed on 2026-11-11 when
+#: `check_admissibility` gained the maternity exclusion.
+#: CLM-0008 (ureteroscopy for stones on a first policy: 24-month wait, clause 6.2.18; GOLD-03 /
+#: ADR-0007) stays until `check_admissibility` learns the 6.2 list (AGT-02).
+KNOWN_UNIMPLEMENTED_EXCLUSIONS: set[str] = {"CLM-0008"}
 
 
 def test_stub_dry_run_of_all_dev_claims_completes(cases):
     """The plan's day-1 dry run: every case ends settled or repudiated, nothing crashes, and the
     not-admissible cases come out at Rs 0 like their gold, except the documented exclusion gap."""
     results = evaluate(local_run_fn(stub_services_factory()), cases, None)
-    assert len(results) == 20
+    assert len(results) == 22
     assert {r.status for r in results} <= {"settled", "repudiated"}
     for r, c in zip(results, cases, strict=True):
         if c.case_id in KNOWN_UNIMPLEMENTED_EXCLUSIONS:
@@ -176,7 +292,7 @@ def test_stub_dry_run_of_all_dev_claims_completes(cases):
         elif not c.gold_admissible:
             assert r.abs_error == 0, (c.case_id, r.proposed_total, r.gold_total)
     s = summarize(results)
-    assert s["cases"] == 20
+    assert s["cases"] == 22
     assert 0 <= s["exact_match_rate"] <= 1
 
 
@@ -288,7 +404,7 @@ def test_day5_heldout_script_guards_and_runs(tmp_path, monkeypatch):
         ho.main(["--playbook", str(pb_path), "--heldout", DEV, "--out", str(tmp_path / "res")])
     ho.main(args + ["--repeat", "2", "--tolerance-rs", "1"])
     report = (tmp_path / "res" / "heldout_report.md").read_text()
-    assert "held-out cases: 20" in report and "Spread across 2" in report
+    assert "held-out cases: 22" in report and "Spread across 2" in report
     assert "tolerance: Rs 1" in report
     data = json.loads((tmp_path / "res" / "heldout_report.json").read_text())
     assert data["playbook_hash"] == pb.frozen_hash and len(data["after_runs"]) == 2

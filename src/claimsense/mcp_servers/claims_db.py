@@ -208,8 +208,21 @@ class ClaimsDatabase:
                 ),
             )
 
-    def record_history(self, claim: Claim, worksheet: Worksheet | None = None) -> None:
-        """Append a closed claim's fingerprints and sub-limit usage (no health details)."""
+    def record_history(
+        self,
+        claim: Claim,
+        worksheet: Worksheet | None = None,
+        *,
+        sub_limit_usage: dict[str, Decimal] | None = None,
+    ) -> None:
+        """Record claim fingerprints and sub-limit consumption without health details.
+
+        ``sub_limit_usage`` is an optional clause-id -> amount-consumed mapping supplied by the
+        caller for eligible sub-limits that have no worksheet deduction (for example, a bill
+        below its cap). If omitted, usage is inferred from SUB_LIMIT worksheet deductions using
+        each capped line's payable amount. Cataract 4.3 must remain informational until eye identity
+        is available; callers must not include it in this mapping.
+        """
         with self._lock, self._conn:
             cur = self._conn.execute(
                 "INSERT OR IGNORE INTO claims (claim_id, policy_number, admission_date, status, created_at)"
@@ -237,19 +250,57 @@ class ClaimsDatabase:
                     for line in claim.bill_lines
                 ],
             )
+            # Infer consumed amounts for capped lines. Accumulate by clause so multiple lines
+            # governed by the same sub-limit are recorded once as a total.
+            consumed_by_clause: dict[str, Decimal] = {}
             if worksheet is not None:
-                rows = [
-                    (claim.policy_number, claim.claim_id, d.clause_id, str(d.amount))
-                    for wl in worksheet.lines
-                    for d in wl.deductions
-                    if d.reason == DeductionReason.SUB_LIMIT
-                ]
-                if rows:
-                    self._conn.executemany(
-                        "INSERT INTO sub_limit_usage (policy_number, claim_id, sub_limit_name, amount)"
-                        " VALUES (?, ?, ?, ?)",
-                        rows,
-                    )
+                for wl in worksheet.lines:
+                    clause_ids = {
+                        d.clause_id
+                        for d in wl.deductions
+                        if d.reason == DeductionReason.SUB_LIMIT
+                    }
+                    for clause_id in clause_ids:
+                        consumed_by_clause[clause_id] = (
+                            consumed_by_clause.get(clause_id, Decimal("0")) + wl.payable
+                        )
+
+            # Explicit values cover within-cap / exactly-at-cap lines for which the Worksheet has
+            # no SUB_LIMIT deduction and therefore no clause metadata. They are authoritative for
+            # those clauses and are merged with inferred usage only when the clause is not inferred.
+            for clause_id, amount in (sub_limit_usage or {}).items():
+                if not isinstance(clause_id, str) or not clause_id.strip():
+                    raise ValueError("sub-limit usage requires a non-empty clause id")
+                value = Decimal(amount)
+                if not value.is_finite() or value < 0:
+                    raise ValueError(f"invalid sub-limit usage for clause {clause_id!r}")
+                if clause_id not in consumed_by_clause:
+                    consumed_by_clause[clause_id] = value
+
+            rows = [
+                (claim.policy_number, claim.claim_id, clause_id, str(amount))
+                for clause_id, amount in consumed_by_clause.items()
+                if amount > 0
+            ]
+            if rows:
+                self._conn.executemany(
+                    "INSERT INTO sub_limit_usage (policy_number, claim_id, sub_limit_name, amount)"
+                    " VALUES (?, ?, ?, ?)",
+                    rows,
+                )
+
+    def delete_history(self, claim_id: str) -> None:
+        """Delete one claim's history rows only; safe to call repeatedly.
+
+        Settlements, approvals, policies, other claims, and graph/playbook memory are untouched.
+        All claim-history rows are deleted atomically.
+        """
+        if not isinstance(claim_id, str) or not claim_id.strip():
+            raise ValueError("claim_id must be a non-empty string")
+        with self._lock, self._conn:
+            self._conn.execute("DELETE FROM bill_fingerprints WHERE claim_id = ?", (claim_id,))
+            self._conn.execute("DELETE FROM sub_limit_usage WHERE claim_id = ?", (claim_id,))
+            self._conn.execute("DELETE FROM claims WHERE claim_id = ?", (claim_id,))
 
     # -- reads -----------------------------------------------------------------------------
     def get_policy(self, policy_number: str) -> PolicyInfo | None:
@@ -475,8 +526,16 @@ def record_repudiation(
     return get_db().record_repudiation(claim_id, reasons, approvals)
 
 
-def record_history(claim: Claim, worksheet: Worksheet | None = None) -> None:
-    get_db().record_history(claim, worksheet)
+def record_history(
+    claim: Claim,
+    worksheet: Worksheet | None = None,
+    *,
+    sub_limit_usage: dict[str, Decimal] | None = None,
+) -> None:
+    get_db().record_history(claim, worksheet, sub_limit_usage=sub_limit_usage)
+
+def delete_history(claim_id: str) -> None:
+    get_db().delete_history(claim_id)
 
 
 def seed_demo_policy(db: ClaimsDatabase | None = None) -> PolicyInfo:

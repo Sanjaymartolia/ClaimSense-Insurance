@@ -18,7 +18,9 @@ Gold-set history this loader follows: the 2026-11-04 audit (`docs/CLAIMS_AND_GOL
 relabelled CLM-0018 (clause 7.15 exclusion, new reason code `maternity_childbirth_exclusion`),
 re-filed CLM-0016's ICU line (`icu_daily_cap`) and added `clause_id` to most gold deductions. The
 reason-code tables below stay the source of truth for the clause a gold deduction is taken to
-cite; the gold's own `clause_id` is coarser (`4.1` for both caps and the proportional cut).
+cite; the gold's own `clause_id` is coarser (`4.1` for both caps). ADR-0006 (2026-11-11) moved
+the proportional cut to Note 4.1.1(b). ADR-0007 added `first_policy_inception_date`,
+`history.prior_claims` and the `cataract_sub_limit` / `specific_illness_waiting_period` codes.
 """
 
 from __future__ import annotations
@@ -30,7 +32,7 @@ from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
-from claimsense.agents import PolicyInfo, Services, make_stub_services
+from claimsense.agents import PastClaim, PolicyInfo, Services, make_stub_services
 from claimsense.agents import clauses as C
 from claimsense.contracts import (
     Deduction,
@@ -61,15 +63,18 @@ CATEGORY_MAP: dict[str, LineCategory] = {
 }
 
 #: gold line-level reason code -> (deduction reason, clause id the gold is taken to cite).
-#: `duplicate_line` has no policy clause: it is a fraud finding, so it gets a marker id and is
-#: left out of the gold clause choices (a human catches it; no clause choice "fixes" it).
+#: `duplicate_line` cites clause 2, the Operative Clause (DEC-04, ADR-0009): the calculator deducts
+#: it by rule, not by a clause choice, so it stays out of the gold clause choices.
+#: `sub_limit` is a generic demo-rule code that no gold line carries today. The cataract limit
+#: (clause 4.3) has its own code, `cataract_sub_limit`, used by CLM-0021/0022 (GOLD-05, ADR-0007).
 LINE_REASONS: dict[str, tuple[DeductionReason, str]] = {
     "room_rent_daily_cap": (DeductionReason.ROOM_RENT_CAP, C.ROOM_RENT_LIMIT),
     "icu_daily_cap": (DeductionReason.ICU_CAP, C.ICU_LIMIT),
     "room_rent_proportional_reduction": (DeductionReason.PROPORTIONAL_CUT, C.OTHER_EXPENSES),
     "non_payable_item_demo_rule": (DeductionReason.NON_PAYABLE, C.NON_PAYABLE_ITEMS),
     "sub_limit": (DeductionReason.SUB_LIMIT, C.OTHER_EXPENSES),
-    "duplicate_line": (DeductionReason.OTHER, "fraud:duplicate_line"),
+    "cataract_sub_limit": (DeductionReason.SUB_LIMIT, C.CATARACT),
+    "duplicate_line": (DeductionReason.OTHER, C.OPERATIVE),  # DEC-04, ADR-0009
 }
 NO_CLAUSE_CHOICE = {"duplicate_line"}
 
@@ -78,7 +83,7 @@ NO_CLAUSE_CHOICE = {"duplicate_line"}
 MATERNITY_EXCLUSION = C.MATERNITY_EXCLUSION
 
 #: gold claim-level reason code -> deduction applied to every line through the admissibility gate.
-#: "policy_schedule:period" is the same id `CoverageAgent.check_admissibility` cites.
+#: An out-of-period admission cites clause 2 (`C.POLICY_PERIOD`), like `check_admissibility` (A3).
 CLAIM_REASONS: dict[str, tuple[DeductionReason, str]] = {
     "initial_waiting_period_not_elapsed": (
         DeductionReason.WAITING_PERIOD,
@@ -86,10 +91,7 @@ CLAIM_REASONS: dict[str, tuple[DeductionReason, str]] = {
     ),
     "pre_existing_disease_waiting_period": (DeductionReason.WAITING_PERIOD, C.PED_WAITING_PERIOD),
     "specific_illness_waiting_period": (DeductionReason.WAITING_PERIOD, C.SPECIFIC_WAITING_PERIOD),
-    "admission_or_discharge_outside_policy_period": (
-        DeductionReason.EXCLUSION,
-        "policy_schedule:period",
-    ),
+    "admission_or_discharge_outside_policy_period": (DeductionReason.EXCLUSION, C.POLICY_PERIOD),
     "maternity_childbirth_exclusion": (DeductionReason.EXCLUSION, MATERNITY_EXCLUSION),
 }
 ADMISSIBILITY_GATE = "claim_level_admissibility_gate"
@@ -97,28 +99,16 @@ ADMISSIBILITY_GATE = "claim_level_admissibility_gate"
 #: Where the demo-rule gold and the reference calculator are known to disagree. Each one shows up
 #: as a baseline error that no playbook lesson can remove, so the report must say so.
 RULE_DISAGREEMENTS = [
-    "Gold applies the room-rent proportional cut to pharmacy lines (room_linked=true) and not to "
-    "the procedure line; the calculator does the opposite, following clause 4.1.1 Note (b). "
-    "CLM-0004, 0011, 0012, 0014. Decision (lead, Nov 2026 walkthrough): the gold is not "
-    "relabelled for now because a relabel affects every other owner's scores; the mapping stays, "
-    "the gap is reported.",
-    "Gold deducts an in-bill duplicate line in full (duplicate_line); the fraud agent only "
-    "checks claim history and a fraud flag never changes an amount. CLM-0005, 0009, 0010, 0015. "
-    "Decision (lead, Nov 2026 walkthrough): a duplicate stays a fraud flag for the human "
-    "adjudicator; no clause pays it at zero.",
     "Gold rounds each cut line to whole rupees; the calculator keeps paise. Cut lines differ by up "
     "to Rs 0.50 and count as a miss unless the evaluator is run with a tolerance "
-    "(--tolerance-rs). Decision (lead, Nov 2026 walkthrough): the tolerance lives in the Reflexion "
-    "evaluator, the gold is not changed.",
-    "Gold (2026-11-04 audit, GOLD-01) repudiates CLM-0018, a caesarean section, under clause 7.15; "
-    "the coverage analyst's admissibility check has no exclusion rule yet (AGT-02, orchestration "
-    "owner), so the pipeline still pays it. Admissibility is deterministic code, not a clause "
-    "choice, so no lesson can fix this.",
-    "Gold (2026-11-04 audit, GOLD-04) caps CLM-0016's ICU day at Rs 10,000 but applies no "
-    "proportional cut to the other lines because the room rent itself is within its cap; the "
-    "calculator applies clause 4.1.1 Note (b) to an ICU breach as well, so it cuts investigations "
-    "and nursing. Both cap the ICU line identically. Needs a domain ruling: does Note (b) follow "
-    "an ICU breach or only a room-rent breach?",
+    "(--tolerance-rs). ADR-0007 (GOLD-08): the gold stays in rupees; the eval harness defaults to "
+    "a Rs 1 tolerance, the Reflexion evaluator keeps it explicit.",
+    "Gold (ADR-0007, GOLD-03) repudiates CLM-0008 under the 24-month specific wait (clause "
+    "6.2.18, urinary calculi, first policy); the admissibility check has no 6.2 list yet "
+    "(AGT-02), so the pipeline pays it.",
+    "Gold (ADR-0007, GOLD-05) caps cataract treatment at clause 4.3 (CLM-0021) and at the part an "
+    "earlier claim left unused (CLM-0022); the calculator does not apply 4.3 because the claim "
+    "contract carries no treated eye (calc.adjudication.INFORMATIONAL_SUB_LIMITS).",
 ]
 
 
@@ -197,28 +187,43 @@ def packet_from_fixture(fx: dict[str, Any]) -> dict[str, Any]:
         "claim": claim,
         "documents": {},
         "fixture_policy": policy_from_fixture(fx).model_dump(mode="json"),
+        "fixture_history": [p.model_dump(mode="json") for p in history_from_fixture(fx)],
     }
 
 
 def policy_from_fixture(fx: dict[str, Any]) -> PolicyInfo:
-    """The fixture has no first-inception date; the demo rules run the 30-day wait from the policy
-    start, so that is what `first_inception` is set to. Prior claims are not mapped yet: every dev
-    fixture has an empty list, and guessing a schema here would be a silent fallback."""
-    if fx.get("history", {}).get("prior_claims"):
-        raise ValueError(
-            f"{fx['claim_id']}: prior_claims present but the history format is not mapped"
-        )
+    """Waiting periods run from `first_policy_inception_date` (ADR-0007, GOLD-03). Fixtures made
+    before that field existed (the held-out set) fall back to the policy start, the old demo
+    assumption that every claim is on a first policy."""
     p, h = fx["policy"], fx["hospitalisation"]
     return PolicyInfo(
         policy_number=p["policy_id"],
         period_start=date.fromisoformat(p["policy_start_date"]),
         period_end=date.fromisoformat(p["policy_end_date"]),
-        first_inception=date.fromisoformat(p["policy_start_date"]),
+        first_inception=date.fromisoformat(
+            p.get("first_policy_inception_date", p["policy_start_date"])
+        ),
         sum_insured=Decimal(str(p["sum_insured_inr"])),
         insured_pseudonym=fx["policyholder"]["synthetic_person_id"],
         declared_peds=[h["diagnosis"]] if h.get("pre_existing_condition_declared") else [],
         city_tier=fx.get("hospital", {}).get("city_tier", "tier_1"),
     )
+
+
+def history_from_fixture(fx: dict[str, Any]) -> list[PastClaim]:
+    """`history.prior_claims` -> what claims-db would return for this policy (ADR-0007, GOLD-05).
+    Each item: {claim_id, admission_date, sub_limits_used_inr: {clause_id: rupees}}. Earlier bills
+    are not in the fixture, so there are no fingerprints to match duplicates against."""
+    return [
+        PastClaim(
+            claim_id=pc["claim_id"],
+            policy_number=fx["policy"]["policy_id"],
+            bill_fingerprints=[],
+            sub_limits_used={k: Decimal(str(v)) for k, v in pc["sub_limits_used_inr"].items()},
+            admission_date=date.fromisoformat(pc["admission_date"]),
+        )
+        for pc in fx.get("history", {}).get("prior_claims", [])
+    ]
 
 
 # ------------------------------------------------------------------ one gold record -> Worksheet
@@ -351,7 +356,10 @@ def stub_services_factory(
 
     def factory(case: DevCase) -> Services:
         pol = PolicyInfo.model_validate(case.packet["fixture_policy"])
-        svc = make_stub_services(policies={pol.policy_number: pol})
+        past = [PastClaim.model_validate(p) for p in case.packet.get("fixture_history", [])]
+        svc = make_stub_services(
+            policies={pol.policy_number: pol}, history={pol.policy_number: past} if past else None
+        )
         if calculate is not None:
             svc.calculate = calculate
         return svc
@@ -365,6 +373,7 @@ __all__ = [
     "LINE_REASONS",
     "RULE_DISAGREEMENTS",
     "gold_from_fixture",
+    "history_from_fixture",
     "load_cases",
     "packet_from_fixture",
     "policy_from_fixture",

@@ -15,10 +15,10 @@ pip install -e ".[dev,agents,deepeval]"
 # before any `deepeval` command: no .env loading, no usage events (the CLI reads both first)
 export DEEPEVAL_DISABLE_DOTENV=1 DEEPEVAL_TELEMETRY_OPT_OUT=1
 
-# stub agents, no judge: free (70 tests, about 10 s)
+# stub agents, no judge: free (74 tests, about 10 s)
 CLAIMSENSE_LLM=stub deepeval test run eval/deepeval_suite
 
-# real agents, no judge (about $0.04: 50 claims)
+# real agents, no judge (about $0.04: 52 claims)
 deepeval test run eval/deepeval_suite
 
 # real agents and the LLM judge (add about $0.02 for the judge)

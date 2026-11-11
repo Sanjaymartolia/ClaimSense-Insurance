@@ -4,8 +4,6 @@ import sqlite3
 from datetime import date
 from decimal import Decimal
 
-import pytest
-
 from claimsense.agents import clauses as C
 from claimsense.agents.services import line_fingerprint
 from claimsense.contracts import Claim, Deduction, DeductionReason, Worksheet, WorksheetLine
@@ -136,14 +134,30 @@ def test_sub_limit_deduction_is_recorded_under_its_clause(db):
     assert set(past.sub_limits_used) == {C.OTHER_EXPENSES}
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="claims-db stores the amount deducted, not the amount used "
-    "of the sub-limit (ADR-0005, Tools & Security to fix)",
-)
 def test_sub_limit_used_is_the_amount_paid_against_it(db):
     claim = make_claim()
     db.record_history(claim, sub_limit_worksheet(claim))
 
     [past] = db.claim_history(claim.policy_number)
     assert past.sub_limits_used[C.OTHER_EXPENSES] == Decimal("40000.00")
+
+
+def test_a_wrong_record_can_be_deleted_and_recorded_again(db):
+    claim = make_claim()
+    db.record_history(claim, sub_limit_worksheet(claim))  # recorded with a wrong sub-limit
+
+    db.delete_history(claim.claim_id)
+    assert db.claim_history(claim.policy_number) == []
+
+    db.record_history(claim)  # the corrected record
+    [past] = db.claim_history(claim.policy_number)
+    assert len(past.bill_fingerprints) == len(claim.bill_lines)
+    assert past.sub_limits_used == {}
+
+
+def test_deleting_one_claim_keeps_the_others(db):
+    db.record_history(make_claim("CLM-T31-001"))
+    db.record_history(make_claim("CLM-T31-002"))
+
+    db.delete_history("CLM-T31-001")
+    assert [past.claim_id for past in db.claim_history("POL-T31-A")] == ["CLM-T31-002"]

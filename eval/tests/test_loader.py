@@ -11,9 +11,9 @@ from eval.harness import loader
 from eval.harness.models import ANSWER_HINT_FIELDS, EVAL_ONLY_FIELDS
 
 
-def test_dev_split_loads_twenty_paired_cases():
+def test_dev_split_loads_twenty_two_paired_cases():
     cases = loader.load_split("dev")
-    assert len(cases) == 20
+    assert len(cases) == 22
     assert all(case.claim.claim_id == case.gold.claim_id for case in cases)
 
 

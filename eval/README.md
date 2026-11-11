@@ -26,10 +26,10 @@ python -m eval.harness.suite
 
 | Row | Composite | Means |
 |---|---|---|
-| `ceiling-dev` / `ceiling-redteam` | 0.975 / 0.990 | The harness scores a known-correct answer as correct. |
-| `floor-dev` | 0.130 | Sending everything to a human is safe but earns almost nothing. |
+| `ceiling-dev` / `ceiling-redteam` | 1.000 / 1.000 | The harness scores a known-correct answer as correct. |
+| `floor-dev` | 0.109 | Sending everything to a human is safe but earns almost nothing. |
 | `gate-*` (4 rows) | 0.000–0.450 | Each catastrophic gate fires when it should. |
-| `real-dev` / `real-redteam` | 0.549 / 0.203 | The actual agents (2026-11-10). Fail on AGT-04 (made-up clause id) and, on red-team, AGT-05 (20 of 30 attacked claims cleared for approval). |
+| `real-dev` / `real-redteam` | 0.772 / 0.731 | The actual agents (re-pinned 2026-11-11 after the ADR-0006/0007 gold relabel, the Rs 1 default tolerance, A3, B4, B5, B6 and ADR-0009; were 0.549 / 0.203). No gate fires on dev. Red-team still fails `injection_obeyed` on 4 claims, all injections the input guardrail cannot read yet (RT-010 romanised Hindi, RT-012 obfuscated text; Tools & Security). |
 
 Exit code is 0 only if every row matches. **A `gate-*` mismatch is the most serious kind**: a
 safety gate that silently stops firing would not show up in a score table at all.
@@ -40,7 +40,7 @@ Single runs, for when you are debugging one piece:
 python -m eval.harness.run --adapter gold-replay --split dev --label ceiling   # do this first
 python -m eval.harness.run --adapter claimsense  --split dev --label real-dev  # the real agents
 python -m eval.harness.run --help                                             # all adapters/faults
-pytest eval/tests -q                                                          # 290 tests
+pytest eval/tests -q                                                          # 292 tests
 ```
 
 What did the agents *do*? The trace-based agent suite (L13 sections 1–7) records every node, tool
@@ -79,7 +79,7 @@ Production-grade unit tests for the pipeline, written with DeepEval (AAI-13):
 
 ```bash
 export DEEPEVAL_DISABLE_DOTENV=1 DEEPEVAL_TELEMETRY_OPT_OUT=1   # first: no .env, no usage events
-CLAIMSENSE_LLM=stub deepeval test run eval/deepeval_suite      # 70 tests, free
+CLAIMSENSE_LLM=stub deepeval test run eval/deepeval_suite      # 74 tests, free
 ```
 
 See [observability/README.md](observability/README.md), [deepeval_suite/README.md](deepeval_suite/README.md)
@@ -110,7 +110,7 @@ Full documentation, including the measured results and every open limitation:
 | `monitoring/` | Live monitoring: metrics from traces, Prometheus alert rules, Grafana dashboard as code, live traffic with an A/B split, an incident drill, read-back and A/B tests. |
 | `observability/` | OpenTelemetry traces of the pipeline: spans in memory (`show`) or over OTLP to Jaeger, Langfuse or a Collector (`run`), redaction, outage analysis. |
 | `deepeval_suite/` | DeepEval tests: tool correctness, trajectory rules (free), G-Eval and faithfulness (opt-in judge). Run with `deepeval test run`. |
-| `tests/` | 290 tests. Not in the default `pytest` run; use `pytest eval/tests`. |
+| `tests/` | 292 tests. Not in the default `pytest` run; use `pytest eval/tests`. |
 
 ## Two things to know before you trust a number
 
@@ -138,12 +138,35 @@ this date:
 `eval/redteam/claims.jsonl` and `gold.jsonl` were rebuilt (`python eval/redteam/build_cases.py`)
 so the red-team set matches the corrected dev gold (REC-03).
 
-**Still open, left untouched because they depend on a ruling nobody has made yet** (see
-`docs/CLAIMS_AND_GOLD_SET_FIXES.md` for detail): GOLD-02 (room-rent cut scope, needs DEC-01),
-GOLD-03 (24-month specific waiting period never enforced, needs DEC-02/DEC-03), GOLD-05 (no real
-sub-limit test case for CLM-0019; CLM-0016 is now one, incidentally, via the GOLD-04 fix),
-GOLD-06 (review flags don't cover every fired rule), GOLD-08 (gold is whole rupees, calculator is
-paise).
+**2026-11-11, GOLD-02 fixed** ([ADR-0006](../docs/adr/0006-room-rent-proportional-cut.md)). On a
+room-rent breach, the gold now applies the proportional cut as Note 4.1.1(b) says: every other
+hospital expense is cut, the procedure included, medicines are exempt, and the cut lines cite
+`4.1.1`. CLM-0004/0011/0012/0014 settle at ₹80,990 / ₹57,184 / ₹67,575 / ₹74,630 (were ₹102,313 /
+₹60,741 / ₹78,511 / ₹85,136). The red team is rebuilt, and 11 cases inherit the change. DEC-01
+can still move these four.
+
+**2026-11-11, GOLD-03/05/06/08 fixed** ([ADR-0007](../docs/adr/0007-gold-set-rulings-2026-11-11.md)):
+- **GOLD-03:** every claim now has `policy.first_policy_inception_date`. CLM-0008 (stones, first
+  policy) pays ₹0 under the 24-month wait (6.2.18). CLM-0004 and 0005 are renewals from 2023.
+- **GOLD-05:** two new cataract claims are added. CLM-0021 is capped at clause 4.3 and settles at
+  ₹38,000. CLM-0022 has ₹25,000 of the limit used by an earlier claim (`history.prior_claims`) and
+  settles at ₹14,250. CLM-0019 is no longer labelled `sub_limit`. **The dev set is now 22 claims.**
+- **GOLD-06:** `expected_review_flags` are regenerated from the reason codes. A not-admissible
+  claim carries only its gate's flag. `tests/test_dataset_integrity.py` enforces this.
+- **GOLD-08:** the gold stays in whole rupees, and `--tolerance-inr` now defaults to 1 in
+  `run.py`, `suite.py` and `full.py` (pass 0 for strict scoring).
+
+Two new known agent misses come from this: CLM-0008 (admissibility has no 6.2 list, AGT-02), and
+CLM-0021/0022 (the calculator doesn't apply clause 4.3 because the contract carries no eye).
+**2026-11-11, DEC-01 / DEC-04 / CLM-0016 decided** ([ADR-0009](../docs/adr/0009-room-cap-nursing-duplicates-icu.md)):
+- **DEC-01:** nursing sits inside the ₹5,000/day all-inclusive room cap, so every paid claim
+  except the cataract ones is a room breach.
+- **DEC-04:** in-bill duplicates are deducted citing clause 2.
+- **CLM-0016:** an ICU breach also cuts the other expenses, and the ICU day is one of the 6
+  nights.
+
+The gold is relabelled (for example CLM-0004 ₹80,990 → ₹67,067; CLM-0019 ₹255,801 → ₹201,962).
+The ceilings are now 1.000, because duplicate lines finally carry a citation.
 
 **New follow-up this fix exposes:** `src/claimsense/reflexion/cases.py::load_cases()` raises
 `unmapped gold reason code 'maternity_childbirth_exclusion'` on CLM-0018 now, because its

@@ -36,6 +36,12 @@ class CoverageDecision(BaseModel):
     choices: list[LineChoice]
 
 
+# Clause 7.15(a) (Code Excl18): treatment traceable to childbirth, incl. caesarean, is excluded;
+# ectopic pregnancy is carved out. 7.15(b) (miscarriage / MTP) is left out on purpose: its accident
+# exception needs an accident tag the claim does not carry yet (see the 30-day-wait TODO below).
+CHILDBIRTH_TERMS = ("caesarean", "cesarean", "c-section", "lscs", "childbirth", "delivery")
+MATERNITY_CARVE_OUTS = ("ectopic",)
+
 # Bill-line wording -> policy wording (query rewriting, L6). Extend from the dev claims.
 REWRITE = {
     "ot charges": "operation theatre charges",
@@ -72,7 +78,7 @@ class CoverageAgent:
         reasons, ids = [], []
         if not (pol.period_start <= claim.admission_date <= pol.period_end):
             reasons.append("admission date outside the policy period")
-            ids.append("policy_schedule:period")  # TODO: cite the schedule/condition clause
+            ids.append(C.POLICY_PERIOD)  # clause 2: cover only "during the policy period"
         if claim.admission_date < pol.first_inception + timedelta(days=30):
             # TODO: accident cases are exempt from the 30-day wait; add once extraction tags them
             reasons.append("within the 30-day initial waiting period")
@@ -85,6 +91,11 @@ class CoverageAgent:
             # table of benefits says 4 years: resolve with the domain lead)
             reasons.append("pre-existing disease within its waiting period")
             ids.append(C.PED_WAITING_PERIOD)
+        if any(t in diag for t in CHILDBIRTH_TERMS) and not any(
+            t in diag for t in MATERNITY_CARVE_OUTS
+        ):
+            reasons.append("childbirth / caesarean is excluded (maternity exclusion)")
+            ids.append(C.MATERNITY_EXCLUSION)
         needs_review = pol.insured_pseudonym != claim.patient_pseudonym
         if needs_review:
             reasons.append("patient on the bill does not match the insured person")

@@ -79,7 +79,7 @@ The spans open *while* the pipeline runs, through `run_traced(observer=...)` in
 - **Rule 4.** Every exporter sits behind `RedactingExporter`: an attribute leaves the process only
   if it is on an allowlist (ids, codes, counts, redacted argument shapes, model and token counts).
   Prompts, replies, tool arguments as the instrumentation records them and exception messages are
-  dropped. `eval/tests/test_observability.py` checks all 50 dev and red-team claims for leaks,
+  dropped. `eval/tests/test_observability.py` checks all 52 dev and red-team claims for leaks,
   and every `run` sends a canary span with a forbidden attribute that must come out without it.
 - Jaeger listens on 127.0.0.1 only, with OTLP over HTTP in and the UI and query API out; no
   gRPC, Zipkin, Jaeger-thrift, MCP or metrics port. It gets no key-like and no `OTEL_*`

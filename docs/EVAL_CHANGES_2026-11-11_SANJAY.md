@@ -26,7 +26,7 @@
 | `eval/observability/jaeger.py` | Downloads Jaeger 2.22.0 (SHA-256 pinned), starts it on 127.0.0.1 only, reads traces back |
 | `eval/observability/README.md` | How to run it |
 | `eval/deepeval_suite/support.py` | Shared helpers: traced claims, the expected tools, an offline model, a custom metric, the judge model |
-| `eval/deepeval_suite/test_trajectory.py` | 70 free tests: right tools called (`ToolCorrectnessMetric`), no forbidden tool, tool budget held |
+| `eval/deepeval_suite/test_trajectory.py` | 74 free tests: right tools called (`ToolCorrectnessMetric`), no forbidden tool, tool budget held |
 | `eval/deepeval_suite/test_payload_quality.py` | 40 opt-in LLM-judge tests: `GEval` checklist and `FaithfulnessMetric` |
 | `eval/deepeval_suite/conftest.py`, `__init__.py`, `README.md` | Telemetry off, stub/real mode in the header, how to run it |
 | `eval/tests/test_observability.py` | 21 offline tests (no key, no network, no Jaeger) |
@@ -44,13 +44,13 @@
 | `requirements.txt` | Mirrors the two new extras |
 | `.gitignore` | Adds `.deepeval/` (DeepEval's local results) |
 | `eval/tests/test_report_doc.py` | Its child pytest clears `addopts`, so it now passes `-p no:deepeval` again (review fix) |
-| `CLAUDE.md` | New section "Observability and DeepEval", the DeepEval plugin warning, the layout row, test count 290 |
+| `CLAUDE.md` | New section "Observability and DeepEval", the DeepEval plugin warning, the layout row, test count 292 |
 | `README.md` | Run commands and a link to the new report |
-| `eval/README.md` | Commands, two layout rows, test count 290 |
+| `eval/README.md` | Commands, two layout rows, test count 292 |
 | `docs/TEAM_GUIDE.md` (+ PDF, DOCX, HTML rebuilt) | Three rows in the "at a glance" table and the quick reference |
-| `docs/EVAL_HARNESS_REPORT.md` (+ DOCX) | Test count 269 → 290 |
-| `docs/TECHNICAL_REPORT_EVAL_AND_MONITORING.md` (+ DOCX) | Test count 269 → 290 |
-| `docs/FRAMEWORK_RUBRIC_SCORE.md` (+ DOCX) | Test count 269 → 290 (the scores did not change) |
+| `docs/EVAL_HARNESS_REPORT.md` (+ DOCX) | Test count 269 → 292 |
+| `docs/TECHNICAL_REPORT_EVAL_AND_MONITORING.md` (+ DOCX) | Test count 269 → 292 |
+| `docs/FRAMEWORK_RUBRIC_SCORE.md` (+ DOCX) | Test count 269 → 292 (the scores did not change) |
 
 ## 3. DeepEval and `.env`
 
@@ -79,8 +79,8 @@
 | `python -m eval.observability show --stub` | CLM-0004 = one trace of 26 spans |
 | `python -m eval.observability run --stub --label stub-jaeger-2` | 40 claims to Jaeger, all 40 traces and all 663 spans read back, 7 of 7 checks pass |
 | What the outage showed | All 13 claims that called the tariff tool crashed at that call (confirms MON-01) |
-| `DEEPEVAL_DISABLE_DOTENV=1 DEEPEVAL_TELEMETRY_OPT_OUT=1 CLAIMSENSE_LLM=stub deepeval test run eval/deepeval_suite` | 70 of 70 pass |
-| `pytest eval/tests` | 290 tests: 282 pass, 6 strict `xfail`, 2 skip |
+| `DEEPEVAL_DISABLE_DOTENV=1 DEEPEVAL_TELEMETRY_OPT_OUT=1 CLAIMSENSE_LLM=stub deepeval test run eval/deepeval_suite` | 74 of 74 pass |
+| `pytest eval/tests` | 292 tests: 286 pass, 4 strict `xfail`, 2 skip |
 | `pytest` (product) | 124 pass, 4 skip, 1 `xfail` (same as before) |
 | `python -m eval.harness.suite` | 9 of 9 rows match |
 | Rule 4 | No claim text in any span, in Jaeger, or in the DeepEval cache |
@@ -110,7 +110,7 @@ Full table: `docs/OBSERVABILITY_REPORT.md`, Section 8.1.
 | DeepEval tools | Names only: a missing calculator call in coverage passed | `node:tool` names, and a count of the policy searches |
 | Test-count test | Its child pytest loaded the DeepEval plugin | Passes `-p no:deepeval` again |
 
-Four new tests; the eval test count is now 290. The new evidence run is `stub-jaeger-2`.
+Four new tests; the eval test count is now 292 (290, plus 2 from the team's merge). The new evidence run is `stub-jaeger-2`.
 
 ## 7. Also uncommitted, from earlier the same day
 

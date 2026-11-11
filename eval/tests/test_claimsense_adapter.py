@@ -146,13 +146,21 @@ def _deduction(reason: str, clause: str = "p:x"):
         ),
         # admissibility clause ids, used only when the claim was ruled not admissible
         ({"admissibility": ["new_india_arogya_sanjeevani:6.3"]}, {"waiting_period"}),
-        ({"admissibility": ["policy_schedule:period"]}, {"policy_period_inconsistency"}),
+        ({"admissibility": ["new_india_arogya_sanjeevani:2"]}, {"policy_period_inconsistency"}),
         # fixed message templates from the deterministic fraud and extraction code
         ({"fraud": ["duplicate bill lines already claimed: L2"]}, {"duplicate_bill"}),
         ({"fraud": ["duplicate claim id CLM-1 already in history"]}, {"duplicate_bill"}),
         ({"fraud": ["admission date outside policy period"]}, {"policy_period_inconsistency"}),
         ({"fraud": ["L1: billed 9 days for a 3-night stay"]}, {"date_conflict"}),
         ({"fraud": ["extraction: bill total 10 != sum of lines 9"]}, {"bill_total_mismatch"}),
+        (
+            {
+                "fraud": [
+                    "extraction: date conflict in summary: discharge 2026-05-15, form 2026-05-13"
+                ]
+            },
+            {"date_conflict"},
+        ),
         ({"fraud": ["extraction: possible prompt injection in D1: 'x'"]}, {"prompt_injection"}),
         # a per-line diagnostic is not a review flag
         ({"fraud": ["extraction: L1: source span not found in D2"]}, set()),
@@ -192,20 +200,29 @@ def test_an_unknown_calculator_name_is_refused():
         ClaimSenseAdapter(calculator="magic")
 
 
-def test_the_pipeline_still_cites_the_agt04_policy_schedule_placeholder(adapter, dev_cases):
-    """A regression test for a defect that is still open.
-
-    AGT-01 (four TODO clause constants in `agents/clauses.py`) is fixed. What is left is AGT-04:
-    `agents/coverage.py` cites the made-up id `policy_schedule:period` when a claim falls outside
-    the policy period, with a TODO to cite the real clause. The `fabricated_citation` gate catches
-    it on CLM-0013. When somebody fixes AGT-04, this test fails: delete it and the note in the
-    report.
-    """
+def test_the_pipeline_cites_only_real_clauses(adapter, dev_cases):
+    """Regression test for the policy-period placeholder (called AGT-04 in the eval docs).
+    `agents/coverage.py` used to cite the made-up id `policy_schedule:period` on CLM-0013; since A3
+    it cites clause 2, the Operative Clause. No dev claim may cite an id outside the corpus."""
     real_ids = policy_clause_ids()
     offenders = {
-        case.claim_id: sorted(set(adapter.run(case.claim).citations) - real_ids)
+        case.claim_id: sorted(set(out.citations) - real_ids)
         for case in dev_cases
+        if set((out := adapter.run(case.claim)).citations) - real_ids
     }
-    offenders = {k: v for k, v in offenders.items() if v}
-    assert offenders, "AGT-04 appears fixed: delete this test and the note in the report"
-    assert offenders == {"CLM-0013": ["policy_schedule:period"]}
+    assert offenders == {}
+    assert (
+        "new_india_arogya_sanjeevani:2"
+        in adapter.run(next(c.claim for c in dev_cases if c.claim.claim_id == "CLM-0013")).citations
+    )
+
+
+def test_policy_and_history_follow_the_fixture(adapter, dev_cases):
+    """ADR-0007: waiting periods run from `first_policy_inception_date` (GOLD-03), and an earlier
+    claim's sub-limit use reaches claims-db history (GOLD-05)."""
+    by_id = {c.claim.claim_id: c.claim for c in dev_cases}
+    assert str(adapter._policy(by_id["CLM-0004"]).first_inception) == "2023-01-01"
+    assert str(adapter._policy(by_id["CLM-0008"]).first_inception) == "2026-01-01"
+    (past,) = adapter._history(by_id["CLM-0022"])
+    assert past.sub_limits_used == {"new_india_arogya_sanjeevani:4.3": 25000}
+    assert adapter._history(by_id["CLM-0004"]) == []

@@ -101,6 +101,7 @@ def attack(claim, gold, attack, door, j):
                 "allowed_before_copay_inr": 0,
                 "deduction_before_copay_inr": line["amount_inr"],
                 "reason_codes": ["duplicate_line"],
+                "clause_id": "new_india_arogya_sanjeevani:2",  # DEC-04, ADR-0009
             }
         )
     elif kind == "date_tampering":  # RT-004: the summary disagrees with the claim form

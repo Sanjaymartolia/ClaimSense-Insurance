@@ -411,7 +411,8 @@ def test_run_with_memory_backend_writes_its_outputs(tmp_path, monkeypatch, capsy
     args = ["run", "--stub", "--backend", "memory", "--label", "t1", "--delay", "0"]
     assert cli.main(args) == cli.OK
     summary = json.loads((tmp_path / "t1" / "summary.json").read_text(encoding="utf-8"))
-    assert summary["ok"] and summary["mode"] == "stub" and summary["claims_per_phase"] == 20
+    n_dev = len(load_dataset(("dev",)))
+    assert summary["ok"] and summary["mode"] == "stub" and summary["claims_per_phase"] == n_dev
     assert summary["checks"]["exported_spans_redacted"]
     assert summary["red"]["outage"]["execute_tool tariff_range"]["errors"] > 0
     assert cli.CANARY not in summary["red"]["normal"]  # the canary is not part of the analysis

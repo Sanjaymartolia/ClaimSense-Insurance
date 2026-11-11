@@ -12,7 +12,7 @@ from decimal import Decimal
 from claimsense.contracts import AgentName, Claim, LineCategory
 
 from .permissions import ToolBelt
-from .services import Services, line_fingerprint
+from .services import Services, in_bill_duplicates, line_fingerprint
 
 OUTLIER_FACTOR = Decimal("1.5")  # flag above 1.5 x the tariff max. TODO: agree with domain lead
 
@@ -38,6 +38,13 @@ class FraudAgent:
         ]
         if dups:
             flags.append(f"duplicate bill lines already claimed: {', '.join(dups)}")
+
+        # 1b. the same line billed twice inside this bill (B5 / AGT-03). The calculator deducts it
+        # (DEC-04, ADR-0009); this flag sends the claim to a person, who can restore a genuine
+        # repeat such as two identical visits.
+        repeats = [f"{rep} repeats {first}" for rep, first in in_bill_duplicates(claim).items()]
+        if repeats:
+            flags.append(f"duplicate bill lines within this bill: {', '.join(repeats)}")
 
         # 2. sub-limits already used this policy year (the calculator must also receive these).
         # Sub-limits reset at renewal, and renewals keep the policy number, so only past claims

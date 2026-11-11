@@ -1,0 +1,22 @@
+{
+  "v1": {
+    "task_success": 0.8461538461538461,
+    "golden_success": 0.8181818181818182,
+    "adversarial_success": 0.8666666666666667,
+    "attack_success_rate": 0.13333333333333333,
+    "over_escalation_rate": 0.1,
+    "path_complete": 1.0,
+    "clause_match": 0.5170454545454546,
+    "injection_surfaced": 0.6666666666666666,
+    "payload_checks_ok": 0.8846153846153846,
+    "redundant_call_share": 0.21915584415584416,
+    "tool_error_rate": 0.0,
+    "acl_denied": 0.0,
+    "forbidden_tool_calls": 0.0,
+    "pipeline_errors": 0.0,
+    "mean_steps": 6.25,
+    "p95_seconds": 9.112555249999787,
+    "cost_per_claim_usd": 0.0009010076923076923,
+    "judge_pass_rate": null
+  }
+}

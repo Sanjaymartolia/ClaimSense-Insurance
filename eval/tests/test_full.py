@@ -75,9 +75,9 @@ def test_one_command_writes_both_scorers_side_by_side(tmp_path):
     assert code == 1  # today's pipeline fails the gate; 0 here would mean a gate went quiet
     with (tmp_path / "rows.csv").open(encoding="utf-8") as f:
         rows = list(csv.DictReader(f))
-    assert len(rows) == 20
+    assert len(rows) == 22
     assert {"correct", "path_complete", "h_score", "h_amounts", "h_gates_failed"} <= set(rows[0])
     summary = json.loads((tmp_path / "full.json").read_text(encoding="utf-8"))
     assert summary["self_check"]["ok"] is True
-    assert summary["harness"]["v1"]["per_split"]["dev"] == pytest.approx(0.549, abs=0.01)
+    assert summary["harness"]["v1"]["per_split"]["dev"] == pytest.approx(0.772, abs=0.01)
     assert (tmp_path / "harness.v1.scorecard.json").exists()

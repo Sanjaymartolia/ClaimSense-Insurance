@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+from datetime import date
 
 from claimsense.contracts import AgentName, Claim
 
@@ -30,12 +31,107 @@ Rules:
 
 
 def find_injections(documents: dict[str, str]) -> list[str]:
+    """The cheap regex tripwire alone. `guardrails.scan_documents` builds on it, so it must stay
+    free of guardrail imports. The agent itself uses `detect_injections` (B4)."""
     return [
         f"possible prompt injection in {name}: '{m.group(0)}'"
         for name, text in documents.items()
         for m in [INJECTION_PATTERNS.search(text)]
         if m
     ]
+
+
+def detect_injections(documents: dict[str, str], claim: Claim | None = None) -> list[str]:
+    """B4: run the Tools & Security input guardrail (`guardrails.scan_text`: this module's regex
+    plus its broader generic cues) over every document AND every bill-line description, because a
+    packet can carry injected text in either, and the dev loader sends no document text at all.
+
+    Each issue reads `possible prompt injection in <where>: '<cue>'`, the prefix the eval adapter
+    and the fraud agent's `extraction: ...` flag already rely on. One issue per place: the first
+    cue found there is enough for a person to look. A finding is a security signal that sends the
+    claim to a person; it never changes an amount or counts as fraud evidence.
+    """
+    # Imported here: guardrails.guardrails imports this module (find_injections), so a top-level
+    # import would be circular.
+    from claimsense.guardrails.guardrails import scan_text
+
+    places = [(name, text) for name, text in (documents or {}).items()]
+    if claim is not None:
+        places += [(f"bill line {line.line_id}", line.description) for line in claim.bill_lines]
+    issues = []
+    for where, text in places:
+        findings = scan_text(text, source=where)
+        if findings:
+            cue = findings[0].message.split(": ", 1)[-1]
+            issues.append(f"possible prompt injection in {where}: {cue}")
+    return issues
+
+
+# B6: dates a document states for the stay, checked against the claim form. Indian bills write
+# day first, so "05/06/2026" is 5 June. Formats: 2026-06-05, 05/06/2026, 05-06-2026, 5 June 2026,
+# 5th Jun 2026. A date only counts when an admission or discharge word comes before it in the same
+# sentence (or after it, if none comes before), so report, invoice and print dates are ignored.
+_MONTHS = {m: i for i, m in enumerate("jan feb mar apr may jun jul aug sep oct nov dec".split(), 1)}
+_DATE = re.compile(
+    r"\b(?P<y1>\d{4})-(?P<m1>\d{1,2})-(?P<d1>\d{1,2})\b"
+    r"|\b(?P<d2>\d{1,2})[/-](?P<m2>\d{1,2})[/-](?P<y2>\d{4})\b"
+    r"|\b(?P<d3>\d{1,2})(?:st|nd|rd|th)?\s+(?P<m3>[a-z]{3,9})\.?,?\s+(?P<y3>\d{4})\b",
+    re.IGNORECASE,
+)
+_STAY_EVENTS = {
+    "admission": (
+        re.compile(r"\badmi(?:t|ts|tted|tting|ssion)\b", re.IGNORECASE),
+        "admission_date",
+    ),
+    "discharge": (re.compile(r"\bdischarg\w*", re.IGNORECASE), "discharge_date"),
+}
+
+
+def _parse_date(m: re.Match) -> date | None:
+    g = m.groupdict()
+    try:
+        if g["y1"]:
+            return date(int(g["y1"]), int(g["m1"]), int(g["d1"]))
+        if g["y2"]:
+            return date(int(g["y2"]), int(g["m2"]), int(g["d2"]))
+        month = _MONTHS.get(g["m3"][:3].lower())
+        return date(int(g["y3"]), month, int(g["d3"])) if month else None
+    except ValueError:  # 31/02/2026 and the like: not a date, so no claim about the stay
+        return None
+
+
+def _event_for(sentence: str, at: int) -> str | None:
+    """The admission/discharge word closest before position `at`, else the first one after it."""
+    before, after = [], []
+    for event, (pattern, _) in _STAY_EVENTS.items():
+        for k in pattern.finditer(sentence):
+            (before if k.start() < at else after).append((k.start(), event))
+    if before:
+        return max(before)[1]
+    return min(after)[1] if after else None
+
+
+def find_date_conflicts(documents: dict[str, str], claim: Claim) -> list[str]:
+    """B6: a document that states an admission or discharge date different from the claim form.
+
+    Returns `date conflict in <document>: <event> <stated>, claim form <form date>`, one per
+    conflicting date. The claim goes to a person: which date is right is theirs to decide, so no
+    amount changes here.
+    """
+    issues = []
+    for name, text in (documents or {}).items():
+        for sentence in re.split(r"(?<=[.!?;\n])\s+", text):
+            for m in _DATE.finditer(sentence):
+                stated = _parse_date(m)
+                event = _event_for(sentence, m.start()) if stated else None
+                if event is None:
+                    continue
+                form = getattr(claim, _STAY_EVENTS[event][1])
+                if stated != form:
+                    issue = f"date conflict in {name}: {event} {stated}, claim form {form}"
+                    if issue not in issues:
+                        issues.append(issue)
+    return issues
 
 
 def verify_spans(claim: Claim, documents: dict[str, str]) -> list[str]:
@@ -71,7 +167,11 @@ class ExtractionAgent:
             raise RuntimeError("stub mode: give the packet a pre-extracted 'claim'")
         else:
             claim = self._extract(packet["claim_id"], documents)
-        issues = verify_spans(claim, documents) + find_injections(documents)
+        issues = (
+            verify_spans(claim, documents)
+            + detect_injections(documents, claim)
+            + find_date_conflicts(documents, claim)
+        )
         if not claim.total_matches_lines():
             issues.append(f"bill total {claim.bill_total} != sum of lines {claim.lines_total()}")
         return claim, issues

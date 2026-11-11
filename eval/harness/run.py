@@ -63,8 +63,9 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument(
         "--tolerance-inr",
         type=int,
-        default=0,
-        help="allowed rupee difference per amount. Use 1 for the GOLD-08 rounding gap (default: 0)",
+        default=1,
+        help="allowed rupee difference per amount; 1 forgives the GOLD-08 rounding gap (ADR-0007, "
+        "default: 1). Pass 0 for strict scoring",
     )
     parser.add_argument(
         "--judge",

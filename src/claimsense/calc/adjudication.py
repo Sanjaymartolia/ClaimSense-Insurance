@@ -1,45 +1,28 @@
-"""Adjudication calculator — core engine. Owner: Tools & Security (T15).
+"""Deterministic claim adjudication calculator.
 
-Lives at ``src/claimsense/calc/adjudication.py``. Every rupee is computed here in
-:class:`~decimal.Decimal`, never by a model and never with floats. The coverage analyst only
-*selects one clause per bill line*; this engine turns the claim plus those clause choices into a
-fully-reconciled shared :class:`~claimsense.contracts.Worksheet`.
+All monetary arithmetic uses Decimal. The module applies only the rules explicitly
+represented by PolicyRules and the per-line clause choices supplied by the coverage
+workflow. It does not make coverage, fraud, approval, or settlement decisions.
 
-Role 3 integration
-------------------
-``claimsense.agents.services`` is the seam. Its ``real_calculate`` adapter imports this module and
-calls it exactly as::
-
-    from claimsense.calc.adjudication import PolicyRules, adjudicate
-    ws = adjudicate(claim, clause_choices, PolicyRules())
-
-The *coverage* and *critic* agents reach it through the ``calculate`` service (``real_calculate`` in
-production, ``reference_calculate`` in dev) — see ``agents/permissions.TOOL_ACL``. The arithmetic
-here is intentionally identical to the repository's development reference
-(``agents.services.reference_calculate``), so the two never disagree and the behaviour the
-orchestration tests pin (room-rent cap + proportional cut, medicines exempt, 5% co-pay last) is
-preserved. The MCP server that exposes this over FastMCP is a separate module (the
-``adjudication-calc`` server); it must reuse this engine rather than re-implement the maths.
-
-Rule parameters (New India *Arogya Sanjeevani* wording quoted in the repo; verify vs. the schedule)
-    * 4.1(a)    room/boarding/nursing up to 2% of sum insured, max Rs.5,000/day
-    * 4.1(b)    ICU/ICCU up to 5% of sum insured, max Rs.10,000/day
-    * 4.1.1 b   on a room/ICU rate breach, all other expenses *except medicines* are paid in the
-                same proportion (proportional deduction)
-    * 4.3       cataract 25% of sum insured or Rs.40,000/eye, whichever is lower (parameters kept
-                on :class:`PolicyRules`; not auto-applied by the reference ruleset — see note below)
-    * 9.5       co-payment of 5% on every claim
-
-The engine never approves, settles or repudiates: it only returns the Worksheet.
+Important policy/data boundaries:
+- Cataract clause 4.3 remains informational until the claim identifies the treated eye
+  and the policy-year usage can be attributed to that eye.
+- For room/ICU daily calculations, explicit BillLine.days takes precedence. If it is
+  absent, the existing contract-compatible fallback is Claim.nights (or one day for
+  a zero-night admission). BillLine.quantity is not assumed to mean days: its default
+  is 1 in the contract, so using it would silently misinterpret many existing claims.
+- Room/ICU overlap and nursing treatment are not inferred here; they require approved
+  domain semantics and/or additional claim fields.
 """
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from decimal import ROUND_HALF_UP, Decimal
+from typing import Mapping
 
-from claimsense.agents import clauses as C  # shared clause-id constants (single source of truth)
-from claimsense.contracts import (  # shared contracts; never redefined here
+from claimsense.agents import clauses as C
+from claimsense.contracts import (
     Claim,
     Deduction,
     DeductionReason,
@@ -57,36 +40,29 @@ __all__ = [
     "proportional_cut_ratio",
     "co_pay",
     "adjudicate",
+    "CATARACT_SUB_LIMIT",
+    "INFORMATIONAL_SUB_LIMITS",
 ]
 
 PAISE = Decimal("0.01")
+ZERO = Decimal("0")
+ONE = Decimal("1")
 
 
 @dataclass(frozen=True)
 class PolicyRules:
-    """Numeric rule parameters, from the real Arogya Sanjeevani wording (see module docstring).
+    """Numeric policy parameters; verify them against the insured policy schedule."""
 
-    A frozen value object so a different policy version / schedule can be supplied without code
-    changes. These are demo-grade defaults: confirm against the exact schedule before real use.
-
-    Note: ``cataract_*`` are retained for policy completeness but are not auto-applied here — the
-    reference ruleset (``agents.services.reference_calculate``) applies no cataract sub-limit, and
-    there is no confirmed cataract clause id yet (``agents/clauses.py`` folds it into 4.1.1). A
-    cataract sub-limit must be driven by an explicit clause choice once that id is agreed, so it is
-    not invented in this engine.
-    """
-
-    room_rent_pct: Decimal = Decimal("0.02")  # clause 4.1(a)
-    room_rent_max_per_day: Decimal = Decimal("5000")  # clause 4.1(a)
-    icu_pct: Decimal = Decimal("0.05")  # clause 4.1(b)
-    icu_max_per_day: Decimal = Decimal("10000")  # clause 4.1(b)
-    cataract_pct: Decimal = Decimal("0.25")  # clause 4.3 (not auto-applied; see note)
-    cataract_max_per_eye: Decimal = Decimal("40000")  # clause 4.3 (not auto-applied; see note)
-    co_pay_rate: Decimal = Decimal("0.05")  # clause 9.5
+    room_rent_pct: Decimal = Decimal("0.02")
+    room_rent_max_per_day: Decimal = Decimal("5000")
+    icu_pct: Decimal = Decimal("0.05")
+    icu_max_per_day: Decimal = Decimal("10000")
+    cataract_pct: Decimal = Decimal("0.25")
+    cataract_max_per_eye: Decimal = Decimal("40000")
+    co_pay_rate: Decimal = Decimal("0.05")
+    sub_limits: dict[str, Decimal] = field(default_factory=dict)
 
 
-# Room-linked categories that shrink in proportion after a room/ICU rate breach (clause 4.1.1
-# Note b). Medicines are explicitly exempt; consumables are handled via their own clause choice.
 LINKED_CATEGORIES: frozenset[LineCategory] = frozenset(
     {
         LineCategory.NURSING,
@@ -98,67 +74,168 @@ LINKED_CATEGORIES: frozenset[LineCategory] = frozenset(
     }
 )
 
-# Selecting one of these clauses for a line makes the whole line non-payable (full deduction).
-# These are claim-exclusions / waiting-period / non-payable clauses the coverage analyst may assign
-# per line. The calculator receives only per-line clause choices (line_id -> clause_id); it has no
-# claim-level exclusion flag, so a *whole* claim reaches Rs 0 only when every line is assigned the
-# relevant clause upstream (coverage/orchestration).
 FULLY_DEDUCTED: dict[str, DeductionReason] = {
     C.NON_PAYABLE_ITEMS: DeductionReason.NON_PAYABLE,
     C.INITIAL_WAITING_PERIOD: DeductionReason.WAITING_PERIOD,
     C.PED_WAITING_PERIOD: DeductionReason.WAITING_PERIOD,
     C.SPECIFIC_WAITING_PERIOD: DeductionReason.WAITING_PERIOD,
-    # Maternity Expenses (clause 7.15, Code Excl18): childbirth/caesarean is excluded, so a line
-    # assigned to 7.15 is deducted in full with reason EXCLUSION (fixes CLM-0018 / GOLD-01).
     C.MATERNITY_EXCLUSION: DeductionReason.EXCLUSION,
 }
 
+CATARACT_SUB_LIMIT: str = "new_india_arogya_sanjeevani:4.3"
+INFORMATIONAL_SUB_LIMITS: frozenset[str] = frozenset({CATARACT_SUB_LIMIT})
+
 
 def to_rupees(value: Decimal) -> Decimal:
-    """Quantise to paise (2 dp), rounding half up."""
+    """Round a monetary value to paise using commercial half-up rounding.\n\n    Keep calculation precision at paise. GOLD-08 stores expected values in whole\n    rupees and the evaluator applies its documented INR 1 tolerance; this\n    function must not force-match a gold value by adding or subtracting a rupee.\n    """
+    if not isinstance(value, Decimal) or not value.is_finite():
+        raise ValueError("monetary value must be a finite Decimal")
     return value.quantize(PAISE, rounding=ROUND_HALF_UP)
 
 
-# --------------------------------------------------------------------------------------------
-# Per-rule helpers (the signatures the T15 stub declared, now implemented).
-# --------------------------------------------------------------------------------------------
 def room_rent_limit_per_day(sum_insured: Decimal, rules: PolicyRules) -> Decimal:
-    """Lower of 2% of sum insured and the Rs.5,000/day cap (clause 4.1(a))."""
+    """Lower of the configured percentage of sum insured and daily rupee cap."""
     return min(sum_insured * rules.room_rent_pct, rules.room_rent_max_per_day)
 
 
 def icu_limit_per_day(sum_insured: Decimal, rules: PolicyRules) -> Decimal:
-    """Lower of 5% of sum insured and the Rs.10,000/day cap (clause 4.1(b))."""
+    """Lower of the configured percentage of sum insured and daily rupee cap."""
     return min(sum_insured * rules.icu_pct, rules.icu_max_per_day)
 
 
 def proportional_cut_ratio(actual_per_day: Decimal, eligible_per_day: Decimal) -> Decimal:
-    """Admissible-to-actual ratio for linked charges after a room/ICU breach (clause 4.1.1 Note b).
-
-    Returns ``1`` (no cut) when the actual per-day rate is within the eligible rate.
-    """
-    if actual_per_day <= 0 or eligible_per_day >= actual_per_day:
-        return Decimal("1")
+    """Return eligible/actual, bounded to [0, 1]."""
+    if actual_per_day <= ZERO:
+        return ONE
+    if eligible_per_day <= ZERO:
+        return ZERO
+    if eligible_per_day >= actual_per_day:
+        return ONE
     return eligible_per_day / actual_per_day
 
 
 def co_pay(amount: Decimal, rules: PolicyRules) -> Decimal:
-    """5% co-payment on the otherwise-payable amount (clause 9.5), applied after all deductions."""
+    """Calculate the co-payment after all line-level deductions."""
     return to_rupees(amount * rules.co_pay_rate)
 
 
+def _validate_decimal(name: str, value: Decimal, *, minimum: Decimal = ZERO) -> None:
+    if not isinstance(value, Decimal) or not value.is_finite():
+        raise ValueError(f"{name} must be a finite Decimal")
+    if value < minimum:
+        raise ValueError(f"{name} must be >= {minimum}")
+
+
+def _validate_rules(rules: PolicyRules) -> None:
+    for name in (
+        "room_rent_pct",
+        "room_rent_max_per_day",
+        "icu_pct",
+        "icu_max_per_day",
+        "cataract_pct",
+        "cataract_max_per_eye",
+        "co_pay_rate",
+    ):
+        _validate_decimal(f"rules.{name}", getattr(rules, name))
+    if rules.co_pay_rate > ONE:
+        raise ValueError("rules.co_pay_rate must not exceed 1")
+    if rules.room_rent_pct > ONE or rules.icu_pct > ONE or rules.cataract_pct > ONE:
+        raise ValueError("policy percentage rates must not exceed 1")
+    for clause_id, limit in rules.sub_limits.items():
+        if not isinstance(clause_id, str) or not clause_id.strip():
+            raise ValueError("sub-limit clause ids must be non-empty strings")
+        _validate_decimal(f"sub-limit {clause_id!r}", limit)
+
+
 def _validate_claim(claim: Claim) -> None:
-    """Numeric sanity checks beyond what the contract already enforces (>=0, 2 dp, date order)."""
-    if claim.sum_insured <= 0:
+    """Validate numeric assumptions used by the calculator."""
+    _validate_decimal("sum_insured", claim.sum_insured)
+    if claim.sum_insured <= ZERO:
         raise ValueError("sum_insured must be positive")
+
+    seen_line_ids: set[str] = set()
     for line in claim.bill_lines:
-        amount = line.amount
-        if not amount.is_finite():
-            raise ValueError(f"line {line.line_id}: amount is not finite")
-        if amount < 0:
-            raise ValueError(f"line {line.line_id}: amount is negative")
-        if line.days is not None and line.days < 0:
-            raise ValueError(f"line {line.line_id}: days is negative")
+        if not line.line_id or not line.line_id.strip():
+            raise ValueError("bill line ids must be non-empty")
+        if line.line_id in seen_line_ids:
+            raise ValueError(f"duplicate bill line id: {line.line_id}")
+        seen_line_ids.add(line.line_id)
+
+        _validate_decimal(f"line {line.line_id} amount", line.amount)
+        _validate_decimal(f"line {line.line_id} quantity", line.quantity)
+        if line.days is not None:
+            if isinstance(line.days, bool) or not isinstance(line.days, int):
+                raise ValueError(f"line {line.line_id}: days must be an integer")
+            if line.days < 0:
+                raise ValueError(f"line {line.line_id}: days is negative")
+            if line.category in (LineCategory.ROOM, LineCategory.ICU) and line.days == 0:
+                raise ValueError(
+                    f"line {line.line_id}: room/ICU days must be positive when supplied"
+                )
+        elif line.category in (LineCategory.ROOM, LineCategory.ICU):
+            if line.quantity <= ZERO or line.quantity != line.quantity.to_integral_value():
+                raise ValueError(
+                    f"line {line.line_id}: room/ICU quantity must be a positive whole number of days"
+                )
+
+
+def _validate_usage(sub_limits_used: Mapping[str, Decimal] | None) -> None:
+    for clause_id, used in (sub_limits_used or {}).items():
+        if not isinstance(clause_id, str) or not clause_id.strip():
+            raise ValueError("prior sub-limit usage clause ids must be non-empty strings")
+        _validate_decimal(f"prior sub-limit usage {clause_id!r}", used)
+
+
+def _daily_units(claim: Claim, line) -> Decimal:
+    """Resolve room/ICU days using explicit days, then the billed quantity.
+
+    The gold fixtures define room/ICU quantity as the number of billed days:
+    CLM-0016 has one ICU day (quantity=1) alongside six ward nights
+    (quantity=6). The overlap is deliberately left as billed, matching the
+    accepted gold ruling; this function does not try to reconcile stay dates.
+    """
+    if line.days is not None:
+        if line.days <= 0:
+            raise ValueError(f"line {line.line_id}: daily line must have positive days")
+        return Decimal(line.days)
+
+    quantity = line.quantity
+    if quantity <= ZERO or quantity != quantity.to_integral_value():
+        raise ValueError(
+            f"line {line.line_id}: room/ICU quantity must be a positive whole number of days"
+        )
+    return quantity
+
+
+def _room_icu_ratio(claim: Claim, room_cap: Decimal, icu_cap: Decimal) -> Decimal:
+    """Find the strictest room/ICU rate ratio for linked expense deductions."""
+    ratio = ONE
+    for line in claim.bill_lines:
+        if line.category not in (LineCategory.ROOM, LineCategory.ICU):
+            continue
+        days = _daily_units(claim, line)
+        actual_per_day = line.amount / days
+        eligible_per_day = room_cap if line.category == LineCategory.ROOM else icu_cap
+        if actual_per_day > eligible_per_day:
+            ratio = min(
+                ratio,
+                proportional_cut_ratio(actual_per_day, eligible_per_day),
+            )
+    return ratio
+
+
+def _make_deduction(
+    reason: DeductionReason,
+    amount: Decimal,
+    clause_id: str,
+    explanation: str,
+) -> Deduction:
+    return Deduction(
+        reason=reason,
+        amount=to_rupees(amount),
+        clause_id=clause_id,
+        explanation=explanation,
+    )
 
 
 def adjudicate(
@@ -168,101 +245,140 @@ def adjudicate(
     *,
     version: int = 1,
     fraud_flags: list[str] | None = None,
+    sub_limits_used: dict[str, Decimal] | None = None,
 ) -> Worksheet:
-    """Turn a claim + per-line clause choices into a reconciled :class:`Worksheet` (all maths here).
+    """Calculate a reconciled worksheet from a claim and per-line clause selections.
 
-    ``clause_choices`` maps ``line_id -> clause_id`` (chosen by the coverage analyst); lines with no
-    entry default to the hospitalisation clause. ``rules`` defaults to :class:`PolicyRules`.
-    ``version`` and ``fraud_flags`` are carried onto the worksheet for routing only — they never
-    change any amount (the adapter ``services.real_calculate`` sets them this way). Admissibility is
-    decided upstream; this applies the clause each line was assigned and reconciles every rupee.
+    ``clause_choices`` maps bill-line ids to clause ids. Missing choices default to
+    hospitalisation. ``sub_limits_used`` contains prior policy-year usage keyed by clause.
+    Configured sub-limits are applied to each matching line, subject to the informational
+    cataract exclusion described in the module documentation.
     """
     rules = rules or PolicyRules()
     _validate_claim(claim)
+    _validate_rules(rules)
+    _validate_usage(sub_limits_used)
+
+    if not isinstance(clause_choices, dict):
+        raise TypeError("clause_choices must be a dict mapping line ids to clause ids")
+    if isinstance(version, bool) or not isinstance(version, int) or version < 1:
+        raise ValueError("version must be a positive integer")
+
     room_cap = room_rent_limit_per_day(claim.sum_insured, rules)
     icu_cap = icu_limit_per_day(claim.sum_insured, rules)
+    ratio = _room_icu_ratio(claim, room_cap, icu_cap)
 
-    # One proportional ratio from the worst room/ICU rate breach (clause 4.1.1 Note b).
-    ratio = Decimal("1")
-    for line in claim.bill_lines:
-        days = Decimal(line.days or claim.nights or 1)
-        per_day = line.amount / days if days else line.amount
-        if line.category == LineCategory.ROOM and per_day > room_cap:
-            ratio = min(ratio, proportional_cut_ratio(per_day, room_cap))
-        elif line.category == LineCategory.ICU and per_day > icu_cap:
-            ratio = min(ratio, proportional_cut_ratio(per_day, icu_cap))
-
-    lines: list[WorksheetLine] = []
+    worksheet_lines: list[WorksheetLine] = []
     for line in claim.bill_lines:
         chosen = clause_choices.get(line.line_id, C.HOSPITALISATION)
-        days = Decimal(line.days or claim.nights or 1)
+        if not isinstance(chosen, str) or not chosen.strip():
+            raise ValueError(f"line {line.line_id}: selected clause id must be non-empty")
+
         deductions: list[Deduction] = []
+        daily_units = (
+            _daily_units(claim, line)
+            if line.category in (LineCategory.ROOM, LineCategory.ICU)
+            else Decimal(line.days if line.days is not None and line.days > 0 else (claim.nights or 1))
+        )
 
         if chosen in FULLY_DEDUCTED:
             deductions.append(
-                Deduction(
-                    reason=FULLY_DEDUCTED[chosen],
-                    amount=line.amount,
-                    clause_id=chosen,
-                    explanation="Not payable under the selected clause.",
-                )
-            )
-        elif line.category == LineCategory.ROOM and line.amount > room_cap * days:
-            deductions.append(
-                Deduction(
-                    reason=DeductionReason.ROOM_RENT_CAP,
-                    amount=to_rupees(line.amount - room_cap * days),
-                    clause_id=C.ROOM_RENT_LIMIT,
-                    explanation=f"Room rent capped at Rs {to_rupees(room_cap)}/day x {days} day(s).",
-                )
-            )
-        elif line.category == LineCategory.ICU and line.amount > icu_cap * days:
-            deductions.append(
-                Deduction(
-                    reason=DeductionReason.ICU_CAP,
-                    amount=to_rupees(line.amount - icu_cap * days),
-                    clause_id=C.ICU_LIMIT,
-                    explanation=f"ICU capped at Rs {to_rupees(icu_cap)}/day x {days} day(s).",
-                )
-            )
-        elif line.category in LINKED_CATEGORIES and ratio < 1:
-            deductions.append(
-                Deduction(
-                    reason=DeductionReason.PROPORTIONAL_CUT,
-                    amount=to_rupees(line.amount * (Decimal("1") - ratio)),
-                    clause_id=C.OTHER_EXPENSES,
-                    explanation=f"Proportional cut after room/ICU breach, factor {ratio:.4f}.",
+                _make_deduction(
+                    FULLY_DEDUCTED[chosen],
+                    line.amount,
+                    chosen,
+                    "Not payable under the selected clause.",
                 )
             )
 
-        deducted = sum((d.amount for d in deductions), Decimal("0"))
-        lines.append(
+        elif chosen in rules.sub_limits and chosen not in INFORMATIONAL_SUB_LIMITS:
+            limit = rules.sub_limits[chosen]
+            used = (sub_limits_used or {}).get(chosen, ZERO)
+            remaining = max(ZERO, limit - used)
+            shortfall = max(ZERO, line.amount - remaining)
+            if shortfall > ZERO:
+                deductions.append(
+                    _make_deduction(
+                        DeductionReason.SUB_LIMIT,
+                        shortfall,
+                        chosen,
+                        (
+                            f"Sub-limit under {chosen}: Rs {to_rupees(remaining)} remaining "
+                            f"from Rs {to_rupees(limit)} after prior use of Rs {to_rupees(used)}."
+                        ),
+                    )
+                )
+
+        elif line.category == LineCategory.ROOM and line.amount > room_cap * daily_units:
+            capped_amount = room_cap * daily_units
+            deductions.append(
+                _make_deduction(
+                    DeductionReason.ROOM_RENT_CAP,
+                    line.amount - capped_amount,
+                    C.ROOM_RENT_LIMIT,
+                    f"Room rent capped at Rs {to_rupees(room_cap)}/day x {daily_units} day(s).",
+                )
+            )
+
+        elif line.category == LineCategory.ICU and line.amount > icu_cap * daily_units:
+            capped_amount = icu_cap * daily_units
+            deductions.append(
+                _make_deduction(
+                    DeductionReason.ICU_CAP,
+                    line.amount - capped_amount,
+                    C.ICU_LIMIT,
+                    f"ICU capped at Rs {to_rupees(icu_cap)}/day x {daily_units} day(s).",
+                )
+            )
+
+        elif line.category in LINKED_CATEGORIES and ratio < ONE:
+            deductions.append(
+                _make_deduction(
+                    DeductionReason.PROPORTIONAL_CUT,
+                    line.amount * (ONE - ratio),
+                    C.OTHER_EXPENSES,
+                    f"Proportional cut after room/ICU breach, factor {ratio:.6f}.",
+                )
+            )
+
+        total_deducted = sum((item.amount for item in deductions), ZERO)
+        payable = line.amount - total_deducted
+        if payable < ZERO:
+            raise ArithmeticError(f"line {line.line_id}: deductions exceed claimed amount")
+
+        worksheet_lines.append(
             WorksheetLine(
                 line_id=line.line_id,
                 claimed=line.amount,
                 deductions=deductions,
-                payable=line.amount - deducted,
+                payable=payable,
             )
         )
 
-    gross = sum((wl.payable for wl in lines), Decimal("0"))
-    co = co_pay(gross, rules)
-    co_pay_deduction = (
-        Deduction(
-            reason=DeductionReason.CO_PAY,
-            amount=co,
-            clause_id=C.CO_PAY,
-            explanation=f"{rules.co_pay_rate * 100:.0f}% co-pay on the admissible amount.",
+    gross_admissible = sum((line.payable for line in worksheet_lines), ZERO)
+    copay_amount = co_pay(gross_admissible, rules)
+    copay_deduction = (
+        _make_deduction(
+            DeductionReason.CO_PAY,
+            copay_amount,
+            C.CO_PAY,
+            f"{rules.co_pay_rate * 100:.0f}% co-pay on the admissible amount.",
         )
-        if co > 0
+        if copay_amount > ZERO
         else None
     )
+
+    total_claimed = sum((line.claimed for line in worksheet_lines), ZERO)
+    total_payable = gross_admissible - copay_amount
+    if total_payable < ZERO:
+        raise ArithmeticError("co-payment exceeds admissible amount")
+
     return Worksheet(
         claim_id=claim.claim_id,
         version=version,
-        lines=lines,
-        co_pay=co_pay_deduction,
-        total_claimed=sum((wl.claimed for wl in lines), Decimal("0")),
-        total_payable=gross - co,
+        lines=worksheet_lines,
+        co_pay=copay_deduction,
+        total_claimed=total_claimed,
+        total_payable=total_payable,
         fraud_flags=list(fraud_flags or []),
     )

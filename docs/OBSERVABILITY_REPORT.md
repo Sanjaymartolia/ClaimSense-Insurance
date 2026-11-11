@@ -20,8 +20,8 @@ evaluation). The second piece applies lecture AAI-14 and the L14 hands-on notebo
 - **Production evaluation tools.** We examined the nine tools that AAI-13 names. We built a test
   suite with DeepEval. The harness had RAGAS before this work. LangSmith and Langfuse need configuration
   only. Section 3 gives each decision and its reason.
-- **DeepEval suite.** `eval/deepeval_suite/` holds 110 tests. 70 tests need no model and no key.
-  All 70 pass in stub mode, through `pytest` and through `deepeval test run`. The other 40 tests
+- **DeepEval suite.** `eval/deepeval_suite/` holds 118 tests. 74 tests need no model and no key.
+  All 74 pass in stub mode, through `pytest` and through `deepeval test run`. The other 44 tests
   use an LLM judge. They are opt-in because they cost money. They have not run yet.
 - **Observability, the simple way.** `python -m eval.observability show` records one claim as an
   OpenTelemetry trace in memory and prints it as a tree. Claim CLM-0004 gives 26 spans.
@@ -31,7 +31,7 @@ evaluation). The second piece applies lecture AAI-14 and the L14 hands-on notebo
 - **What the traces showed.** During the outage, 13 claims called the tariff tool and all 13
   calls failed. Each of the 13 claims stopped with a `TimeoutError` at that call. No claim tried
   again or used another path. This confirms finding MON-01 from the spans alone.
-- **Rule 4 (no health details).** Each exporter sits behind an allowlist. A test runs all 50 dev
+- **Rule 4 (no health details).** Each exporter sits behind an allowlist. A test runs all 52 dev
   and red-team claims and finds no claim text in any span. Jaeger gave back all 663 spans of the
   run, and no span holds an attribute outside the allowlist. A canary span with a forbidden
   attribute goes out with each run. It proves that the redaction is in the export path.
@@ -148,10 +148,10 @@ Each claim is one DeepEval test case. The suite has two files.
 
 | Test | Metric | Claims | Needs |
 |---|---|---|---|
-| The pipeline does not crash, and each node calls the tools that its design specifies | `ToolCorrectnessMetric` (DeepEval), threshold 1.0 | 20 dev | Nothing |
-| No crash, no forbidden tool, one policy search for each bill line, and the tool budget holds | `TrajectoryRulesMetric` (custom, code only) | 20 dev + 30 red-team | Nothing |
-| The review payload meets the checklist | `GEval` with the agent-suite checklist | 20 dev | Key, `CLAIMSENSE_DEEPEVAL_JUDGE=1` |
-| Each deduction agrees with the clause that it cites | `FaithfulnessMetric` | 20 dev | Key, `CLAIMSENSE_DEEPEVAL_JUDGE=1` |
+| The pipeline does not crash, and each node calls the tools that its design specifies | `ToolCorrectnessMetric` (DeepEval), threshold 1.0 | 22 dev | Nothing |
+| No crash, no forbidden tool, one policy search for each bill line, and the tool budget holds | `TrajectoryRulesMetric` (custom, code only) | 22 dev + 30 red-team | Nothing |
+| The review payload meets the checklist | `GEval` with the agent-suite checklist | 22 dev | Key, `CLAIMSENSE_DEEPEVAL_JUDGE=1` |
+| Each deduction agrees with the clause that it cites | `FaithfulnessMetric` | 22 dev | Key, `CLAIMSENSE_DEEPEVAL_JUDGE=1` |
 
 The expected tools come from the design of the pipeline, not from the gold answers. Each tool
 name includes the node that must call it:
@@ -201,12 +201,12 @@ correctness needs no model and that no data leaves the machine.
 
 | Run | Command | Result | Time |
 |---|---|---|---|
-| Stub, plain pytest | `CLAIMSENSE_LLM=stub pytest eval/deepeval_suite` | 70 pass, 40 skip (judge off) | 5.6 s |
-| Stub, DeepEval runner | `DEEPEVAL_DISABLE_DOTENV=1 DEEPEVAL_TELEMETRY_OPT_OUT=1 CLAIMSENSE_LLM=stub deepeval test run eval/deepeval_suite` | 70 of 70 pass, pass rate 100% | 8.3 s |
+| Stub, plain pytest | `CLAIMSENSE_LLM=stub pytest eval/deepeval_suite` | 74 pass, 44 skip (judge off) | 5.6 s |
+| Stub, DeepEval runner | `DEEPEVAL_DISABLE_DOTENV=1 DEEPEVAL_TELEMETRY_OPT_OUT=1 CLAIMSENSE_LLM=stub deepeval test run eval/deepeval_suite` | 74 of 74 pass, pass rate 100% | 8.3 s |
 | Real models | `deepeval test run eval/deepeval_suite` | Not run yet (needs your key) | — |
 | LLM judge | `CLAIMSENSE_DEEPEVAL_JUDGE=1 deepeval test run eval/deepeval_suite` | Not run yet (needs your key) | — |
 
-In stub mode, no claim crashed. Each of the 20 dev claims called the tools that its path
+In stub mode, no claim crashed. Each of the 22 dev claims called the tools that its path
 specifies, from the correct node. Coverage searched the policy for each bill line. No claim, dev
 or red-team, ran a forbidden tool. Each claim stayed within the tool budget of 40.
 
@@ -296,8 +296,8 @@ put a Collector between the process and the backend, keep the redaction in the p
 `python -m eval.observability run`:
 
 1. Starts Jaeger. You can also send to another OTLP backend, or keep the spans in memory only.
-2. Sends the 20 dev claims, four at a time.
-3. Sends the same 20 claims again. During this phase, `tariff_range` waits 1.5 s and then fails
+2. Sends the dev claims, four at a time (22 since 12 November 2026, 20 in the run of Section 7.2).
+3. Sends the same claims again. During this phase, `tariff_range` waits 1.5 s and then fails
    70% of the time.
 4. Sends one canary span with a forbidden attribute. Then it asks Jaeger for every trace of
    the run, and for one full trace.
@@ -496,9 +496,9 @@ A run with real models needs your OpenRouter key. Claude's shell has no key and 
 
 | Check | Result |
 |---|---|
-| `pytest eval/tests` | 290 tests: 282 pass, 6 strict `xfail` pass by failure, 2 skip |
+| `pytest eval/tests` | 292 tests: 286 pass, 4 strict `xfail` pass by failure, 2 skip |
 | New tests in `eval/tests/test_observability.py` | 21. No key and no Jaeger. Two tests use a small HTTP server on 127.0.0.1 |
-| DeepEval suite, stub | 70 pass. 40 judge tests skip until you opt in |
+| DeepEval suite, stub | 74 pass. 44 judge tests skip until you opt in |
 | Product tests (`pytest`) | 124 pass, 4 skip, 1 `xfail`. The same as before this work |
 | Harness suite (`python -m eval.harness.suite`) | Nine of nine rows match. The new seam changed no score |
 | `ruff check` and `ruff format --check` on the new and changed files | Clean |
@@ -583,8 +583,8 @@ other two repeated code defects in the table below.
 | `show` (one claim) | real | about $0.001 |
 | `run` (40 claims) | stub | $0 |
 | `run` (40 claims) | real | about $0.03 (from $0.0008 per claim in the real-dev run of CS-EVAL-TR-001). Claims that stop early cost less |
-| DeepEval suite, no judge (50 claims) | real | about $0.04 |
-| DeepEval judge (up to 40 judged tests) | key | Not measured yet. DeepEval prints the cost at the end of the run |
+| DeepEval suite, no judge (52 claims) | real | about $0.04 |
+| DeepEval judge (up to 44 judged tests) | key | Not measured yet. DeepEval prints the cost at the end of the run |
 | Jaeger | — | $0, on this machine |
 
 ---
@@ -712,7 +712,7 @@ on (rule 4).
 2. Type `CLAIMSENSE_LLM=stub deepeval test run eval/deepeval_suite`.
    - PowerShell: `$env:CLAIMSENSE_LLM = "stub"; deepeval test run eval/deepeval_suite`
 3. Make sure that the line `ClaimSense agents: stub` is near the start.
-4. Make sure that the end says `Pass Rate: 100.0%`. The 40 judge tests skip.
+4. Make sure that the end says `Pass Rate: 100.0%`. The 44 judge tests skip.
 
 NOTE: With `DEEPEVAL_DISABLE_DOTENV=1`, DeepEval does not load `.env`. `DEEPEVAL_TELEMETRY_OPT_OUT=1`
 stops its usage events. On Windows, if you send the output to a file, also set `PYTHONUTF8=1`.
@@ -732,7 +732,7 @@ CAUTION: Do not type `deepeval login`. It sends the results to the cloud of Conf
 ### 12.12 Run the tests
 
 1. Type `pytest eval/tests/test_observability.py -q` for the 21 observability tests.
-2. Type `pytest eval/tests -q` for all 290 evaluation tests.
+2. Type `pytest eval/tests -q` for all 292 evaluation tests.
 3. Type `pytest -q` for the product tests.
 
 ### 12.13 Stop and clean up
@@ -773,7 +773,7 @@ CAUTION: Do not type `deepeval login`. It sends the results to the cloud of Conf
 | Library behaviour | Read from the installed source code and tested with small programs: DeepEval 4.3.3, opentelemetry-sdk 1.45.2, the LangChain instrumentation 0.63.0, langsmith 0.14.17 |
 | Jaeger checksums | From `jaeger-2.22.0.sha256sum.txt` on the release. The GitHub asset digests agree for all five platforms |
 | Jaeger listening addresses | `netstat` shows 127.0.0.1 only. No process stays after the run |
-| Rule 4 | A test over all 50 dev and red-team claims. A check of the DeepEval cache. A check of all 663 spans that Jaeger returned. A canary span in each run |
+| Rule 4 | A test over all 52 dev and red-team claims. A check of the DeepEval cache. A check of all 663 spans that Jaeger returned. A canary span in each run |
 | Adversarial review | 13 code defects found and fixed. 9 report errors corrected (Section 8.1) |
 | Numbers in this report | From `runs/observability/stub-jaeger-2/summary.json` and from the test output |
 
@@ -791,7 +791,7 @@ CAUTION: Do not type `deepeval login`. It sends the results to the cloud of Conf
 | `.gitignore` | Changed: `.deepeval/` |
 | `CLAUDE.md`, `README.md`, `eval/README.md` | Changed: commands and links |
 | `eval/tests/test_report_doc.py` | Changed: its test-count check passes `-p no:deepeval` again |
-| `docs/EVAL_HARNESS_REPORT.md`, `docs/TECHNICAL_REPORT_EVAL_AND_MONITORING.md`, `docs/FRAMEWORK_RUBRIC_SCORE.md` | Changed: the test count (269 to 290) |
+| `docs/EVAL_HARNESS_REPORT.md`, `docs/TECHNICAL_REPORT_EVAL_AND_MONITORING.md`, `docs/FRAMEWORK_RUBRIC_SCORE.md` | Changed: the test count (269 to 292) |
 | `runs/observability/stub-jaeger-2/` | New: the run that Section 7.2 quotes |
 | `runs/observability/stub-jaeger/` | New: the first run, before the review. Kept as it was |
 
@@ -801,6 +801,6 @@ CAUTION: Do not type `deepeval login`. It sends the results to the cloud of Conf
 |---|---|
 | 26 spans for CLM-0004 | `python -m eval.observability show --stub` |
 | 662 claim spans, 663 spans sent, 40 traces, RED table, error paths, gate, checks | `runs/observability/stub-jaeger-2/summary.json` |
-| 70 DeepEval tests, 100% | `deepeval test run` output, 11 November 2026 |
-| 290 evaluation tests | `pytest eval/tests --collect-only` |
+| 74 DeepEval tests, 100% | `deepeval test run` output, 12 November 2026 |
+| 292 evaluation tests | `pytest eval/tests --collect-only` |
 | $0.0008 per real claim | CS-EVAL-TR-001, Section 6 (real-dev run) |
