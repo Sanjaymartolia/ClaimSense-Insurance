@@ -237,3 +237,19 @@ def test_run_suite_end_to_end_on_a_few_cases(cases, tmp_path):
     out = suite.write_outputs([res], "t", tmp_path)
     assert (out / "card.json").exists() and (out / "traces.jsonl").exists()
     assert "## 7. Gate" in suite.report(res)
+
+
+def test_the_report_uses_the_tolerance_the_run_was_scored_with(cases):
+    """GOLD-08 (ADR-0007): the gold is whole rupees and the calculator keeps paise, so CLM-0006
+    settles at Rs 59,142 against a gold of Rs 59,141. A run scored with the Rs 1 tolerance must
+    say so in its tables too: `eval.full` printed the report at Rs 0 while its gate used Rs 1."""
+    res = suite.run_suite("t", "v1", [cases["CLM-0006"]], tolerance_inr=1)
+    assert res.card["task_success"] == 1.0
+    text = suite.report(res)
+    assert "wrong ones (0):" in text
+    strict = suite.run_suite("t", "v1", [cases["CLM-0006"]])  # the library default stays Rs 0
+    assert "wrong ones (1):" in suite.report(strict)
+
+
+def test_the_cli_defaults_to_the_gold_08_tolerance():
+    assert suite.parse_args(["--label", "x"]).tolerance_inr == 1

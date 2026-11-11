@@ -159,7 +159,7 @@ prints what the run actually cost. One real-model run on the 20 dev claims
 | `--splits` | comma list of `dev`, `redteam` | `dev,redteam` |
 | `--show` | claim ids whose full trace to print | first wrong claim |
 | `--k N` | run each claim N times for pass@k / pass^k | 1 (off) |
-| `--tolerance-inr N` | settlement tolerance in rupees (GOLD-08) | 0 |
+| `--tolerance-inr N` | settlement tolerance in rupees (GOLD-08, ADR-0007); the report uses the same value as the gate | 1 |
 | `--workers N` | claims run in parallel (useful for real-model runs) | 1 |
 | `--judge`, `--judge-limit N` | LLM judge on the review payloads (key, costs money) | off |
 | `--quiet` | print only the gate, not the full report | off |

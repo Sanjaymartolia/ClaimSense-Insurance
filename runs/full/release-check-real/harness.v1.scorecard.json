@@ -72,25 +72,25 @@
   },
   "efficiency": {
     "latency_seconds": {
-      "value": 8.278636,
+      "value": 8.745273,
       "detail": {
-        "p50": 8.2786,
-        "p95": 19.742,
-        "max": 21.9853
+        "p50": 8.7453,
+        "p95": 20.2748,
+        "max": 21.9144
       }
     },
     "tokens_per_claim": {
-      "value": 1788.769231,
+      "value": 1789.365385,
       "detail": {
-        "mean": 1788.8,
-        "total": 93016
+        "mean": 1789.4,
+        "total": 93047
       }
     },
     "cost_usd_per_claim": {
-      "value": 0.001224,
+      "value": 0.001226,
       "detail": {
-        "mean_usd": 0.001224,
-        "total_usd": 0.06367,
+        "mean_usd": 0.001226,
+        "total_usd": 0.063732,
         "budget_usd_per_claim": 0.2
       }
     }

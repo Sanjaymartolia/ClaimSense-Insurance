@@ -80,6 +80,9 @@ class SuiteResult:
     rows: list[dict]
     card: dict[str, float | None]
     judge_verdicts: dict[str, object] = field(default_factory=dict)
+    #: The settlement tolerance the card was scored with; `report` reuses it, so the printed
+    #: tables can never disagree with the gate (GOLD-08).
+    tolerance_inr: int = 0
 
 
 def load_gate(path: Path = GATE_FILE) -> dict[str, tuple[str, float]]:
@@ -176,7 +179,7 @@ def run_suite(
         for t in judged:
             verdicts[t.claim_id] = judge.judge_trace(t, structured)
     card = build_card(cases, traces, rows, tolerance_inr, verdicts)
-    return SuiteResult(name, variant, cases, traces, rows, card, verdicts)
+    return SuiteResult(name, variant, cases, traces, rows, card, verdicts, tolerance_inr)
 
 
 def check_gate(
@@ -225,8 +228,12 @@ def pairwise(a: SuiteResult, b: SuiteResult, structured: judge.Structured | None
 
 
 # --------------------------------------------------------------------------------- the report
-def report(res: SuiteResult, *, tolerance_inr: int = 0, show: list[str] | None = None) -> str:
-    """Sections 1-7 of the notebook, in order, for one run."""
+def report(
+    res: SuiteResult, *, tolerance_inr: int | None = None, show: list[str] | None = None
+) -> str:
+    """Sections 1-7 of the notebook, in order, for one run. The tolerance defaults to the one
+    the run was scored with."""
+    tolerance_inr = res.tolerance_inr if tolerance_inr is None else tolerance_inr
     cases, traces, rows = res.cases, res.traces, res.rows
     by_id = {t.claim_id: t for t in traces}
     out: list[str] = [f"=== {res.name} / variant {res.variant} / {traces[0].mode} mode ==="]
@@ -396,7 +403,12 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     )
     p.add_argument("--variant", default="v1", help=f"comma list from {sorted(VARIANTS)}")
     p.add_argument("--splits", default="dev,redteam", help="comma list: dev, redteam")
-    p.add_argument("--tolerance-inr", type=int, default=0, help="settlement tolerance (GOLD-08)")
+    p.add_argument(
+        "--tolerance-inr",
+        type=int,
+        default=1,
+        help="settlement tolerance in rupees (GOLD-08, ADR-0007; default 1, pass 0 for strict)",
+    )
     p.add_argument("--k", type=int, default=1, help="runs per golden+adversarial case for pass@k")
     p.add_argument(
         "--workers", type=int, default=1, help="claims run in parallel (real-model runs)"
