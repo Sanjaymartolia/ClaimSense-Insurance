@@ -53,6 +53,9 @@ VARIANTS: dict[str, dict] = {
     "no-docs": {"pass_documents": False, "guardrail": False},
     "guarded": {"pass_documents": True, "guardrail": True},
     "lean-pr": {"pass_documents": True, "guardrail": False, "fraud_screen": False},
+    # v1 with the real hybrid retriever (policy-kb) instead of the stub clause table. Needs
+    # .[retrieval] and `python -m claimsense.retrieval.index`; see eval/harness/real_retrieval.py.
+    "real-retrieval": {"pass_documents": True, "guardrail": False, "retrieval": "real"},
 }
 
 #: Metrics that are shares in [0, 1], drawn on the chart. Counts and seconds are printed only.
@@ -451,6 +454,20 @@ def preflight(force_stub: bool) -> str | None:
     return None
 
 
+def retrieval_problem(variants: list[str]) -> str | None:
+    """Open the real retriever once, before any claim, if a variant needs it. An error message, or
+    None. Without this a missing index would crash the run (or a worker pool) on the first claim."""
+    if not any(VARIANTS.get(v, {}).get("retrieval") == "real" for v in variants):
+        return None
+    from eval.harness.real_retrieval import RetrievalUnavailableError, open_real_retrieval
+
+    try:
+        open_real_retrieval()
+    except RetrievalUnavailableError as e:
+        return f"the real retriever cannot open: {e}"
+    return None
+
+
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
     problem = preflight(args.stub)
@@ -459,6 +476,10 @@ def main(argv: list[str] | None = None) -> int:
         return 2
     cases = load_dataset([s.strip() for s in args.splits.split(",") if s.strip()])
     variants = [v.strip() for v in args.variant.split(",") if v.strip()]
+    problem = retrieval_problem(variants)
+    if problem:
+        print(problem, file=sys.stderr)
+        return 2
     show = [s.strip() for s in args.show.split(",") if s.strip()] or None
     results = [
         run_suite(

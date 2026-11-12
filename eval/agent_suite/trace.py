@@ -40,7 +40,13 @@ from dataclasses import asdict, dataclass, field
 from functools import cache
 from typing import Any, Protocol
 
-from eval.harness.claimsense_adapter import ClaimSenseAdapter, _observed
+from eval.harness.claimsense_adapter import (
+    ClaimSenseAdapter,
+    _observed,
+    coverage_rationales,
+    llm_usage,
+    walk_runs,
+)
 from eval.harness.models import AgentOutput, EvalCase
 
 #: Every tool on `Services` that an agent or node can reach. `record_history` is called by the
@@ -324,33 +330,14 @@ def _llm_capture(trace: Trace, node: str) -> Iterator[None]:
     with collect_runs() as collector:
         yield
     for root in collector.traced_runs:
-        for run in _walk(root):
+        for run in walk_runs(root):
             if run.run_type in ("llm", "chat_model"):
                 trace.spans.append(_llm_span(run, node))
 
 
-def _walk(run: Any) -> Iterator[Any]:
-    yield run
-    for child in getattr(run, "child_runs", None) or []:
-        yield from _walk(child)
-
-
 def _llm_span(run: Any, node: str) -> Span:
-    """Tokens and cost from a LangChain run, best effort: providers report them differently."""
-    usage: dict = {}
-    outputs = getattr(run, "outputs", None) or {}
-    usage = dict((outputs.get("llm_output") or {}).get("token_usage") or {})
-    if not usage:
-        try:
-            message = outputs["generations"][0][0]["message"]["kwargs"]
-            meta = message.get("usage_metadata") or {}
-            usage = {
-                "prompt_tokens": meta.get("input_tokens", 0),
-                "completion_tokens": meta.get("output_tokens", 0),
-            }
-            usage.update((message.get("response_metadata") or {}).get("token_usage") or {})
-        except (KeyError, IndexError, TypeError):
-            usage = {}
+    """Tokens and cost from a LangChain run (`llm_usage`, shared with the harness adapter)."""
+    tokens_in, tokens_out, cost = llm_usage(run)
     params = (getattr(run, "extra", None) or {}).get("invocation_params") or {}
     ms = 0.0
     if getattr(run, "end_time", None) and getattr(run, "start_time", None):
@@ -361,9 +348,9 @@ def _llm_span(run: Any, node: str) -> Span:
         node=node,
         ms=ms,
         status="error" if getattr(run, "error", None) else "ok",
-        tokens_in=int(usage.get("prompt_tokens") or 0),
-        tokens_out=int(usage.get("completion_tokens") or 0),
-        cost=float(usage.get("cost") or 0.0),
+        tokens_in=tokens_in,
+        tokens_out=tokens_out,
+        cost=cost,
     )
 
 
@@ -442,6 +429,7 @@ def run_traced(
     guardrail: bool = False,
     calculator: str = "reference",
     fraud_screen: bool = True,
+    retrieval: str = "stub",
     prepare: Callable[[Any], None] | None = None,
     observer: Observer | None = None,
 ) -> Trace:
@@ -453,6 +441,9 @@ def run_traced(
 
     fraud_screen=False is the change section 7.1 puts through the gate: the fraud agent's three
     tool calls are skipped (see `_NoFraudScreen`). It exists to show what the gate catches.
+
+    retrieval="real" swaps the stub clause table for the real hybrid retriever (policy-kb), see
+    `eval/harness/real_retrieval.py`. Every other tool stays a stub.
 
     prepare, if given, is called with this claim's `Services` before the tools are wrapped.
     `eval.monitoring` uses it to make a tool fail (section 8.6); because the fault sits under the
@@ -499,6 +490,12 @@ def run_traced(
     services.calculate = (
         imports["reference_calculate"] if calculator == "reference" else imports["real_calculate"]
     )
+    if retrieval == "real":
+        from eval.harness.real_retrieval import use_real_retrieval
+
+        use_real_retrieval(services)
+    elif retrieval != "stub":
+        raise ValueError(f"retrieval must be 'stub' or 'real', not {retrieval!r}")
     if prepare is not None:
         prepare(services)
     instrument_services(services, trace, observer)
@@ -546,7 +543,9 @@ def run_traced(
     citations.update(getattr(admissibility, "clause_ids", None) or [])
     trace.citations = sorted(c for c in citations if c)
     # Field for field what `ClaimSenseAdapter.run` returns, so the harness scorer gives a traced
-    # run the same score as an adapter run (eval/tests/test_full.py checks this).
+    # run the same score as an adapter run (eval/tests/test_full.py checks this). Not written to
+    # disk (`Trace.to_dict` drops `output`), so the model's rationales stay in memory (rule 4).
+    rationales, contexts = coverage_rationales(team, trace.clause_choices)
     trace.output = AgentOutput(
         claim_id=case.claim_id,
         route=trace.route,
@@ -554,10 +553,8 @@ def run_traced(
         review_flags=trace.flags,
         citations=trace.citations,
         actions=adapter._actions(services.tool_log),
-        rationales={
-            line_id: f"Line {line_id} was adjudicated under clause {clause_id}."
-            for line_id, clause_id in sorted(trace.clause_choices.items())
-        },
+        rationales=rationales,
+        retrieved_contexts=contexts,
         observed_claim_keys=_observed(case.claim),
         latency_s=trace.seconds,
         prompt_tokens=sum(s.tokens_in for s in trace.llm_spans),

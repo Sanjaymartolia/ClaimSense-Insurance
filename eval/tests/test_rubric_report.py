@@ -126,13 +126,13 @@ def test_the_total_row_matches_the_recomputed_sum(report_text):
 
 # ------------------------------------------------------------------ the improvement table
 def test_the_headline_improvement_claim_is_arithmetically_sound(report_text):
-    """Section 7 claims connection work is worth +1.20 and lands near 3.90. Check both."""
+    """Section 7 claims the top four items are worth +0.80 and land near 3.65. Check both."""
     current = sum(r[3] for r in scorecard_rows(report_text))
     gains = improvement_gains(report_text)
     assert gains, "no gain figures found in the Section 7 table"
     top_four = sum(sorted(gains, reverse=True)[:4])
-    assert top_four == pytest.approx(1.20, abs=0.005), f"top four gains sum to {top_four}"
-    assert (current / 100) + top_four == pytest.approx(3.90, abs=0.005)
+    assert top_four == pytest.approx(0.80, abs=0.005), f"top four gains sum to {top_four}"
+    assert (current / 100) + top_four == pytest.approx(3.65, abs=0.005)
 
 
 # ------------------------------------------------------------------ structure
@@ -178,7 +178,7 @@ def test_the_scorer_runs_and_prints_the_score(capsys):
 
     assert main(["--plan", "--insurance"]) == 0
     out = capsys.readouterr().out
-    assert "SCORE: 2.70 out of 5" in out
+    assert "SCORE: 2.85 out of 5" in out
     assert "->" in out, "the arrow should be transliterated, not dropped"
     assert out.isascii(), "output must be printable on a cp1252 console"
 

@@ -33,15 +33,35 @@ langchain-mcp-adapters>=0.1
 # --- mcp: tool servers ---
 fastmcp>=2.0
 
-# --- retrieval: hybrid search ---
+# --- retrieval: hybrid search (then build the index: python -m claimsense.retrieval.index) ---
 chromadb>=0.5
 rank-bm25>=0.2.2
 sentence-transformers>=3.0
+pypdf>=4.0
 
 # --- eval: RAGAS judge (opt-in, costs money when run) ---
 # langchain-community pinned below 0.4: ragas 0.4.x imports a module that 0.4 removed.
-ragas>=0.4,<0.5
+# Python 3.14: ragas requires scikit-network, which has no 3.14 wheel (building it needs the
+# Microsoft C++ Build Tools). ragas uses it only for test-set generation, never for the judge.
+# So on 3.14 this file installs ragas's other dependencies; then run once:
+#     pip install --no-deps "ragas>=0.4,<0.5"
+ragas>=0.4,<0.5; python_version < "3.14"
 langchain-community>=0.3,<0.4  # also satisfies the course kit's >=0.3
+datasets>=4.0; python_version >= "3.14"
+tiktoken; python_version >= "3.14"
+instructor; python_version >= "3.14"
+diskcache>=5.6.3; python_version >= "3.14"
+appdirs; python_version >= "3.14"
+nest-asyncio; python_version >= "3.14"
+typer; python_version >= "3.14"
+rich; python_version >= "3.14"
+networkx; python_version >= "3.14"
+langchain; python_version >= "3.14"
+langchain-core; python_version >= "3.14"
+pillow>=10.4.0; python_version >= "3.14"
+numpy>=1.21,<3; python_version >= "3.14"
+openai>=1.0.0; python_version >= "3.14"
+tqdm; python_version >= "3.14"
 
 # --- observability: OpenTelemetry traces (eval/observability) ---
 # Pinned to one minor version: the GenAI parts of OpenTelemetry still change their names.

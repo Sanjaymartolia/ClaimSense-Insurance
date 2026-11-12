@@ -23,6 +23,7 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+import re
 from pathlib import Path
 
 from .loader import KNOWLEDGE_BASE, REPO_ROOT
@@ -123,6 +124,15 @@ def claim_facts(claim: ClaimRecord) -> str:
     return " ".join(parts)
 
 
+#: `claimsense_adapter.placeholder_rationale`: a sentence the adapter writes when the coverage
+#: model gave no reason. It is not the agent's text, so judging it would measure the adapter.
+_PLACEHOLDER = re.compile(r"Line \S+ was adjudicated under clause \S+\.")
+
+
+def is_placeholder(rationale: str) -> bool:
+    return bool(_PLACEHOLDER.fullmatch(rationale.strip()))
+
+
 def attach_clause_contexts(outputs: list[AgentOutput], cases: list[EvalCase] | None = None) -> int:
     """Fill empty `retrieved_contexts` from the clauses each output cited, plus the claim's facts.
 
@@ -134,7 +144,9 @@ def attach_clause_contexts(outputs: list[AgentOutput], cases: list[EvalCase] | N
     them a correct rationale scores 0.200 instead of 0.800. The argument is optional only so an
     adapter that already records its own full context is left untouched.
 
-    Returns how many outputs it filled.
+    An output whose adapter already recorded what the agent was shown keeps that context; with
+    `cases`, the claim's facts are added to it, because a rationale joins clause and claim there
+    too. Returns how many outputs it filled from the cited clauses.
     """
     index = clause_text_index()
     facts = {}
@@ -142,7 +154,16 @@ def attach_clause_contexts(outputs: list[AgentOutput], cases: list[EvalCase] | N
         facts = {case.claim_id: claim_facts(case.claim) for case in cases}
     filled = 0
     for out in outputs:
-        if out.retrieved_contexts or not out.rationales:
+        if out.rationales and all(is_placeholder(r) for r in out.rationales.values()):
+            continue  # no model reason on any line: nothing to judge (see is_placeholder)
+        if out.retrieved_contexts:
+            fact = facts.get(out.claim_id)
+            if fact:
+                for texts in out.retrieved_contexts.values():
+                    if fact not in texts:
+                        texts.append(fact)
+            continue
+        if not out.rationales:
             continue
         texts = [index[c] for c in out.citations if c in index]
         if not texts:
@@ -160,7 +181,8 @@ def _build_scorer():  # noqa: ANN202 - ragas types are not importable without th
         from ragas.metrics.collections import Faithfulness
     except ImportError as e:  # pragma: no cover - depends on the optional extra
         raise JudgeUnavailableError(
-            f'ragas is not installed ({e}). Run: pip install -e ".[eval]"'
+            f'ragas is not installed ({e}). Run: pip install -e ".[eval]", then on Python 3.14 '
+            'also: pip install --no-deps "ragas>=0.4,<0.5" (see requirements.txt)'
         ) from e
     try:
         from openai import AsyncOpenAI
@@ -191,7 +213,7 @@ async def _score_output(scorer, out: AgentOutput) -> tuple[float | None, dict]: 
     errors: dict[str, str] = {}
     for line_id, rationale in sorted(out.rationales.items()):
         contexts = out.retrieved_contexts.get(line_id) or []
-        if not contexts or not rationale.strip():
+        if not contexts or not rationale.strip() or is_placeholder(rationale):
             continue
         try:
             result = await scorer.ascore(

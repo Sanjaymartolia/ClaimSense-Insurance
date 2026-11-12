@@ -113,7 +113,7 @@ The harness watches the product. The product does not watch the harness. No file
 | `eval/tools/rubric_score.py` | It prints the framework rubric scorecard. See `docs/FRAMEWORK_RUBRIC_SCORE.md`. |
 | `eval/agent_suite/` | The trace-based agent suite (L13 sections 1 to 7). It records a span for every node, tool call and model call, and computes outcome, process and payload metrics from those traces. Run `python -m eval.agent_suite --label <name>`. See `eval/agent_suite/README.md`. |
 | `eval/full.py` | One run for every metric: the harness self-check, one traced pipeline pass, scored by both the harness and the agent suite, with a combined gate. Run `python -m eval.full --stub --label <name>`. |
-| `eval/tests/` | 305 tests. Thirty-three test the real-pipeline adapter. Twelve check the judge's inputs. Thirteen check the suite. Fourteen check the framework rubric report. Forty-three cover the agent suite; the tests for AGT-03 (fixed by B5), the maternity exclusion (`coverage.py`), AGT-05 and guardrail recall (both fixed by the L15 guardrail work, 12 November 2026) pass and are kept as regression tests. Nine cover `eval/full.py`, including a check that a traced run scores exactly like the harness adapter. Seventy-two cover live monitoring (`eval/monitoring/`, see `docs/MONITORING_REPORT_CARD.md`), one of them a strict `xfail` for MON-01. Twenty-one cover OpenTelemetry tracing (`eval/observability/`, see `docs/OBSERVABILITY_REPORT.md`). Six cover the input and output guardrails (`eval/agent_suite/io_guardrails.py`): regression tests for defects G-01 to G-04, fixed on 12 November 2026 (`docs/GUARDRAILS_BEFORE_AFTER.md`). Four cover the L15 red-team tools (`eval/security/`: the scoreboard and the adaptive attacker). |
+| `eval/tests/` | 318 tests. Thirty-three test the real-pipeline adapter. Twelve check the judge's inputs. Thirteen check the suite. Fourteen check the framework rubric report. Forty-three cover the agent suite; the tests for AGT-03 (fixed by B5), the maternity exclusion (`coverage.py`), AGT-05 and guardrail recall (both fixed by the L15 guardrail work, 12 November 2026) pass and are kept as regression tests. Nine cover `eval/full.py`, including a check that a traced run scores exactly like the harness adapter. Seventy-two cover live monitoring (`eval/monitoring/`, see `docs/MONITORING_REPORT_CARD.md`), one of them a strict `xfail` for MON-01. Twenty-one cover OpenTelemetry tracing (`eval/observability/`, see `docs/OBSERVABILITY_REPORT.md`). Six cover the input and output guardrails (`eval/agent_suite/io_guardrails.py`): regression tests for defects G-01 to G-04, fixed on 12 November 2026 (`docs/GUARDRAILS_BEFORE_AFTER.md`). Four cover the L15 red-team tools (`eval/security/`: the scoreboard and the adaptive attacker). Thirteen cover the real retriever, the RAGAS judge and token and cost counting in pipeline runs (`test_real_retrieval_and_judge.py`, 12 November 2026). |
 
 ### 3.3 Data types
 
@@ -522,8 +522,8 @@ already confirmed by hand.
 
 ### 8.6 Tests
 
-The harness has 305 tests, and none fail. 302 pass. One is a strict `xfail` test for an open
-defect (MON-01), which passes by failing and turns red the day the defect is fixed. Two skip, depending on
+The harness has 318 tests, and none fail. 316 pass. One is a strict `xfail` test for an open
+defect (MON-01), which passes by failing and turns red the day the defect is fixed. One or two skip, depending on
 the installed extras. The commands `ruff check` and `ruff format` both pass on
 the `eval/` folder.
 
@@ -900,7 +900,7 @@ that chance agreement.
 
        pytest eval/tests -q
 
-2. All 305 tests must pass.
+2. All 318 tests must pass.
 3. Run the lint check.
 
        ruff check eval/ && ruff format --check eval/
@@ -1006,7 +1006,7 @@ One command runs the whole evaluation and checks every result against what this 
 
     python -m eval.harness.suite
 
-All nine rows match. The harness has 305 tests, and none fail (302 pass, 1 strict xfail, 2 skip).
+All nine rows match. The harness has 318 tests, and none fail (316 pass, 1 strict xfail, 1 skip).
 Neither needs an API key.
 
 It measures a ceiling of 1.000 and a floor of 0.109. The real agent pipeline scores 0.965 on the

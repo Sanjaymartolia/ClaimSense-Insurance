@@ -143,7 +143,13 @@ def main(argv: list[str] | None = None) -> int:
 
     cases = load_cases(splits)
     policy_ids = policy_clause_ids()
-    adapter = build_adapter(args.adapter, cases, args.fault or None)
+    from .real_retrieval import RetrievalUnavailableError
+
+    try:
+        adapter = build_adapter(args.adapter, cases, args.fault or None)
+    except RetrievalUnavailableError as e:
+        print(f"eval.harness: the real retriever cannot open: {e}", file=sys.stderr)
+        return 2
 
     outputs = run_adapter(adapter, cases)
     case_scores = score(cases, outputs, policy_ids, config, args.tolerance_inr)

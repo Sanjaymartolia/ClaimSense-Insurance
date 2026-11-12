@@ -5,12 +5,12 @@
 **Project:** ClaimSense, Agentic AI Capstone
 **Subject:** The stack and the architecture, scored against the nine-dimension framework rubric.
 **Owner role:** Eval and Red-Team
-**Date:** 7 November 2026
-**Document status:** Issue 1
+**Date:** 12 November 2026 (Issue 1: 7 November 2026)
+**Document status:** Issue 2
 **Writing standard:** ASD-STE100 Simplified Technical English
 **Source file:** `docs/FRAMEWORK_RUBRIC_SCORE.md`. Edit this file. Then build the DOCX again.
 
-**Result: 2.70 out of 5.**
+**Result: 2.85 out of 5.** (Issue 1: 2.70.)
 
 ---
 
@@ -62,6 +62,27 @@ A rubric that credits intentions is not a measurement. It is a wish.
 | Unwired | Code that exists and may be tested, but that no other code calls. |
 | Weighted score | The score multiplied by the weight of the dimension. |
 
+### 1.6 Issue 2: what changed
+
+The score does not come from the code. A person writes it, and `python -m eval.tools.rubric_score`
+only adds it up (Section 8). Issue 1 was written on 7 November 2026. Between then and 12 November
+the team connected several subsystems that Issue 1 called unwired, but nobody scored the rubric
+again, so the tool printed 2.70 for five days.
+
+Issue 2 scores every dimension again against the code of 12 November. Three auditors proposed
+scores with file and line evidence. A separate skeptic then checked each proposal and tried to
+refute it, with the honesty rule (Section 1.4) and the ladder rule (Section 2.3) of Issue 1
+unchanged. Only a score that the skeptic upheld changed.
+
+| Dim | Issue 1 | Proposed | Upheld | Why |
+|---|---|---|---|---|
+| D4 | 2 | 3 | **3** | The hybrid retriever is now called by the coverage agent through `real_services()`. |
+| D6 | 1 | 2 | 1 | The new limit counts tool calls, not money; nothing in `src/` measures cost; AGT-09 is open. |
+| D7 | 3 | 4 | 3 | The guardrails now run, but AGT-04 is still open, and Issue 1 put AGT-04 below level 4. |
+| Others | | unchanged | unchanged | Section 5 records what changed in the evidence. |
+
+The result moves from 2.70 to **2.85**.
+
 ---
 
 ## 2. The rubric and the method
@@ -103,37 +124,48 @@ is 3, not 4. A ladder with a missing step does not carry weight.
 | Dim | Weight | Score | Weighted | One-line reason |
 |---|---|---|---|---|
 | D1 Task complexity fit | 15 | 4 | 60 | A real graph with branches and cycles, and a critic that corrects itself once. |
-| D2 Ecosystem fit | 10 | 2 | 20 | OpenRouter and Chroma are connected. The MCP layer is not. |
-| D3 Compliance and audit | 15 | 2 | 30 | A structured audit trail inside the graph state. No logging, no run IDs, no tracing. |
-| D4 Data vs. orchestration | 15 | 2 | 30 | An advanced retriever exists and is tested. No agent calls it. |
+| D2 Ecosystem fit | 10 | 2 | 20 | OpenRouter, Chroma and SQLite are connected. No MCP client exists and the API serves no claims. |
+| D3 Compliance and audit | 15 | 2 | 30 | Structured audit in the graph state and the tool hooks. No run IDs, no trace IDs, no log sink. |
+| D4 Data vs. orchestration | 15 | 3 | 45 | The coverage agent now searches the hybrid retriever. Only on the opt-in real-tools path. |
 | D5 Experimentation | 5 | 4 | 20 | A working harness with adapters, gates and a regression suite. |
-| D6 Cost and performance | 10 | 1 | 10 | A cheap model default and a free offline mode. Nothing measures or limits cost. |
-| D7 Safety and governance | 15 | 3 | 45 | Least privilege and a human approval gate work. The guardrail module is not connected. |
+| D6 Cost and performance | 10 | 1 | 10 | A cheap model default, a tool-call limit and a search cache. Nothing in the product measures cost. |
+| D7 Safety and governance | 15 | 3 | 45 | Guardrails, hooks and an approval gate now run. Coverage and critic prompts take outside text unwrapped. |
 | D8 Typed outputs | 10 | 4 | 40 | Pydantic v2 everywhere, with real invariants. No static type checker. |
-| D9 Interoperability | 5 | 3 | 15 | Three model families through one gateway. The protocol layer is not connected. |
-| **Total** | **100** | | **270** | **270 / 100 = 2.70 out of 5** |
+| D9 Interoperability | 5 | 3 | 15 | One gateway to many vendors, per-role model overrides. MCP servers exist but nothing speaks MCP. |
+| **Total** | **100** | | **285** | **285 / 100 = 2.85 out of 5** |
 
 ---
 
 ## 4. The finding behind the score
 
-One pattern explains most of the low scores.
+One pattern explained most of the low scores in Issue 1.
 
-**ClaimSense does not lack capability. It lacks connections.** Four large subsystems are written,
-and three of them are tested, but no code calls any of them.
+**ClaimSense does not lack capability. It lacks connections.** On 7 November four large
+subsystems were written, and three of them were tested, but no code called any of them. The table
+below is the Issue 1 finding. Section 4.1 gives the state on 12 November.
 
-| Subsystem | Size and state | Proof that nothing calls it |
+| Subsystem | Size and state (7 November) | Proof that nothing called it (7 November) |
 |---|---|---|
 | Hybrid retrieval | BM25, dense vectors, RRF, a cross-encoder reranker and query rewriting. 48 tests. | The only files that import `HybridRetriever` are `retrieval/index.py`, `retrieval/evaluate.py`, `retrieval/search.py` itself and `tests/retrieval/`. No file in `agents/`, `graph/` or `mcp_servers/` imports it. |
 | Guardrails | `guardrails/guardrails.py` is 17 KB. It holds input screening, output screening, arithmetic checks and scrubbing. | A repository search for `guardrails` outside its own package finds one docstring in `eval/harness/safety_metrics.py` and two labels in `scripts/build_diagram.py`. No code calls it. |
 | MCP servers | Five FastMCP files, including `policy_server.py` at 18 KB and `claims_db_server.py` at 17 KB. | A repository search for `mcp_servers` outside that folder returns nothing at all. The wiring in `agents/services.py` `real_services()` is commented out. |
 | Hooks | The pre-tool budget check and the post-tool scrub that `docs/TECHNICAL_WORKFLOW.md` describes. | `src/claimsense/hooks/__init__.py` is one line long. The hooks do not exist. |
 
-The calculator is a separate case. `calc/adjudication.py` raises `NotImplementedError` in all five
-of its functions, and its tests are skipped. It is not unwired. It is unwritten. This is task T15.
+The calculator was a separate case. On 7 November `calc/adjudication.py` raised
+`NotImplementedError` in all five of its functions. It is now written (task T15).
 
-**This finding is good news.** Connecting work is cheaper than inventing work, and Section 7 shows
-that connection alone raises the score from 2.70 to about 3.90.
+### 4.1 The state on 12 November
+
+| Subsystem | Connected now? | Evidence | What is still missing |
+|---|---|---|---|
+| Hybrid retrieval | **Yes**, on the real-tools path | `agents/services.py:277-281` binds `policy_kb.policy_search`, which calls the `HybridRetriever`. The coverage agent searches it for every bill line. Measured on 52 claims with real models: composite 0.976 and 0.980, every gate held. | It is opt-in (`scripts/run_one.py --real-tools`); the default is the stub table. AGT-05 and AGT-06 are open. |
+| Guardrails | **Yes**, always | `agents/extraction.py:193-195` masks PII and `:61-77` scans for injection. `agents/settlement.py:34-42` runs `payment_guard` and `output_guard` before `settle_claim`, fail-closed. | The coverage and critic prompts do not wrap outside text in `as_data` (AGT-04). |
+| MCP servers | **In process only** | `real_services()` imports `policy_kb`, `claims_db`, `tariff` and `approvals` as Python modules. Their tool definitions are pinned (`hooks/pins.py`). | No MCP client exists; `langchain-mcp-adapters` is not imported; compose runs no MCP service. |
+| Hooks | **Yes**, on in `run_one.py` | `hooks/hooks.py` `HookedToolBelt`: tool ACL, tool-call budget, claim scope, audit that fails closed. | `build_graph` defaults to `tool_hooks=False`; the API serves no claims. |
+
+**The finding still holds, with a smaller gap.** Most of the work left is again connection work:
+make the real path the default, serve claims from the API, and speak MCP. Section 7 shows that
+the top four items raise the score from 2.85 to about 3.65.
 
 ---
 
@@ -177,6 +209,11 @@ Note of 11 November 2026: `eval/monitoring/` now holds six alert rules and a Gra
 tested against a live Prometheus and Grafana. They are an evaluation tool. The product does not
 use them yet, so this score does not change.
 
+Issue 2 (12 November): `real_services()` now binds the MCP server modules, the SQLite claims
+database and the Chroma retriever, so level 2 is stronger. Level 3 is still not met: the API serves
+only `/health` (`api/main.py:14-16`), and no code is an MCP client. The servers have FastMCP entry
+points over stdio, but the agents import them as Python modules. Score unchanged.
+
 ### 5.3 D3 Compliance and audit — score 2, weight 15%
 
 **Matched: "Structured logs".**
@@ -189,15 +226,44 @@ clause and the reason.
 Approval is bound to the work. A token carries `Worksheet.content_hash()`, and any edit voids
 every earlier approval.
 
-**Not 3.** There are no trace IDs. A search of `src/` for `import logging` or `getLogger` returns
-nothing: the project has no logging at all. The only identifier is `claim_id`, used as a thread
-id, so two runs of the same claim cannot be told apart. Langfuse and LangSmith appear as empty
-keys in `.env.example` and in no code. `mcp_servers/approval_security.py` holds HMAC signing,
-nonces and single-use records, and nothing imports it, so the live path issues plain tokens.
+Issue 2 (12 November): level 2 is stronger. The tool hooks write a typed `AuditRecord` for every
+allowed, denied or failed call (`hooks/hooks.py:315-330`, `:523-575`) to the
+`claimsense.hooks.audit` logger. Approvals are HMAC-signed with a nonce
+(`mcp_servers/approvals.py:309-320`) and, on the real-tools path, persist to SQLite with the
+approver and the time. Loggers now exist in `hooks/`, `mcp_servers/` and `guardrails/`. The Issue 1
+sentences "the project has no logging at all" and "the live path issues plain tokens" are no
+longer true.
 
-### 5.4 D4 Data vs. orchestration — score 2, weight 15%
+**Not 3.** There are still no trace IDs in the product. A search of `src/` for a run id or a trace
+id finds none. The thread id is still `claim_id` (`graph/build.py:124`), so two runs of one claim
+cannot be told apart. OpenTelemetry spans exist only in `eval/observability/`. Langfuse and
+LangSmith appear in no product code. No code configures a log handler, so the `INFO` audit lines
+reach no sink in a real run, and the in-memory audit records are not saved.
 
-**Matched: "Simple RAG".** This dimension has the widest gap in the report.
+### 5.4 D4 Data vs. orchestration — score 3, weight 15%
+
+**Matched: "Vector search + context".** Issue 1 scored 2 ("Simple RAG"). Issue 2 scores 3.
+
+Issue 2 (12 November): the key fact of Issue 1, "no agent calls the retriever", is no longer true.
+`real_services()` binds `policy_kb.policy_search` and `get_clause` (`agents/services.py:277-281`).
+These call the shared `HybridRetriever`: BM25, dense Chroma vectors, RRF, a cross-encoder rerank and
+a glossary rewrite. The coverage agent searches it for every bill line and puts the retrieved
+clause text into the model prompt as candidates (`agents/coverage.py`). A citation now carries its
+page in `source_url` (`mcp_servers/policy_kb.py`), which partly closes AGT-12. The evaluation
+measured this path on 52 claims with real models: composite 0.976 and 0.980 in two runs, every gate
+held (`docs/terminal.md`).
+
+**Not 4**, because the component is level 4 but the system path is not:
+
+- The real retriever runs only on the opt-in `--real-tools` path of `scripts/run_one.py`. The
+  default is still the keyword table `_SEARCH` in `agents/services.py`, and the API serves no
+  claims.
+- AGT-05 is open: the coverage agent rewrites the query with its own `REWRITE` table before the
+  retriever applies its glossary.
+- AGT-06 is open: the model sees only the first 400 characters of each candidate clause.
+- No product test runs the agents against the real retriever end to end.
+
+The Issue 1 text follows, for the record.
 
 The corpus is real. The ingestion pipeline turns the policy PDF into 181 committed chunks, and
 `get_clause` returns whole clauses.
@@ -224,7 +290,7 @@ The evaluation harness works and is used. `eval/harness/` holds 12 modules. It d
 protocol, with a floor adapter, a ceiling adapter, a fault-injecting adapter with six named
 faults, and an adapter for the real pipeline. `scorecard.yaml` separates weighted metrics from six
 catastrophic gates. `suite.py` runs nine configurations in one command and checks each against its
-expected outcome. There are 305 evaluation tests (12 November 2026). A judge and a Cohen's kappa
+expected outcome. There are 318 evaluation tests (12 November 2026). A judge and a Cohen's kappa
 calibration module exist. The agent suite compares variants side by side, and live monitoring runs
 an A/B test on live traffic with Fisher's exact and Mann-Whitney tests.
 
@@ -258,6 +324,19 @@ and free.
   this a balance when you cannot say which model runs.
 - There is no batching and no concurrency.
 
+Issue 2 (12 November): two things changed, and neither moves the score.
+
+- The tool hooks now enforce `max_tool_calls_per_claim` and fail closed (`hooks/hooks.py:140-148`,
+  `:539-546`). This limits tool calls, not money: `max_cost_usd_per_claim` is still not enforced,
+  on purpose (`hooks/hooks.py:9-12`).
+- `policy_kb.policy_search` caches its answers per process (`_cached_hits`). This fixes the
+  retrieval latency (p95 per claim 33.7 s to 3.8 s with stub agents), but it is a search cache, not
+  a model-response cache, and it runs only on the real-tools path.
+
+Nothing in `src/` counts tokens or cost yet, and AGT-09 is still open. The evaluation tools now
+measure cost in every real run (about $0.0013 per claim on 12 November), but that is a
+measurement outside the product.
+
 ### 5.7 D7 Safety and governance — score 3, weight 15%
 
 **Matched: "Input/output validation".**
@@ -272,17 +351,31 @@ module-level assertion that `settle_claim` can never reach a non-settlement agen
 gate interrupts the graph for a person, binds the token to the worksheet hash, and voids all
 approvals when a line is edited. These are level-4 mechanisms and they work.
 
-**Not 4, because the level-3 rung below them is hollow.**
+Issue 2 (12 November): the level-3 rung is now mostly real. The extraction agent masks PII before
+the model reads a document and runs `classify_injection_fast` over every document and bill line
+(`agents/extraction.py:61-77`, `:193-195`). `SettlementAgent` runs `payment_guard` and
+`output_guard` before `settle_claim`, fail-closed, and a block sends the claim to a person
+(`agents/settlement.py:34-42`, `graph/nodes.py:358-397`). `hooks/hooks.py` adds claim scope, a
+tool-call budget and an audit that fails closed, and `real_services()` refuses a tool whose
+definition changed (`hooks/pins.py`). Measured with real models: 0 of 30 attacked claims cleared,
+18 of 18 injections shown to the reviewer (`docs/SECURITY_REPORT_CARD.md`).
 
-- `guardrails/guardrails.py` is a complete 17 KB module with input screening, output screening and
-  scrubbing. **No code calls it.**
-- `hooks/` is empty, so there is no pre-tool check and no post-tool scrub.
+**Still not 4, because one level-3 gap that Issue 1 named is open.** The first two bullets below are
+fixed; the others are as Issue 1 wrote them, with notes.
+
+- Fixed: `guardrails/` is now called by the extraction and settlement agents.
+- Fixed: `hooks/` now holds the pre-tool checks (on in `run_one.py`, off by default in
+  `build_graph`).
 - Defect AGT-04: `agents/coverage.py` puts bill-line text, the diagnosis and clause text into the
-  model prompt **without** the `as_data` wrapper. Only the extraction agent honours the rule that
-  outside text is data.
+  model prompt **without** the `as_data` wrapper, and so does the critic. Only the extraction agent
+  honours the rule that outside text is data. **Still open on 12 November.** The injection scan does
+  not cover the diagnosis or the procedure, and its findings become flags only after the coverage
+  model has read the text.
 - Defect CLAIM-03: the loader passes an empty `documents` map, so 16 of the 30 red-team attacks
   never reach an agent. The defences cannot be exercised by most of the attack suite.
-- The `llama-guard-4-12b` model is configured and never called.
+- The `llama-guard-4-12b` model is configured and never called. Issue 2: a guard-model check now
+  exists but is off by default (`CLAIMSENSE_GUARD_LLM=1`), and `get_llm("guard")` falls back to the
+  coverage model, not Llama Guard.
 
 ### 5.8 D8 Typed outputs — score 4, weight 10%
 
@@ -319,6 +412,11 @@ the model table in `agents/llm.py:14-21` hard-codes defaults that disagree with
 `config/prompts/` is empty, so every prompt is an inline string. Chroma is the only vector store
 and has no abstraction layer. LangGraph is woven through the graph layer.
 
+Issue 2 (12 November): unchanged at 3, and the level-3 rung is thinner than Issue 1 said. Every
+product agent defaults to one family (`openai/gpt-4.1-mini`); the Gemini judge is used only by the
+evaluation. The MCP servers now have pinned tool definitions, but nothing consumes them over the
+protocol.
+
 ---
 
 ## 6. What this score does not say
@@ -329,11 +427,12 @@ Two numbers describe this project. They answer different questions, and they mus
 
 | Number | Source | Question it answers |
 |---|---|---|
-| **2.70 out of 5** | This document | Are these the right parts, and how far are they built? |
-| **0.220 composite, with a safety gate failing on 10 of 20 claims** | `docs/EVAL_HARNESS_REPORT.md` | Do the agents produce correct worksheets today? |
+| **2.85 out of 5** | This document | Are these the right parts, and how far are they built? |
+| **0.984 composite, every gate held, on 52 dev and red-team claims (12 November; 0.220 on 7 November)** | `docs/EVAL_HARNESS_REPORT.md`, `docs/terminal.md` | Do the agents produce correct worksheets today? |
 
-The rubric score is the kinder of the two. That is expected: this rubric rewards architecture, and
-the architecture is the strongest part of ClaimSense.
+On 7 November the rubric score was the kinder of the two. On 12 November the harness score is the
+kinder one: the answers are now mostly right, while several parts are still not connected to the
+default product path.
 
 ### 6.2 It rewards structure, not correctness
 
@@ -349,11 +448,11 @@ The book advises raising D3 and D7 for a regulated unit. One way to do that, kee
 |---|---|---|---|
 | D1 Task complexity fit | 15 | 10 | 4 |
 | D3 Compliance and audit | 15 | 20 | 2 |
-| D4 Data vs. orchestration | 15 | 10 | 2 |
+| D4 Data vs. orchestration | 15 | 10 | 3 |
 | D7 Safety and governance | 15 | 20 | 3 |
 | All others | unchanged | unchanged | unchanged |
 
-That gives **2.65**, against 2.70 with the book's weights.
+That gives **2.75**, against 2.85 with the book's weights.
 
 The adjusted number is lower, and the reason matters: compliance and safety are two of the
 dimensions where ClaimSense has the most unwired work, so giving them more weight exposes more of
@@ -368,24 +467,27 @@ Each row gives the points that the work is worth. The list is ordered by value.
 
 | Work | Dimensions it moves | Gain |
 |---|---|---|
-| **T16: connect the MCP servers and the hybrid retriever to the agents** | D4 2→4, D2 2→4, D9 3→4 | **+0.55** |
-| Wire `hooks/`, add a run id, connect Langfuse | D3 2→4 | +0.30 |
-| Add response caching and cost instrumentation to `src/` | D6 1→3 | +0.20 |
-| Call `guardrails.py`, fix AGT-04 and fix CLAIM-03 | D7 3→4 | +0.15 |
+| **Give every claim run a run id, send the audit log to a sink, and trace from `src/`** | D3 2→4 | **+0.30** |
+| Count tokens and USD per claim in `src/`, enforce `max_cost_usd_per_claim`, settle AGT-09, add a model-response cache | D6 1→3 | +0.20 |
+| **T37: serve claims from the API with `real_services()` and hooks on; run the MCP servers over the protocol** | D2 2→3, D9 3→4 | +0.15 |
+| Make the real retriever the default product path, fix AGT-05 and AGT-06 | D4 3→4 | +0.15 |
+| Wrap coverage and critic prompts in `as_data` (AGT-04), scan the diagnosis, close CLAIM-03 | D7 3→4 | +0.15 |
 | Raise `MAX_REVISIONS`, let the planner reason | D1 4→5 | +0.15 |
 | Add mypy or pyright | D8 4→5 | +0.10 |
 | Enable the CI eval gate, run E1 to E4, measure kappa | D5 4→5 | +0.05 |
+
+Issue 1 listed T16 (connect the MCP servers and the retriever) at +0.55. It is half done: the
+retriever is connected (D4 2→3, +0.15), but no code speaks MCP and the API serves no claims.
 
 ### 7.1 The recommendation
 
 **Connect what is already written, before writing anything new.**
 
-The first four rows of that table are all connection work. Together they are worth +1.20, and they
-take the score from 2.70 to about **3.90**. None of them invents a capability. Every one of them
-turns an existing, tested subsystem into a working part of the product.
+The first four rows of that table are worth +0.80 together, and they take the score from 2.85 to
+about **3.65**. Three of them are connection work: a run id and a log sink, the API endpoint, and
+the real retriever as the default. Only the cost row needs new code in `src/`.
 
-T16 alone is worth +0.55, because it moves three dimensions at once. It is the single most
-valuable task in the project by this measure.
+The run id and the log sink are worth the most (+0.30), because D3 carries 15% and sits at 2.
 
 ---
 
@@ -448,14 +550,16 @@ Section 6.1 explains why the two numbers are different.
 
 ## 9. Summary
 
-ClaimSense scores **2.70 out of 5** on the nine-dimension framework rubric, with the book's
-weights unchanged.
+ClaimSense scores **2.85 out of 5** on the nine-dimension framework rubric, with the book's
+weights unchanged (Issue 2, 12 November 2026; Issue 1 scored 2.70 on 7 November).
 
 The strong dimensions are the ones that need no integration: the graph topology (D1, score 4), the
 type system (D8, score 4) and the evaluation harness (D5, score 4).
 
-The weak dimensions are all the same problem. Retrieval, guardrails, MCP and the hooks are written
-but unconnected, which holds D4, D3 and D2 at 2 and D6 at 1.
+Since Issue 1 the retriever, the guardrails and the hooks were connected. Only the retriever moved
+a score (D4 2→3): the guardrails left one level-3 gap open (AGT-04), and the hooks limit tool
+calls, not cost.
 
-The work that raises this score is connection work, not invention. Doing it takes the project from
-2.70 to about 3.90 without one new feature.
+The weak dimensions are now audit (D3 at 2: no run id, no log sink), cost (D6 at 1: nothing in the
+product measures it) and integration (D2 at 2: no API endpoint, no MCP client). The top four items
+in Section 7 take the project from 2.85 to about 3.65.

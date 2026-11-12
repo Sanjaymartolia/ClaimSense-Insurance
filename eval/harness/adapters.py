@@ -197,6 +197,7 @@ ADAPTERS: dict[str, str] = {
     "claimsense": "the real agent pipeline, with the dev reference calculator",
     "claimsense-real-calc": "the real pipeline with the T15 calculator (fails until T15 lands)",
     "claimsense-no-docs": "the real pipeline with document text withheld (reproduces CLAIM-03)",
+    "claimsense-real-retrieval": "the real pipeline with the hybrid retriever, not the stub table",
 }
 
 
@@ -219,4 +220,6 @@ def build_adapter(name: str, cases, faults: list[str] | None = None):  # noqa: A
             return ClaimSenseAdapter(calculator="real")
         if name == "claimsense-no-docs":
             return ClaimSenseAdapter(pass_documents=False)
+        if name == "claimsense-real-retrieval":
+            return ClaimSenseAdapter(retrieval="real")
     raise ValueError(f"unknown adapter {name!r}; choose from {', '.join(ADAPTERS)}")

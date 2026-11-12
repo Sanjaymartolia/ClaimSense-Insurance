@@ -200,6 +200,10 @@ def main(argv: list[str] | None = None) -> int:
         print(problem, file=sys.stderr)
         return 2
     mode = "stub" if args.stub else None
+    problem = agent.retrieval_problem([v.strip() for v in args.variant.split(",") if v.strip()])
+    if problem:
+        print(problem, file=sys.stderr)
+        return 2
 
     print("## A. Harness self-check: can the scorer be trusted?")
     if args.skip_self_check:

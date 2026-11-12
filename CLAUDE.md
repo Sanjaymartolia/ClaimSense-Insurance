@@ -138,8 +138,17 @@ python -m eval.tools.rubric_score [--plan] [--insurance] [--json]              #
   A `gate-*` row mismatch in the suite is the most serious failure (a gate silently stopped firing).
 - `harness/loader.py` strips answer-revealing fields before anything reaches an adapter; keep it that way.
 - Results and limitations: `docs/EVAL_HARNESS_REPORT.md` (DOCX built by `eval/tools/build_report_docx.py`).
-  The judge is uncalibrated and weighted 0.00: `agents/coverage.py::choose_clauses` drops the model's rationale.
-- Adding an eval test changes the count stated in `docs/EVAL_HARNESS_REPORT.md` (305 today);
+  The judge is uncalibrated and weighted 0.00. Since 12 Nov 2026 `CoverageAgent` keeps the model's
+  rationale and the wording it was shown (`.rationales`, `.shown`), and the `claimsense` adapter
+  hands those to the judge; a line with no model rationale is not judged.
+- Eval runs use the stub clause table by default. `--adapter claimsense-real-retrieval` (harness)
+  and `--variant real-retrieval` (agent suite, `eval.full`) use the hybrid retriever instead
+  (`eval/harness/real_retrieval.py`; needs `.[retrieval]` and `python -m claimsense.retrieval.index`).
+  On Python 3.14 `ragas` installs with `--no-deps` (scikit-network has no 3.14 wheel; see requirements.txt).
+  `policy_kb.policy_search` caches each (query, category, k) per process (`_cached_hits`): the
+  CPU re-ranker costs 1.5-3 s a search and only 17 of 188 eval searches are distinct. Tests that
+  swap the engine must call `_cached_hits.cache_clear()`.
+- Adding an eval test changes the count stated in `docs/EVAL_HARNESS_REPORT.md` (318 today);
   `eval/tests/test_report_doc.py` fails until you update it and rebuild that DOCX.
 
 ### Agent suite, combined run, live monitoring (`eval/`, Eval & Red-Team)

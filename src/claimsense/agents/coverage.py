@@ -135,6 +135,9 @@ REWRITE = {
     "consumables": "excluded items consumables non-payable",
 }
 
+#: How much of each candidate clause the model is shown (and the judge checks rationales against).
+CANDIDATE_CHARS = 400
+
 SYSTEM = f"""You are the coverage analyst for Arogya Sanjeevani reimbursement claims.
 For EVERY bill line choose exactly one clause_id from that line's CANDIDATES that governs how the
 line is paid or deducted. Do not compute any amounts: a calculator does that.
@@ -156,6 +159,14 @@ class CoverageAgent:
         # program, see reflexion/dspy_coverage.py). Same inputs as _ask_model, same validation
         # below; admissibility, candidates and the calculator are untouched.
         self.chooser = chooser
+        # From the latest choose_clauses call, for the eval judge (RAGAS faithfulness): the model's
+        # one-sentence rationale per line it decided (never for a fallback or a human override),
+        # and the candidate wording it was shown for each line. Nothing in the graph reads these.
+        self.rationales: dict[str, str] = {}
+        #: The clause each rationale argues for. An adjudicator edit (apply_edits) can later lock
+        #: another clause without a new choose_clauses call; a reader must then drop the reason.
+        self.rationale_clauses: dict[str, str] = {}
+        self.shown: dict[str, list[str]] = {}
 
     # ---------------- admissibility (deterministic) ----------------
     def check_admissibility(self, claim: Claim) -> Admissibility:
@@ -235,6 +246,10 @@ class CoverageAgent:
         cands = self.candidates(claim)
         lessons = self.lessons_for(claim, cands)
         notes: list[str] = []
+        model_rationales: dict[str, str] = {}
+        self.shown = {
+            lid: [p.clause.text[:CANDIDATE_CHARS] for p in ps] for lid, ps in cands.items()
+        }
 
         if self.chooser is not None:
             choices = self.chooser(claim, cands, lessons, critic_feedback, previous)
@@ -255,7 +270,10 @@ class CoverageAgent:
                         pick = l.clause_ids[0]
                 choices[line.line_id] = pick
         else:
-            choices = self._ask_model(claim, cands, lessons, critic_feedback, previous)
+            choices = self._ask_model(
+                claim, cands, lessons, critic_feedback, previous, rationales=model_rationales
+            )
+        picked = dict(choices)
 
         for lid, ps in cands.items():  # validate: the model may only pick a retrieved clause
             # ...and never a claim-level ruling (clause 2, waiting periods, maternity): those
@@ -269,13 +287,23 @@ class CoverageAgent:
                 )
                 choices[lid] = fallback
         choices.update(locked)  # a human decision always wins
+        self.rationales = {
+            lid: why
+            for lid, why in model_rationales.items()
+            if lid not in locked and choices.get(lid) == picked.get(lid) and why.strip()
+        }
+        self.rationale_clauses = {lid: choices[lid] for lid in self.rationales}
         return choices, [l.lesson_id for l in lessons], notes
 
-    def _ask_model(self, claim, cands, lessons, critic_feedback, previous) -> dict[str, str]:
+    def _ask_model(
+        self, claim, cands, lessons, critic_feedback, previous, rationales=None
+    ) -> dict[str, str]:
+        """{line_id: clause_id}. Pass a dict as `rationales` to receive the model's reasons."""
         lines = []
         for line in claim.bill_lines:
             cand = "\n".join(
-                f"    - {p.clause.clause_id}: {p.clause.text[:400]}" for p in cands[line.line_id]
+                f"    - {p.clause.clause_id}: {p.clause.text[:CANDIDATE_CHARS]}"
+                for p in cands[line.line_id]
             )
             lines.append(
                 f"{line.line_id} | {line.category.value} | {line.description} | "
@@ -299,6 +327,8 @@ class CoverageAgent:
         out = self.llm.with_structured_output(CoverageDecision).invoke(
             [("system", SYSTEM), ("human", "\n\n".join(parts))]
         )
+        if rationales is not None:
+            rationales.update({c.line_id: c.rationale for c in out.choices})
         return {c.line_id: c.clause_id for c in out.choices}
 
     # ---------------- rupees: always the calculator ----------------

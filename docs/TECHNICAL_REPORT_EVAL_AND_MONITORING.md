@@ -278,8 +278,10 @@ scored 0.800.
 
 ### 5.8 Framework rubric
 
-`python -m eval.tools.rubric_score` scores the framework on nine dimensions. The total is 2.70 out
-of 5. The lowest dimension is cost and performance (D6), at 1 of 5. This score is about the
+`python -m eval.tools.rubric_score` scores the framework on nine dimensions. The total is 2.85 out
+of 5 (Issue 2, 12 November 2026; it was 2.70 in Issue 1). D4 rose from 2 to 3 because the coverage
+agent now calls the hybrid retriever. The lowest dimension is still cost and performance (D6), at
+1 of 5. This score is about the
 structure of the project. It is not a score of the answers.
 
 ---
@@ -733,7 +735,7 @@ NOTE: A plain `pytest` does not run the evaluation tests.
 | Harness suite result | `runs/suite.json` |
 | Fault results (0.905, 0.794, 0.824) | `runs/fault-*.scorecard.json` |
 | Judge context test (0.200, 0.800) | section 9.5 of `docs/EVAL_HARNESS_REPORT.md` |
-| Rubric total (2.70) | `docs/FRAMEWORK_RUBRIC_SCORE.md`, through `python -m eval.tools.rubric_score` |
+| Rubric total (2.85) | `docs/FRAMEWORK_RUBRIC_SCORE.md`, through `python -m eval.tools.rubric_score` |
 | Agent suite runs | `runs/agent_suite/l13-baseline/`, `real-dev/`, `l13-7-1/` |
 | Combined runs | `runs/full/full-baseline/`, `runs/full/real-dev/` |
 | Monitoring runs | `runs/monitoring/drill-2/`, `drill-3/`, `real-drill/` |

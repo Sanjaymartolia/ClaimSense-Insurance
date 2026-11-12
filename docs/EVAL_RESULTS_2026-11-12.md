@@ -8,7 +8,9 @@ run: only Eval & Red-Team runs it, once, with everything frozen (CLAUDE.md rule 
 
 > **Later the same day:** the L15 guardrail work changed rows 3, 5, 6, 7 and 12 to 13. The red-team
 > set now passes (0.998), the combined release check passes in stub mode, and the guardrail
-> modules work. See `docs/SECURITY_REPORT_CARD.md`. The numbers below are this morning's run.
+> modules work. See `docs/SECURITY_REPORT_CARD.md`. The framework rubric (row 11) was re-scored the
+> same evening: 2.85 out of 5 (`docs/FRAMEWORK_RUBRIC_SCORE.md`, Issue 2). The numbers below are this
+> morning's run.
 
 ## Summary
 

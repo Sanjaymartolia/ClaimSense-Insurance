@@ -41,7 +41,30 @@ reflexion = ["dspy>=3.4,<4", "matplotlib>=3.8"]
 # langchain-community pin: ragas 0.4.3 has an unguarded `from langchain_community.chat_models
 # .vertexai import ChatVertexAI`, which 0.4.x removed in its sunset, so `import ragas` raises
 # ModuleNotFoundError. 0.3.31 still ships that shim. Drop the pin once ragas stops importing it.
-eval = ["ragas>=0.4,<0.5", "langchain-openai>=0.2", "langchain-community>=0.3,<0.4"]
+# Python 3.14: ragas requires scikit-network, which has no 3.14 wheel and needs a C++ compiler to
+# build. ragas uses it only for test-set generation (ragas.testset), never for Faithfulness. So on
+# 3.14 this extra installs ragas's other dependencies, and ragas itself goes in with
+# `pip install --no-deps "ragas>=0.4,<0.5"` (requirements.txt has the same two steps).
+eval = [
+    "ragas>=0.4,<0.5; python_version < '3.14'",
+    "langchain-openai>=0.2",
+    "langchain-community>=0.3,<0.4",
+    "datasets>=4.0; python_version >= '3.14'",
+    "tiktoken; python_version >= '3.14'",
+    "instructor; python_version >= '3.14'",
+    "diskcache>=5.6.3; python_version >= '3.14'",
+    "appdirs; python_version >= '3.14'",
+    "nest-asyncio; python_version >= '3.14'",
+    "typer; python_version >= '3.14'",
+    "rich; python_version >= '3.14'",
+    "networkx; python_version >= '3.14'",
+    "langchain; python_version >= '3.14'",
+    "langchain-core; python_version >= '3.14'",
+    "pillow>=10.4.0; python_version >= '3.14'",
+    "numpy>=1.21,<3; python_version >= '3.14'",
+    "openai>=1.0.0; python_version >= '3.14'",
+    "tqdm; python_version >= '3.14'",
+]
 # OpenTelemetry tracing (L14, eval/observability). Pinned to one minor version: the GenAI parts of
 # OpenTelemetry are still "Development" and their attribute names change between releases.
 observability = [

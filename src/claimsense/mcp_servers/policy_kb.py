@@ -83,6 +83,7 @@ Run as a server (needs ``pip install -e ".[mcp]"`` and ``.[retrieval]``)::
 
 from __future__ import annotations
 
+import functools
 import logging
 import os
 import sys
@@ -149,6 +150,9 @@ POLICY_SOURCE_DIR = "data/policy/new_india"
 #: are the values every record in this single-policy KB carries today (not invented placeholders).
 _FALLBACK_INSURER = "The New India Assurance Co. Ltd."
 _FALLBACK_PRODUCT = "Arogya Sanjeevani Policy"
+
+#: Distinct (query, category, k) searches kept in memory per process (see `_cached_hits`).
+SEARCH_CACHE_SIZE = 1024
 
 
 def _configured_effective_date() -> date:
@@ -237,6 +241,20 @@ def _engine() -> _Engine:
     return _ENGINE
 
 
+@functools.lru_cache(maxsize=SEARCH_CACHE_SIZE)
+def _cached_hits(query: str, category: str | None, k: int) -> tuple[SearchHit, ...]:
+    """The retriever's hits for one (query, category, k), computed once per process.
+
+    The cross-encoder costs ~1.5-3 s per search on a laptop CPU, and bill lines repeat across
+    claims ("Pharmacy", "OT charges"): over the 52 dev and red-team claims only 17 of 188 searches
+    are distinct. Search is deterministic over a fixed index, which is opened once per process
+    (see `_engine`), so a cached answer is the answer. Hits are read-only here: callers get new
+    `Clause` objects built from them. The cache lives in memory only and is never logged or
+    written (queries can hold health details). An open failure is not cached (it raises).
+    """
+    return tuple(_engine().retriever.search(query, k=k, category=category))
+
+
 def warm_up() -> None:
     """Open the retriever ahead of the first request (~30 s), so searches don't pay that latency.
 
@@ -295,7 +313,7 @@ def policy_search(query: str, category: str | None = None, k: int = 5) -> list[R
     """
     engine = _engine()
     effective_date = _configured_effective_date()
-    hits = engine.retriever.search(query, k=k, category=category)
+    hits = _cached_hits(query, category, k)
     return [
         RetrievedPassage(
             clause=_clause_from_hit(hit, engine.meta, effective_date),

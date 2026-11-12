@@ -28,6 +28,8 @@ from __future__ import annotations
 
 import re
 import time
+from collections.abc import Iterator
+from contextlib import contextmanager
 from decimal import Decimal
 from typing import Any
 
@@ -125,6 +127,92 @@ def _room_category(description: str) -> str:
     return "general_ward"
 
 
+def walk_runs(run: Any) -> Iterator[Any]:
+    """A LangChain run and every run under it."""
+    yield run
+    for child in getattr(run, "child_runs", None) or []:
+        yield from walk_runs(child)
+
+
+def llm_usage(run: Any) -> tuple[int, int, float]:
+    """(prompt tokens, completion tokens, cost in USD) of one model run, best effort: providers
+    report them differently. OpenRouter puts the cost in `token_usage`."""
+    outputs = getattr(run, "outputs", None) or {}
+    usage = dict((outputs.get("llm_output") or {}).get("token_usage") or {})
+    if not usage:
+        try:
+            message = outputs["generations"][0][0]["message"]["kwargs"]
+            meta = message.get("usage_metadata") or {}
+            usage = {
+                "prompt_tokens": meta.get("input_tokens", 0),
+                "completion_tokens": meta.get("output_tokens", 0),
+            }
+            usage.update((message.get("response_metadata") or {}).get("token_usage") or {})
+        except (KeyError, IndexError, TypeError):
+            usage = {}
+    return (
+        int(usage.get("prompt_tokens") or 0),
+        int(usage.get("completion_tokens") or 0),
+        float(usage.get("cost") or 0.0),
+    )
+
+
+@contextmanager
+def count_llm_usage(enabled: bool = True) -> Iterator[dict[str, float]]:
+    """Totals of every model call made inside the block: prompt_tokens, completion_tokens and
+    cost_usd. Filled in when the block ends, also when it raises. Off (all zero) in stub mode."""
+    totals: dict[str, float] = {"prompt_tokens": 0, "completion_tokens": 0, "cost_usd": 0.0}
+    try:
+        from langchain_core.tracers.context import collect_runs
+    except ImportError:  # stub-only install: no model can have been called
+        enabled = False
+    if not enabled:
+        yield totals
+        return
+    with collect_runs() as collector:
+        try:
+            yield totals
+        finally:
+            for root in collector.traced_runs:
+                for run in walk_runs(root):
+                    if run.run_type in ("llm", "chat_model"):
+                        tokens_in, tokens_out, cost = llm_usage(run)
+                        totals["prompt_tokens"] += tokens_in
+                        totals["completion_tokens"] += tokens_out
+                        totals["cost_usd"] += cost
+
+
+def placeholder_rationale(line_id: str, clause_id: str) -> str:
+    """The sentence a line gets when the coverage model gave no reason. Never judged."""
+    return f"Line {line_id} was adjudicated under clause {clause_id}."
+
+
+def coverage_rationales(team: Any, choices: dict[str, str]) -> tuple[dict, dict]:
+    """(rationales, retrieved_contexts) for `AgentOutput`, from the coverage agent's last call.
+
+    A line gets the coverage model's own one-sentence reason, and the clause wording it was shown,
+    so the RAGAS judge scores what the agent said against what it saw. A line without a model
+    reason for its final clause (stub agents, a fallback, a human override or edit) gets
+    `placeholder_rationale` and no context; the judge skips it. Shared by this adapter and
+    `eval/agent_suite/trace.py`, so both paths give the scorer the same output.
+    """
+    coverage = getattr(team, "coverage", None)
+    said: dict[str, str] = dict(getattr(coverage, "rationales", {}) or {})
+    argued: dict[str, str] = dict(getattr(coverage, "rationale_clauses", {}) or {})
+    shown: dict[str, list[str]] = dict(getattr(coverage, "shown", {}) or {})
+    kept = {
+        lid: said[lid]
+        for lid, clause in choices.items()
+        if lid in said and argued.get(lid) == clause
+    }
+    rationales = {
+        lid: kept.get(lid) or placeholder_rationale(lid, clause)
+        for lid, clause in sorted(choices.items())
+    }
+    contexts = {lid: list(shown[lid]) for lid in kept if shown.get(lid)}
+    return rationales, contexts
+
+
 def _observed(claim: ClaimRecord) -> list[str]:
     keys = set(claim.model_dump().keys())
     for line in claim.bill_lines:
@@ -148,15 +236,30 @@ class ClaimSenseAdapter:
         the product loader drops it, which loses 16 of the 30 red-team attacks before any agent
         sees them. Passing it is the point of a red-team run. Set `False` to reproduce the
         product's current blind spot on purpose.
+    retrieval:
+        `"stub"` (the default) uses the stub clause table, which ignores the query. `"real"` uses
+        the hybrid retriever (policy-kb), see `real_retrieval.py`; it opens before the first claim
+        so a missing index fails at once.
     """
 
-    def __init__(self, *, calculator: str = "reference", pass_documents: bool = True) -> None:
+    def __init__(
+        self, *, calculator: str = "reference", pass_documents: bool = True, retrieval: str = "stub"
+    ) -> None:
         if calculator not in ("reference", "real"):
             raise ValueError(f"calculator must be 'reference' or 'real', not {calculator!r}")
+        if retrieval not in ("stub", "real"):
+            raise ValueError(f"retrieval must be 'stub' or 'real', not {retrieval!r}")
         self.calculator = calculator
         self.pass_documents = pass_documents
-        self.name = f"claimsense[{calculator}]"
+        self.retrieval = retrieval
+        self.name = f"claimsense[{calculator}]" + (
+            "[real-retrieval]" if retrieval == "real" else ""
+        )
         self._imports = self._load()
+        if retrieval == "real":
+            from .real_retrieval import open_real_retrieval
+
+            open_real_retrieval()
 
     # ------------------------------------------------------------------ wiring
     @staticmethod
@@ -174,6 +277,7 @@ class ClaimSenseAdapter:
             # Not re-exported from `claimsense.agents`, so it comes from its own module. Imported
             # here rather than inside the "real" branch so a missing symbol fails at construction
             # time with a clear message, not half way through a 20-claim run.
+            from claimsense.agents.llm import stub_mode
             from claimsense.agents.services import real_calculate
             from claimsense.graph.local import LocalRunner
         except ImportError as e:  # pragma: no cover - depends on the install
@@ -187,6 +291,7 @@ class ClaimSenseAdapter:
             "make_stub_services": make_stub_services,
             "reference_calculate": reference_calculate,
             "real_calculate": real_calculate,
+            "stub_mode": stub_mode,
             "LocalRunner": LocalRunner,
         }
 
@@ -445,14 +550,29 @@ class ClaimSenseAdapter:
             if self.calculator == "reference"
             else imports["real_calculate"]
         )
+        if self.retrieval == "real":
+            from .real_retrieval import use_real_retrieval
+
+            use_real_retrieval(services)
 
         team = imports["Team"](services)
         runner = imports["LocalRunner"](team)
 
         started = time.perf_counter()
-        try:
-            state = runner.run(packet, reviewer=self._decline)
-        except Exception as e:  # noqa: BLE001 - one claim must not lose the whole run
+        error: Exception | None = None
+        # Real mode only: count the agents' model calls, as eval/agent_suite/trace.py does, so
+        # tokens_per_claim and cost_usd_per_claim are measured here too (they used to read 0).
+        with count_llm_usage(not imports["stub_mode"]()) as usage:
+            try:
+                state = runner.run(packet, reviewer=self._decline)
+            except Exception as e:  # noqa: BLE001 - one claim must not lose the whole run
+                error = e
+        spent = {
+            "prompt_tokens": int(usage["prompt_tokens"]),
+            "completion_tokens": int(usage["completion_tokens"]),
+            "cost_usd": float(usage["cost_usd"]),
+        }
+        if error is not None:
             # A crash is a result, not a reason to stop. It scores as no answer at all, and the
             # reason is recorded so the failure is visible rather than averaged away.
             return AgentOutput(
@@ -465,7 +585,8 @@ class ClaimSenseAdapter:
                 rationales={},
                 observed_claim_keys=_observed(claim),
                 latency_s=time.perf_counter() - started,
-                error=f"{type(e).__name__}: {e}",
+                error=f"{type(error).__name__}: {error}",
+                **spent,
             )
         elapsed = time.perf_counter() - started
 
@@ -475,6 +596,8 @@ class ClaimSenseAdapter:
         if admissibility is not None:
             citations.update(getattr(admissibility, "clause_ids", []) or [])
 
+        rationales, contexts = coverage_rationales(team, choices)
+
         return AgentOutput(
             claim_id=claim.claim_id,
             route=self._route(state),
@@ -482,11 +605,10 @@ class ClaimSenseAdapter:
             review_flags=self._flags(state),
             citations=sorted(c for c in citations if c),
             actions=self._actions(services.tool_log),
-            rationales={
-                line_id: f"Line {line_id} was adjudicated under clause {clause_id}."
-                for line_id, clause_id in sorted(choices.items())
-            },
+            rationales=rationales,
+            retrieved_contexts=contexts,
             observed_claim_keys=_observed(claim),
             latency_s=elapsed,
             status=str(state.get("status", "")),
+            **spent,
         )

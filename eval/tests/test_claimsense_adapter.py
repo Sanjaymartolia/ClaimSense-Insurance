@@ -32,7 +32,9 @@ def adapter():
 
 def test_every_named_claimsense_adapter_builds(dev_cases):
     for name in ADAPTERS:
-        if name.startswith("claimsense"):
+        # The real-retrieval adapter opens the retriever (needs .[retrieval] and an index); it has
+        # its own test in test_real_retrieval_and_judge.py, which skips without them.
+        if name.startswith("claimsense") and name != "claimsense-real-retrieval":
             built = build_adapter(name, dev_cases)
             assert hasattr(built, "run")
             assert built.name
