@@ -18,18 +18,23 @@ K = 5
 # bill_line_other terms are never used to write the rewrite glossary, so overfitting shows there.
 KINDS = ("question", "bill_line_dev", "bill_line_other")
 
-# Each stage returns clause IDs, best first, so a split clause counts once.
+# Each stage returns clause IDs, best first, so a split clause counts once. Only the last stage
+# uses the bill line's category, which a "question" row doesn't have.
 STAGES = {
-    "Dense": lambda retriever, query: retriever.clause_ids(retriever.dense(query)),
-    "BM25": lambda retriever, query: retriever.clause_ids(retriever.lexical(query)),
-    "RRF": lambda retriever, query: retriever.clause_ids(retriever.fused(query)),
-    "RRF + reranker": lambda retriever, query: [
+    "Dense": lambda retriever, query, category: retriever.clause_ids(retriever.dense(query)),
+    "BM25": lambda retriever, query, category: retriever.clause_ids(retriever.lexical(query)),
+    "RRF": lambda retriever, query, category: retriever.clause_ids(retriever.fused(query)),
+    "RRF + reranker": lambda retriever, query, category: [
         hit.clause_id for hit in retriever.search(query, k=RERANK_POOL, rewrite=False)
     ],
-    "RRF + reranker + rewrite": lambda retriever, query: [
+    "RRF + reranker + rewrite": lambda retriever, query, category: [
         hit.clause_id for hit in retriever.search(query, k=RERANK_POOL)
     ],
+    "... + category": lambda retriever, query, category: [
+        hit.clause_id for hit in retriever.search(query, k=RERANK_POOL, category=category)
+    ],
 }
+METRICS = (("top1", "Top-1"), ("recall", f"Recall@{K}"), ("mrr", "MRR"))
 
 
 def load_queries(path: Path = DEFAULT_QUERIES) -> list[dict[str, Any]]:
@@ -53,7 +58,10 @@ def rank_by_stage(
     retriever: HybridRetriever, queries: Sequence[dict[str, Any]]
 ) -> dict[str, list[int | None]]:
     return {
-        stage: [first_hit_rank(q["clauses"], run(retriever, q["query"])) for q in queries]
+        stage: [
+            first_hit_rank(q["clauses"], run(retriever, q["query"], q.get("category")))
+            for q in queries
+        ]
         for stage, run in STAGES.items()
     }
 
@@ -68,6 +76,8 @@ def summarise(
     return {
         kind: {
             stage: {
+                # The stub model takes the first candidate, so rank 1 matters on its own.
+                "top1": recall_at_k([stage_ranks[i] for i in indices], k=1),
                 "recall": recall_at_k([stage_ranks[i] for i in indices]),
                 "mrr": mean_reciprocal_rank([stage_ranks[i] for i in indices]),
             }
@@ -88,11 +98,11 @@ def plot_stages(
     summary = summarise(ranks, queries)
     kinds = [kind for kind in summary if kind != "all"]
     stages = list(ranks)
-    metrics = (("recall", f"Recall@{K}"), ("mrr", "MRR"))
+    metrics = METRICS
     fig, axes = plt.subplots(
         len(metrics),
         len(kinds),
-        figsize=(0.8 + 3.7 * len(kinds), 5.8),
+        figsize=(0.8 + 3.7 * len(kinds), 2.9 * len(metrics)),
         dpi=160,
         sharey=True,
         squeeze=False,
@@ -161,7 +171,7 @@ def main() -> None:
         print(f"{query['qid']:<7}{query['kind']:<17}{row}  {query['query'][:48]}")
     print()
     for kind, scores in summarise(ranks, queries).items():
-        for metric, name in (("recall", f"Recall@{K}"), ("mrr", "MRR")):
+        for metric, name in METRICS:
             row = "".join(f"{scores[stage][metric]:>16.3f}" for stage in ranks)
             print(f"{name:<9}{kind:<15}{row}")
 

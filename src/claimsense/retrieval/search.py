@@ -39,6 +39,7 @@ class FullClause(BaseModel):
     clause_number: str
     title: str | None
     text: str
+    context_text: str  # text plus its headings, as in SearchHit: "Hernia" alone names no wait
     page_numbers: list[int]
     document: str
     document_date: str | None
@@ -113,10 +114,13 @@ class HybridRetriever:
         """Clause IDs in order, with a split clause counted once at its best position."""
         return list(dict.fromkeys(self._searchable[i]["clause_id"] for i in chunk_ids))
 
-    def search(self, query: str, k: int = 5, rewrite: bool = True) -> list[SearchHit]:
+    def search(
+        self, query: str, k: int = 5, rewrite: bool = True, category: str | None = None
+    ) -> list[SearchHit]:
+        """``category`` is the bill line's ``LineCategory`` value; it adds the wording that pays."""
         if not query.strip() or k < 1:
             return []
-        rewritten = rewrite_query(query) if rewrite else None
+        rewritten = rewrite_query(query, category) if rewrite else None
         pool = self.fused(query, rewritten=rewritten)
         # Score against both wordings: the rewrite alone loses meaning, like "after discharge".
         rerank_query = f"{query} {rewritten}" if rewritten else query
@@ -137,11 +141,14 @@ class HybridRetriever:
             return None
         parts.sort(key=lambda c: c["chunk_index"])
         first = parts[0]
+        text = merge_parts([part["source_text"] for part in parts])
         return FullClause(
             clause_id=clause_id,
             clause_number=first["clause_number"],
             title=first["title"],
-            text=merge_parts([part["source_text"] for part in parts]),
+            text=text,
+            # Every part's text is the same headings followed by its own source text.
+            context_text=first["text"].removesuffix(first["source_text"]) + text,
             page_numbers=first["source"]["page_numbers"],
             document=first["source"]["document"],
             document_date=first["source"]["document_date"],

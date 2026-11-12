@@ -105,6 +105,19 @@ def test_get_clause_merges_parts_back_into_the_original_text(retriever, number):
     assert clause.text == clean_pdf_text(original["source_text"])
 
 
+def test_get_clause_carries_the_headings_a_list_item_needs(retriever):
+    clause = retriever.get_clause(f"{PRODUCT}:6.2.18")
+    assert "waiting period" not in clause.text.lower()
+    assert "24 Months waiting period" in clause.context_text
+    assert clause.context_text.endswith(clause.text)
+
+
+def test_get_clause_context_of_a_split_clause_has_its_headings_once(retriever):
+    clause = retriever.get_clause(f"{PRODUCT}:annexure-c")
+    assert clause.context_text.count("Clause source text:") == 1
+    assert clause.context_text.endswith(clause.text)
+
+
 def test_parts_of_one_clause_come_back_as_one_hit(chunks, retriever):
     query = "Policy wording clause annexure-c day care"
     parts = {chunk["chunk_id"] for chunk in chunks if chunk["clause_number"] == "annexure-c"}
@@ -169,6 +182,20 @@ def test_reranker_sees_the_original_wording_as_well_as_the_rewrite(chunks, colle
     retriever.search("Medicines after discharge")
     assert "after discharge" in seen[0]
     assert "medicines and drugs" in seen[0]
+
+
+def test_a_line_category_brings_in_the_clause_that_pays_for_the_line(retriever):
+    plain = [hit.clause_number for hit in retriever.search("Appendectomy")]
+    with_category = [
+        hit.clause_number for hit in retriever.search("Appendectomy", category="procedure")
+    ]
+    assert "4.1" not in plain
+    assert "4.1" in with_category
+
+
+def test_an_unknown_category_changes_nothing(retriever):
+    query = "Appendectomy"
+    assert retriever.search(query, category="pay in full") == retriever.search(query)
 
 
 def test_conflicting_row_stays_out_when_rewriting(retriever):

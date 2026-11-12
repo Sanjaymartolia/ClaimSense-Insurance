@@ -1,5 +1,6 @@
 """Pure search logic, no search dependencies needed. These retrieval tests run in CI."""
 
+from claimsense.contracts import LineCategory
 from claimsense.retrieval.evaluate import (
     KINDS,
     first_hit_rank,
@@ -82,9 +83,18 @@ def test_mean_reciprocal_rank_scores_a_miss_as_zero():
 
 def test_summarise_scores_each_kind_and_the_whole_set():
     summary = summarise({"Dense": [1, 2, None]}, [{"kind": "a"}, {"kind": "a"}, {"kind": "b"}])
-    assert summary["a"]["Dense"] == {"recall": 1.0, "mrr": 0.75}
-    assert summary["b"]["Dense"] == {"recall": 0.0, "mrr": 0.0}
+    assert summary["a"]["Dense"] == {"top1": 0.5, "recall": 1.0, "mrr": 0.75}
+    assert summary["b"]["Dense"] == {"top1": 0.0, "recall": 0.0, "mrr": 0.0}
     assert summary["all"]["Dense"]["mrr"] == 0.5
+
+
+def test_bill_line_labels_carry_the_category_the_agent_sends():
+    categories = {category.value for category in LineCategory}
+    for query in load_queries():
+        if query["kind"] == "question":
+            assert "category" not in query
+        else:
+            assert query["category"] in categories, query["qid"]
 
 
 def test_label_set_is_big_enough_and_uses_every_known_kind():

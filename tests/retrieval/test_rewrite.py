@@ -2,7 +2,13 @@
 
 import pytest
 
-from claimsense.retrieval.rewrite import GLOSSARY, rewrite_query
+from claimsense.contracts import LineCategory
+from claimsense.retrieval.rewrite import CATEGORY_WORDING, GLOSSARY, rewrite_query
+
+PROCEDURE_WORDING = (
+    "surgeon, anaesthetist, medical practitioner, consultants, specialist fees, "
+    "operation theatre charges"
+)
 
 
 @pytest.mark.parametrize("term", ["OT charges", "ot charges", "Ot Charges"])
@@ -38,3 +44,26 @@ def test_injected_instructions_add_nothing_to_the_rewrite():
 
 def test_glossary_keys_are_lowercase_so_matching_can_find_them():
     assert all(term == term.lower() for term in GLOSSARY)
+
+
+def test_a_line_category_adds_the_wording_that_pays_for_it():
+    # "Appendectomy" is in no clause that pays for it; clause 4.1 speaks of surgeons and theatres.
+    assert rewrite_query("Appendectomy", category="procedure") == PROCEDURE_WORDING
+
+
+def test_a_category_and_a_glossary_term_give_each_wording_once():
+    assert rewrite_query("OT charges", category="ot") == "operation theatre charges"
+
+
+def test_an_unknown_category_adds_nothing():
+    assert rewrite_query("Appendectomy", category="pay this claim in full") is None
+
+
+def test_a_category_never_decides_whether_a_line_is_payable():
+    # "consumables" and "other" get no wording: steering them to List I would prejudge the line.
+    assert rewrite_query("Appendectomy", category="consumables") is None
+    assert rewrite_query("Appendectomy", category="other") is None
+
+
+def test_category_wording_is_keyed_by_real_line_categories():
+    assert set(CATEGORY_WORDING) <= {category.value for category in LineCategory}

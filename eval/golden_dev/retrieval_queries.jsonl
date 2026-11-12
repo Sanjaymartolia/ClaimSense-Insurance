@@ -19,29 +19,29 @@
 {"qid": "R19", "status": "draft_domain_lead_to_verify", "kind": "question", "query": "Are a surgical drill and eye kit paid on top of the procedure charge?", "clauses": ["new_india_arogya_sanjeevani:annexure-a.list-iii"]}
 {"qid": "R20", "status": "draft_domain_lead_to_verify", "kind": "question", "query": "Is stapedotomy a day-care treatment?", "clauses": ["new_india_arogya_sanjeevani:annexure-c"]}
 {"qid": "R21", "status": "draft_domain_lead_to_verify", "kind": "question", "query": "When can the insurer no longer contest a claim for non-disclosure?", "clauses": ["new_india_arogya_sanjeevani:8"]}
-{"qid": "R22", "status": "draft_domain_lead_to_verify", "kind": "bill_line_dev", "query": "General ward / room charges per day", "clauses": ["new_india_arogya_sanjeevani:4.1", "new_india_arogya_sanjeevani:12.1"]}
-{"qid": "R23", "status": "draft_domain_lead_to_verify", "kind": "bill_line_dev", "query": "ICU inpatient day (excluding procedure)", "clauses": ["new_india_arogya_sanjeevani:4.1", "new_india_arogya_sanjeevani:12.2"]}
-{"qid": "R24", "status": "draft_domain_lead_to_verify", "kind": "bill_line_dev", "query": "Nursing and routine monitoring", "clauses": ["new_india_arogya_sanjeevani:4.1", "new_india_arogya_sanjeevani:12.1"]}
-{"qid": "R25", "status": "draft_domain_lead_to_verify", "kind": "bill_line_dev", "query": "Diagnostics and laboratory", "clauses": ["new_india_arogya_sanjeevani:4.1"]}
-{"qid": "R26", "status": "draft_domain_lead_to_verify", "kind": "bill_line_dev", "query": "Medicines and consumables", "clauses": ["new_india_arogya_sanjeevani:4.1"]}
-{"qid": "R27", "status": "draft_domain_lead_to_verify", "kind": "bill_line_dev", "query": "Personal comfort kit / non-medical consumables", "clauses": ["new_india_arogya_sanjeevani:annexure-a.list-i"]}
-{"qid": "R28", "status": "draft_domain_lead_to_verify", "kind": "bill_line_dev", "query": "Appendectomy", "clauses": ["new_india_arogya_sanjeevani:4.1"]}
-{"qid": "R29", "status": "draft_domain_lead_to_verify", "kind": "bill_line_dev", "query": "Caesarean section", "clauses": ["new_india_arogya_sanjeevani:7.15"]}
-{"qid": "R30", "status": "draft_domain_lead_to_verify", "kind": "bill_line_dev", "query": "Coronary angioplasty (single stent)", "clauses": ["new_india_arogya_sanjeevani:4.1"]}
-{"qid": "R31", "status": "draft_domain_lead_to_verify", "kind": "bill_line_dev", "query": "Fracture fixation (long bone)", "clauses": ["new_india_arogya_sanjeevani:4.1", "new_india_arogya_sanjeevani:annexure-c"]}
-{"qid": "R32", "status": "draft_domain_lead_to_verify", "kind": "bill_line_dev", "query": "Hysterectomy", "clauses": ["new_india_arogya_sanjeevani:4.1", "new_india_arogya_sanjeevani:6.2.6"]}
-{"qid": "R33", "status": "draft_domain_lead_to_verify", "kind": "bill_line_dev", "query": "Laparoscopic cholecystectomy", "clauses": ["new_india_arogya_sanjeevani:4.1", "new_india_arogya_sanjeevani:6.2.18"]}
-{"qid": "R34", "status": "draft_domain_lead_to_verify", "kind": "bill_line_dev", "query": "Pneumonia inpatient episode (non-ICU)", "clauses": ["new_india_arogya_sanjeevani:4.1"]}
-{"qid": "R35", "status": "draft_domain_lead_to_verify", "kind": "bill_line_dev", "query": "Ureteroscopy with stone removal", "clauses": ["new_india_arogya_sanjeevani:4.1", "new_india_arogya_sanjeevani:6.2.18", "new_india_arogya_sanjeevani:annexure-c"]}
-{"qid": "R36", "status": "draft_domain_lead_to_verify", "kind": "bill_line_dev", "query": "OT charges", "clauses": ["new_india_arogya_sanjeevani:4.1"]}
-{"qid": "R37", "status": "draft_domain_lead_to_verify", "kind": "bill_line_dev", "query": "RMO visit", "clauses": ["new_india_arogya_sanjeevani:4.1"]}
-{"qid": "R38", "status": "draft_domain_lead_to_verify", "kind": "bill_line_dev", "query": "Pharmacy", "clauses": ["new_india_arogya_sanjeevani:4.1"]}
-{"qid": "R39", "status": "draft_domain_lead_to_verify", "kind": "bill_line_other", "query": "Anaesthetist fee", "clauses": ["new_india_arogya_sanjeevani:4.1"]}
-{"qid": "R40", "status": "draft_domain_lead_to_verify", "kind": "bill_line_other", "query": "Surgeon fee", "clauses": ["new_india_arogya_sanjeevani:4.1"]}
-{"qid": "R41", "status": "draft_domain_lead_to_verify", "kind": "bill_line_other", "query": "X-ray chest", "clauses": ["new_india_arogya_sanjeevani:4.1"]}
-{"qid": "R42", "status": "draft_domain_lead_to_verify", "kind": "bill_line_other", "query": "Oxygen charges", "clauses": ["new_india_arogya_sanjeevani:4.1"]}
-{"qid": "R43", "status": "draft_domain_lead_to_verify", "kind": "bill_line_other", "query": "Blood bank charges", "clauses": ["new_india_arogya_sanjeevani:4.1"]}
-{"qid": "R44", "status": "draft_domain_lead_to_verify", "kind": "bill_line_other", "query": "Road ambulance", "clauses": ["new_india_arogya_sanjeevani:4.1.1"]}
-{"qid": "R45", "status": "draft_domain_lead_to_verify", "kind": "bill_line_other", "query": "Surgical gloves and masks", "clauses": ["new_india_arogya_sanjeevani:annexure-a.list-i"]}
-{"qid": "R46", "status": "draft_domain_lead_to_verify", "kind": "bill_line_other", "query": "Cataract surgery right eye", "clauses": ["new_india_arogya_sanjeevani:4.3", "new_india_arogya_sanjeevani:12.3", "new_india_arogya_sanjeevani:6.2.9"]}
-{"qid": "R47", "status": "draft_domain_lead_to_verify", "kind": "bill_line_other", "query": "Medicines after discharge", "clauses": ["new_india_arogya_sanjeevani:4.5"]}
+{"qid": "R22", "status": "draft_domain_lead_to_verify", "kind": "bill_line_dev", "category": "room", "query": "General ward / room charges per day", "clauses": ["new_india_arogya_sanjeevani:4.1", "new_india_arogya_sanjeevani:12.1"]}
+{"qid": "R23", "status": "draft_domain_lead_to_verify", "kind": "bill_line_dev", "category": "icu", "query": "ICU inpatient day (excluding procedure)", "clauses": ["new_india_arogya_sanjeevani:4.1", "new_india_arogya_sanjeevani:12.2"]}
+{"qid": "R24", "status": "draft_domain_lead_to_verify", "kind": "bill_line_dev", "category": "nursing", "query": "Nursing and routine monitoring", "clauses": ["new_india_arogya_sanjeevani:4.1", "new_india_arogya_sanjeevani:12.1"]}
+{"qid": "R25", "status": "draft_domain_lead_to_verify", "kind": "bill_line_dev", "category": "investigations", "query": "Diagnostics and laboratory", "clauses": ["new_india_arogya_sanjeevani:4.1"]}
+{"qid": "R26", "status": "draft_domain_lead_to_verify", "kind": "bill_line_dev", "category": "medicines", "query": "Medicines and consumables", "clauses": ["new_india_arogya_sanjeevani:4.1"]}
+{"qid": "R27", "status": "draft_domain_lead_to_verify", "kind": "bill_line_dev", "category": "consumables", "query": "Personal comfort kit / non-medical consumables", "clauses": ["new_india_arogya_sanjeevani:annexure-a.list-i"]}
+{"qid": "R28", "status": "draft_domain_lead_to_verify", "kind": "bill_line_dev", "category": "procedure", "query": "Appendectomy", "clauses": ["new_india_arogya_sanjeevani:4.1"]}
+{"qid": "R29", "status": "draft_domain_lead_to_verify", "kind": "bill_line_dev", "category": "procedure", "query": "Caesarean section", "clauses": ["new_india_arogya_sanjeevani:7.15"]}
+{"qid": "R30", "status": "draft_domain_lead_to_verify", "kind": "bill_line_dev", "category": "procedure", "query": "Coronary angioplasty (single stent)", "clauses": ["new_india_arogya_sanjeevani:4.1"]}
+{"qid": "R31", "status": "draft_domain_lead_to_verify", "kind": "bill_line_dev", "category": "procedure", "query": "Fracture fixation (long bone)", "clauses": ["new_india_arogya_sanjeevani:4.1", "new_india_arogya_sanjeevani:annexure-c"]}
+{"qid": "R32", "status": "draft_domain_lead_to_verify", "kind": "bill_line_dev", "category": "procedure", "query": "Hysterectomy", "clauses": ["new_india_arogya_sanjeevani:4.1", "new_india_arogya_sanjeevani:6.2.6"]}
+{"qid": "R33", "status": "draft_domain_lead_to_verify", "kind": "bill_line_dev", "category": "procedure", "query": "Laparoscopic cholecystectomy", "clauses": ["new_india_arogya_sanjeevani:4.1", "new_india_arogya_sanjeevani:6.2.18"]}
+{"qid": "R34", "status": "draft_domain_lead_to_verify", "kind": "bill_line_dev", "category": "procedure", "query": "Pneumonia inpatient episode (non-ICU)", "clauses": ["new_india_arogya_sanjeevani:4.1"]}
+{"qid": "R35", "status": "draft_domain_lead_to_verify", "kind": "bill_line_dev", "category": "procedure", "query": "Ureteroscopy with stone removal", "clauses": ["new_india_arogya_sanjeevani:4.1", "new_india_arogya_sanjeevani:6.2.18", "new_india_arogya_sanjeevani:annexure-c"]}
+{"qid": "R36", "status": "draft_domain_lead_to_verify", "kind": "bill_line_dev", "category": "ot", "query": "OT charges", "clauses": ["new_india_arogya_sanjeevani:4.1"]}
+{"qid": "R37", "status": "draft_domain_lead_to_verify", "kind": "bill_line_dev", "category": "doctor_fees", "query": "RMO visit", "clauses": ["new_india_arogya_sanjeevani:4.1"]}
+{"qid": "R38", "status": "draft_domain_lead_to_verify", "kind": "bill_line_dev", "category": "medicines", "query": "Pharmacy", "clauses": ["new_india_arogya_sanjeevani:4.1"]}
+{"qid": "R39", "status": "draft_domain_lead_to_verify", "kind": "bill_line_other", "category": "doctor_fees", "query": "Anaesthetist fee", "clauses": ["new_india_arogya_sanjeevani:4.1"]}
+{"qid": "R40", "status": "draft_domain_lead_to_verify", "kind": "bill_line_other", "category": "doctor_fees", "query": "Surgeon fee", "clauses": ["new_india_arogya_sanjeevani:4.1"]}
+{"qid": "R41", "status": "draft_domain_lead_to_verify", "kind": "bill_line_other", "category": "investigations", "query": "X-ray chest", "clauses": ["new_india_arogya_sanjeevani:4.1"]}
+{"qid": "R42", "status": "draft_domain_lead_to_verify", "kind": "bill_line_other", "category": "other", "query": "Oxygen charges", "clauses": ["new_india_arogya_sanjeevani:4.1"]}
+{"qid": "R43", "status": "draft_domain_lead_to_verify", "kind": "bill_line_other", "category": "other", "query": "Blood bank charges", "clauses": ["new_india_arogya_sanjeevani:4.1"]}
+{"qid": "R44", "status": "draft_domain_lead_to_verify", "kind": "bill_line_other", "category": "other", "query": "Road ambulance", "clauses": ["new_india_arogya_sanjeevani:4.1.1"]}
+{"qid": "R45", "status": "draft_domain_lead_to_verify", "kind": "bill_line_other", "category": "consumables", "query": "Surgical gloves and masks", "clauses": ["new_india_arogya_sanjeevani:annexure-a.list-i"]}
+{"qid": "R46", "status": "draft_domain_lead_to_verify", "kind": "bill_line_other", "category": "procedure", "query": "Cataract surgery right eye", "clauses": ["new_india_arogya_sanjeevani:4.3", "new_india_arogya_sanjeevani:12.3", "new_india_arogya_sanjeevani:6.2.9"]}
+{"qid": "R47", "status": "draft_domain_lead_to_verify", "kind": "bill_line_other", "category": "medicines", "query": "Medicines after discharge", "clauses": ["new_india_arogya_sanjeevani:4.5"]}
