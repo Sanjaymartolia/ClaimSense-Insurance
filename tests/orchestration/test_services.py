@@ -35,9 +35,11 @@ def _fake_modules(monkeypatch):
     return fakes
 
 
+# check=False: these tests swap in fake tool modules, which the L15 tool pins rightly refuse.
+# The pins themselves are tested in tests/security/test_tool_pins.py.
 def test_real_services_binds_each_tool_to_its_owner_module(monkeypatch):
     fakes = _fake_modules(monkeypatch)
-    svc = real_services()
+    svc = real_services(check=False)
     for mod, names in BINDINGS.items():
         for n in names:
             assert getattr(svc, n) is getattr(fakes[mod], n), n
@@ -46,11 +48,11 @@ def test_real_services_binds_each_tool_to_its_owner_module(monkeypatch):
 
 def test_real_services_takes_the_shared_senior_threshold(monkeypatch):
     _fake_modules(monkeypatch)
-    assert real_services().senior_threshold == Decimal("123456")
+    assert real_services(check=False).senior_threshold == Decimal("123456")
 
 
 def test_registry_exposes_only_real_bindings(monkeypatch):
     fakes = _fake_modules(monkeypatch)
-    reg = real_services().registry()
+    reg = real_services(check=False).registry()
     assert reg["settle_claim"] is fakes["claims_db"].settle_claim
     assert reg["policy_search"] is fakes["policy_kb"].policy_search

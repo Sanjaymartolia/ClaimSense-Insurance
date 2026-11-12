@@ -298,9 +298,7 @@ def report(
         f"attack success rate on {sum(c.source == 'adversarial' for c in cases)} attacked claims: "
         f"this run {bare:.0%}, with the guardrail in front {guarded:.0%}"
     )
-    out.append(
-        "\n## 5.2 The input and output guardrail modules (not wired in: measured as components)"
-    )
+    out.append("\n## 5.2 The input and output guardrail modules (L15: wired in since 12 Nov 2026)")
     out.append(io_guardrails.format_both(cases, traces))
 
     out.append("\n## 6.2 Code checks on the review payload (claims failing each)")

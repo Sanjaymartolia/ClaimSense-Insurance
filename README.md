@@ -66,6 +66,9 @@ More in [eval/README.md](eval/README.md).
   (Jaeger, Langfuse, LangSmith over OTLP), results, an adversarial review, and a step-by-step
   terminal guide for stub and real runs
   ([Word](docs/ClaimSense_Observability_Report.docx))
+- **[Security report card](docs/SECURITY_REPORT_CARD.md)**: L15 guardrails and defences, the
+  red-team scoreboard, open items, and how to check it with the real API ·
+  [every change, before and after](docs/GUARDRAILS_BEFORE_AFTER.md)
 - **[Claims and gold-set fixes](docs/CLAIMS_AND_GOLD_SET_FIXES.md)**: audit of the dev set, what is
   fixed and what is still open
 - **Flow diagram:** [SVG](docs/diagrams/claimsense-flow.svg) · editable

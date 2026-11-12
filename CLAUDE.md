@@ -139,7 +139,7 @@ python -m eval.tools.rubric_score [--plan] [--insurance] [--json]              #
 - `harness/loader.py` strips answer-revealing fields before anything reaches an adapter; keep it that way.
 - Results and limitations: `docs/EVAL_HARNESS_REPORT.md` (DOCX built by `eval/tools/build_report_docx.py`).
   The judge is uncalibrated and weighted 0.00: `agents/coverage.py::choose_clauses` drops the model's rationale.
-- Adding an eval test changes the count stated in `docs/EVAL_HARNESS_REPORT.md` (299 today);
+- Adding an eval test changes the count stated in `docs/EVAL_HARNESS_REPORT.md` (305 today);
   `eval/tests/test_report_doc.py` fails until you update it and rebuild that DOCX.
 
 ### Agent suite, combined run, live monitoring (`eval/`, Eval & Red-Team)
@@ -160,10 +160,21 @@ python -m eval.monitoring export --out runs/monitoring/export      # alert rules
 - Thresholds in `eval/agent_suite/gate.yaml` and `eval/monitoring/alert_rules.yml` are proposals:
   never loosen one to get a pass. `test_monitoring.py` checks that rules, dashboard queries and
   metric names agree. Never edit `monitoring/` (Deploy & Ops); `export` refuses to write there.
-- `eval/agent_suite/io_guardrails.py` measures `guardrails/input_guardrails.py` and
-  `output_guardrails.py` as components (report section 5.2; they are not wired into the
-  pipeline). Seeds: `eval/redteam/guardrail_seeds.jsonl` (hand-written, synthetic). Defects
-  G-01 to G-04 are strict `xfail` tests in `eval/tests/test_io_guardrails.py`.
+- L15 guardrails are wired in (`docs/GUARDRAILS_BEFORE_AFTER.md`, `docs/SECURITY_REPORT_CARD.md`):
+  extraction masks PII (`input_guardrails.mask_pii`) before the model and runs
+  `classify_injection_fast`; `SettlementAgent` runs `payment_guard` (`check_payment_ceiling`) and
+  `output_guard` (`output_guardrails.check_letter_safe`) before `settle_claim`, fail-closed.
+  A guardrail finding sends a claim to a person; it never decides or changes an amount.
+  `eval/agent_suite/io_guardrails.py` measures them (agent-suite report section 5.2); seeds in
+  `eval/redteam/guardrail_seeds.jsonl` (hand-written, synthetic). Product tests: `tests/security/`.
+- With `tool_hooks=True` a tool may touch only the claim's own records (`HookedToolBelt` scope:
+  the claim id, and the intake's `packet["policy_number"]`, never a model-extracted value;
+  `ToolScopeError`). A guard block in `settle`/`repudiate` escalates the claim, it never crashes. `real_services()` refuses a tool whose
+  definition changed since review (`config/tool_pins.json`); after a reviewed change run
+  `python -m claimsense.hooks.pins --update`. Tests that swap in fake tools use `check=False`.
+- `python -m eval.security scoreboard --stub --label X` (L15 section 9: each defence against the
+  attacks, honest claims alongside); `python -m eval.security attack --label X` (section 10, an
+  adaptive attacker: real API only, costs money; exit 1 = it won).
 - `run_traced(prepare=, fraud_screen=)` are eval-only seams (fault injection, the L13 7.1 `lean-pr`
   variant). Monitoring findings MON-01 to MON-04 are in `docs/MONITORING_REPORT_CARD.md`.
 - A run label that exists is overwritten (`runs/monitoring/<label>/`). Never reuse the labels the

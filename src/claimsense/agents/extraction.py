@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import re
 from datetime import date
 
@@ -42,9 +43,13 @@ def find_injections(documents: dict[str, str]) -> list[str]:
 
 
 def detect_injections(documents: dict[str, str], claim: Claim | None = None) -> list[str]:
-    """B4: run the Tools & Security input guardrail (`guardrails.scan_text`: this module's regex
-    plus its broader generic cues) over every document AND every bill-line description, because a
-    packet can carry injected text in either, and the dev loader sends no document text at all.
+    """B4 + L15: run the Tools & Security input guardrail over every document AND every bill-line
+    description, because a packet can carry injected text in either.
+
+    The check is `input_guardrails.classify_injection_fast`: `guardrails.scan_text` (normalised
+    text, words spelt out letter by letter, Hinglish, Devanagari) plus the input module's own
+    patterns. With CLAIMSENSE_GUARD_LLM=1 in real mode, a text no pattern flags also goes to the
+    guard model (`guardrails.classify_injection_llm`; costs money, off by default).
 
     Each issue reads `possible prompt injection in <where>: '<cue>'`, the prefix the eval adapter
     and the fraud agent's `extraction: ...` flag already rely on. One issue per place: the first
@@ -53,16 +58,21 @@ def detect_injections(documents: dict[str, str], claim: Claim | None = None) -> 
     """
     # Imported here: guardrails.guardrails imports this module (find_injections), so a top-level
     # import would be circular.
-    from claimsense.guardrails.guardrails import scan_text
+    from claimsense.guardrails.input_guardrails import classify_injection_fast
 
+    use_llm = os.getenv("CLAIMSENSE_GUARD_LLM") == "1"
     places = [(name, text) for name, text in (documents or {}).items()]
     if claim is not None:
         places += [(f"bill line {line.line_id}", line.description) for line in claim.bill_lines]
     issues = []
     for where, text in places:
-        findings = scan_text(text, source=where)
-        if findings:
-            cue = findings[0].message.split(": ", 1)[-1]
+        result = classify_injection_fast(text)
+        cue = f"'{result.patterns_matched[0]}'" if result.is_injection else None
+        if cue is None and use_llm:
+            from claimsense.guardrails.guardrails import classify_injection_llm
+
+            cue = "flagged by the guard model" if classify_injection_llm(text) else None
+        if cue:
             issues.append(f"possible prompt injection in {where}: {cue}")
     return issues
 
@@ -177,7 +187,12 @@ class ExtractionAgent:
         return claim, issues
 
     def _extract(self, claim_id: str, documents: dict[str, str], retries: int = 1) -> Claim:
-        docs = "\n\n".join(as_data(n, t) for n, t in documents.items())
+        # L15 input guardrail: identifiers (Aadhaar, PAN, card, phone, e-mail) are masked before
+        # the text leaves the process for the model; the reader needs none of them (rule 4). The
+        # span check later runs on the original text, which no bill line quotes an identifier of.
+        from claimsense.guardrails.input_guardrails import mask_pii
+
+        docs = "\n\n".join(as_data(n, mask_pii(t).masked_text) for n, t in documents.items())
         messages = [("system", SYSTEM), ("human", f"claim_id: {claim_id}\n\n{docs}")]
         structured = self.llm.with_structured_output(Claim)
         last_err = None

@@ -113,7 +113,7 @@ The harness watches the product. The product does not watch the harness. No file
 | `eval/tools/rubric_score.py` | It prints the framework rubric scorecard. See `docs/FRAMEWORK_RUBRIC_SCORE.md`. |
 | `eval/agent_suite/` | The trace-based agent suite (L13 sections 1 to 7). It records a span for every node, tool call and model call, and computes outcome, process and payload metrics from those traces. Run `python -m eval.agent_suite --label <name>`. See `eval/agent_suite/README.md`. |
 | `eval/full.py` | One run for every metric: the harness self-check, one traced pipeline pass, scored by both the harness and the agent suite, with a combined gate. Run `python -m eval.full --stub --label <name>`. |
-| `eval/tests/` | 302 tests. Thirty-three test the real-pipeline adapter. Twelve check the judge's inputs. Thirteen check the suite. Fourteen check the framework rubric report. Forty-three cover the agent suite, three of them strict `xfail` tests that name open defects (AGT-05 twice, guardrail recall); the AGT-03 test passes since B5 and the maternity test since the childbirth exclusion in `coverage.py`, and both are kept as regression tests. Nine cover `eval/full.py`, including a check that a traced run scores exactly like the harness adapter. Seventy-two cover live monitoring (`eval/monitoring/`, see `docs/MONITORING_REPORT_CARD.md`), one of them a strict `xfail` for MON-01. Twenty-one cover OpenTelemetry tracing (`eval/observability/`, see `docs/OBSERVABILITY_REPORT.md`). Seven cover the input and output guardrail modules (`eval/agent_suite/io_guardrails.py`), five of them strict `xfail` tests for defects G-01 to G-04 (results in `docs/AGENT_SUITE_REPORT.md`). |
+| `eval/tests/` | 305 tests. Thirty-three test the real-pipeline adapter. Twelve check the judge's inputs. Thirteen check the suite. Fourteen check the framework rubric report. Forty-three cover the agent suite; the tests for AGT-03 (fixed by B5), the maternity exclusion (`coverage.py`), AGT-05 and guardrail recall (both fixed by the L15 guardrail work, 12 November 2026) pass and are kept as regression tests. Nine cover `eval/full.py`, including a check that a traced run scores exactly like the harness adapter. Seventy-two cover live monitoring (`eval/monitoring/`, see `docs/MONITORING_REPORT_CARD.md`), one of them a strict `xfail` for MON-01. Twenty-one cover OpenTelemetry tracing (`eval/observability/`, see `docs/OBSERVABILITY_REPORT.md`). Six cover the input and output guardrails (`eval/agent_suite/io_guardrails.py`): regression tests for defects G-01 to G-04, fixed on 12 November 2026 (`docs/GUARDRAILS_BEFORE_AFTER.md`). Four cover the L15 red-team tools (`eval/security/`: the scoreboard and the adaptive attacker). |
 
 ### 3.3 Data types
 
@@ -426,7 +426,7 @@ it in would not move these numbers.
 | Split | Composite | Verdict | Gate that fired |
 |---|---|---|---|
 | `dev` | 0.965 | **PASS** | None |
-| `redteam` | 0.960 | FAIL | `injection_obeyed`, 1 claim (CLM-9017) |
+| `redteam` | 0.998 | **PASS** | None (was 0.960 FAIL, `injection_obeyed` on CLM-9017, before the L15 guardrail fix) |
 
 | Metric | `dev` | `redteam` |
 |---|---|---|
@@ -522,8 +522,8 @@ already confirmed by hand.
 
 ### 8.6 Tests
 
-The harness has 302 tests, and none fail. 291 pass. Nine are strict `xfail` tests for open
-defects, which pass by failing and turn red the day the defect is fixed. Two skip, depending on
+The harness has 305 tests, and none fail. 302 pass. One is a strict `xfail` test for an open
+defect (MON-01), which passes by failing and turns red the day the defect is fixed. Two skip, depending on
 the installed extras. The commands `ruff check` and `ruff format` both pass on
 the `eval/` folder.
 
@@ -533,7 +533,7 @@ stated here matches the real one, and that the DOCX still builds. They exist bec
 deleted subsection 9.5 silently and left a reference pointing at a heading that had moved. A reader
 does not notice a renumbering. A test does.
 
-Thirty-three of the 302 tests check the real-pipeline adapter. One of them is a regression test for
+Thirty-three of the 305 tests check the real-pipeline adapter. One of them is a regression test for
 defect AGT-04, which is now fixed: it asserts that no dev claim cites an id outside the corpus and
 that CLM-0013 cites clause 2. It replaced the test that pinned the `policy_schedule:period`
 placeholder on 11 November 2026, as that test's predecessor (AGT-01) was replaced on 10 November.
@@ -564,7 +564,7 @@ metric without tripping safety, and a row with no expected gate would not prove 
 | `gate-fabricated-citation` | 0.000 | FAIL | `fabricated_citation`, 22 claims |
 | `gate-injection-obeyed` | 0.000 | FAIL | `injection_obeyed`, 30 claims |
 | `real-dev` | 0.965 | PASS | none |
-| `real-redteam` | 0.960 (provisional) | FAIL | `injection_obeyed`, 1 claim |
+| `real-redteam` | 0.998 | PASS | none |
 
 Every row pins its composite to the nearest 0.01, so a moved number is a mismatch. The suite also
 forces `CLAIMSENSE_LLM=stub` for its run, so a key in the shell cannot make it call a paid model.
@@ -900,7 +900,7 @@ that chance agreement.
 
        pytest eval/tests -q
 
-2. All 302 tests must pass.
+2. All 305 tests must pass.
 3. Run the lint check.
 
        ruff check eval/ && ruff format --check eval/
@@ -1006,12 +1006,12 @@ One command runs the whole evaluation and checks every result against what this 
 
     python -m eval.harness.suite
 
-All nine rows match. The harness has 302 tests, and none fail (291 pass, 9 strict xfail, 2 skip).
+All nine rows match. The harness has 305 tests, and none fail (302 pass, 1 strict xfail, 2 skip).
 Neither needs an API key.
 
 It measures a ceiling of 1.000 and a floor of 0.109. The real agent pipeline scores 0.965 on the
-development set (a pass) and 0.960 on the red-team set (12 November 2026; the red-team figure is provisional
-until the guardrail reads RT-012). It has six catastrophic gates.
+development set (a pass) and 0.998 on the red-team set (a pass; 12 November 2026, after the L15 guardrail fix that
+reads the RT-012 injections). It has six catastrophic gates.
 Testing proved that four of them fire, and the other two have unit tests.
 
 The work found seven things that the plan did not expect:
@@ -1036,7 +1036,7 @@ The work found seven things that the plan did not expect:
 7. The pipeline discards the rationale that its own model writes, so the judge has nothing real to
    score. Section 9.4 holds the measurement and the repair.
 
-The repair in Section 9.1 and defect AGT-04 are done. The next task is the rest of AGT-05: the
-input guardrail must read the RT-012 injections (Tools & Security; RT-010 landed on 12 November
-2026). Then re-pin the `real-redteam` row. AGT-02 is fixed (ADR-0010, ADR-0011). After that
-comes the cataract 4.3 cap, which needs a contract change.
+The repair in Section 9.1 and defects AGT-04 and AGT-05 are done: the input guardrail reads the
+RT-010 and RT-012 injections (12 November 2026, `docs/GUARDRAILS_BEFORE_AFTER.md`), and the
+`real-redteam` row is re-pinned. AGT-02 is fixed (ADR-0010, ADR-0011). The next task is the
+cataract 4.3 cap, which needs a contract change.

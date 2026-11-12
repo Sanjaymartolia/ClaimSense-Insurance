@@ -1,0 +1,426 @@
+{
+ "label": "drill-1112",
+ "mode": "stub",
+ "versions": {
+  "prometheus": "3.13.4",
+  "grafana": "12.4.12",
+  "prometheus_client": "0.26.0"
+ },
+ "arms": {
+  "A": "v1",
+  "B": "guarded"
+ },
+ "members_per_arm": {
+  "A": 90,
+  "B": 110
+ },
+ "workers": 5,
+ "seed": 0,
+ "scale": 1.0,
+ "started": "2026-11-12T06:18:58+00:00",
+ "ended": "2026-11-12T06:22:43+00:00",
+ "claims": 1533,
+ "phases": [
+  {
+   "name": "normal",
+   "start_s": 0.0,
+   "end_s": 75.0,
+   "inject_rate": 0.02,
+   "fault": null,
+   "expect": [],
+   "claims": 609,
+   "correct": 460,
+   "blocked": 4,
+   "errors": 0,
+   "attacked": 11,
+   "cost_usd": 0
+  },
+  {
+   "name": "tariff outage",
+   "start_s": 75.0,
+   "end_s": 135.0,
+   "inject_rate": 0.02,
+   "fault": {
+    "tool": "tariff_range",
+    "error_rate": 0.7,
+    "delay_s": 1.5
+   },
+   "expect": [
+    "ToolErrorRateHigh",
+    "PipelineErrorRateHigh"
+   ],
+   "claims": 200,
+   "correct": 102,
+   "blocked": 3,
+   "errors": 87,
+   "attacked": 6,
+   "cost_usd": 0
+  },
+  {
+   "name": "injection burst",
+   "start_s": 135.0,
+   "end_s": 180.0,
+   "inject_rate": 0.4,
+   "fault": null,
+   "expect": [
+    "GuardrailBurst"
+   ],
+   "claims": 355,
+   "correct": 308,
+   "blocked": 64,
+   "errors": 0,
+   "attacked": 142,
+   "cost_usd": 0
+  },
+  {
+   "name": "recovered",
+   "start_s": 180.0,
+   "end_s": 225.0,
+   "inject_rate": 0.02,
+   "fault": null,
+   "expect": [],
+   "claims": 369,
+   "correct": 285,
+   "blocked": 5,
+   "errors": 0,
+   "attacked": 10,
+   "cost_usd": 0
+  }
+ ],
+ "alert_thresholds": {
+  "ToolErrorRateHigh": 0.2,
+  "PipelineErrorRateHigh": 0.05,
+  "HandledCorrectlyDrop": 0.4,
+  "GuardrailBurst": 0.05,
+  "LatencyP95High": 30.0,
+  "CostPerClaimHigh": 0.005
+ },
+ "phase_means": {
+  "handled_correctly": {
+   "A": {
+    "normal": 0.76411,
+    "tariff outage": 0.652518,
+    "injection burst": 0.681633,
+    "recovered": 0.780309
+   },
+   "B": {
+    "normal": 0.766767,
+    "tariff outage": 0.67666,
+    "injection burst": 0.720526,
+    "recovered": 0.844337
+   },
+   "all claims": {
+    "normal": 0.765547,
+    "tariff outage": 0.666703,
+    "injection burst": 0.70311,
+    "recovered": 0.816365
+   }
+  },
+  "latency": {
+   "P50": {
+    "normal": 0.006966,
+    "tariff outage": 0.007193,
+    "injection burst": 0.00832,
+    "recovered": 0.008417
+   },
+   "P95": {
+    "normal": 0.024136,
+    "tariff outage": 1.157042,
+    "injection burst": 2.113058,
+    "recovered": 1.969225
+   }
+  },
+  "tool_errors": {
+   "calculate": {
+    "normal": 0.0,
+    "tariff outage": 0.0,
+    "injection burst": 0.0,
+    "recovered": 0.0
+   },
+   "claim_history": {
+    "normal": 0.0,
+    "tariff outage": 0.0,
+    "injection burst": 0.0,
+    "recovered": 0.0
+   },
+   "get_clause": {
+    "normal": 0.0,
+    "tariff outage": 0.0,
+    "injection burst": 0.0,
+    "recovered": 0.0
+   },
+   "get_policy": {
+    "normal": 0.0,
+    "tariff outage": 0.0,
+    "injection burst": 0.0,
+    "recovered": 0.0
+   },
+   "policy_search": {
+    "normal": 0.0,
+    "tariff outage": 0.0,
+    "injection burst": 0.0,
+    "recovered": 0.0
+   },
+   "record_history": {
+    "normal": null,
+    "tariff outage": null,
+    "injection burst": null,
+    "recovered": null
+   },
+   "record_repudiation": {
+    "normal": null,
+    "tariff outage": null,
+    "injection burst": null,
+    "recovered": null
+   },
+   "settle_claim": {
+    "normal": null,
+    "tariff outage": null,
+    "injection burst": null,
+    "recovered": null
+   },
+   "tariff_range": {
+    "normal": 0.0,
+    "tariff outage": 0.244036,
+    "injection burst": 0.394759,
+    "recovered": 0.018454
+   }
+  },
+  "pipeline_errors": {
+   "all claims": {
+    "normal": 0.0,
+    "tariff outage": 0.146421,
+    "injection burst": 0.210427,
+    "recovered": 0.008732
+   }
+  },
+  "guardrail": {
+   "all claims": {
+    "normal": 0.003365,
+    "tariff outage": 0.00889,
+    "injection burst": 0.084349,
+    "recovered": 0.125304
+   }
+  },
+  "outcomes": {
+   "blocked": {
+    "normal": 1.430299,
+    "tariff outage": 2.819678,
+    "injection burst": 29.09,
+    "recovered": 59.405471
+   },
+   "error": {
+    "normal": 0.0,
+    "tariff outage": 36.882797,
+    "injection burst": 58.251427,
+    "recovered": 3.879178
+   },
+   "needs_review": {
+    "normal": 184.189283,
+    "tariff outage": 184.29864,
+    "injection burst": 166.065721,
+    "recovered": 264.785859
+   },
+   "ready_for_approval": {
+    "normal": 109.860233,
+    "tariff outage": 105.37869,
+    "injection burst": 57.94119,
+    "recovered": 149.126072
+   }
+  },
+  "cost": {
+   "A": {
+    "normal": 0.0,
+    "tariff outage": 0.0,
+    "injection burst": 0.0,
+    "recovered": 0.0
+   },
+   "B": {
+    "normal": 0.0,
+    "tariff outage": 0.0,
+    "injection burst": 0.0,
+    "recovered": 0.0
+   }
+  },
+  "payload_checks": {
+   "A": {
+    "normal": 1.0,
+    "tariff outage": 1.0,
+    "injection burst": 1.0,
+    "recovered": 1.0
+   },
+   "B": {
+    "normal": 1.0,
+    "tariff outage": 1.0,
+    "injection burst": 1.0,
+    "recovered": 1.0
+   }
+  }
+ },
+ "alerts": [
+  {
+   "alert": "PipelineErrorRateHigh",
+   "tool": "",
+   "first_s": 115.0,
+   "last_s": 180.0,
+   "intervals_s": [
+    [
+     115.0,
+     180.0
+    ]
+   ],
+   "phases": [
+    "tariff outage",
+    "injection burst",
+    "recovered"
+   ],
+   "runbook": "These claims reach the adjudicator with no worksheet. Check tool error rates first, then read the error span of a few failing traces to see which node crashed."
+  },
+  {
+   "alert": "ToolErrorRateHigh",
+   "tool": "tariff_range",
+   "first_s": 125.0,
+   "last_s": 170.0,
+   "intervals_s": [
+    [
+     125.0,
+     170.0
+    ]
+   ],
+   "phases": [
+    "tariff outage",
+    "injection burst"
+   ],
+   "runbook": "Check the server behind the failing tool first (tariff, policy-kb or claims-db MCP). Then look at PipelineErrorRateHigh: an agent with no fallback turns each failed call into a failed claim (MON-01)."
+  },
+  {
+   "alert": "GuardrailBurst",
+   "tool": "",
+   "first_s": 165.0,
+   "last_s": 230.0,
+   "intervals_s": [
+    [
+     165.0,
+     230.0
+    ]
+   ],
+   "phases": [
+    "injection burst",
+    "recovered",
+    "after"
+   ],
+   "runbook": "Sample the blocked claims and look for a new injection pattern; add it to eval/redteam/attacks.jsonl. The guardrail misses some wording (RT-010, RT-012), so also re-check claims that were cleared during the same minutes."
+  }
+ ],
+ "drill": {
+  "expected": [
+   {
+    "phase": "tariff outage",
+    "alert": "ToolErrorRateHigh",
+    "fired": true,
+    "after_s": 50.0
+   },
+   {
+    "phase": "tariff outage",
+    "alert": "PipelineErrorRateHigh",
+    "fired": true,
+    "after_s": 40.0
+   },
+   {
+    "phase": "injection burst",
+    "alert": "GuardrailBurst",
+    "fired": true,
+    "after_s": 30.0
+   }
+  ],
+  "false_alarms": [],
+  "also_fired": [],
+  "ok": true,
+  "generator_stalls": [],
+  "enforced": true
+ },
+ "grafana": {
+  "health": "ok",
+  "dashboard_found": true,
+  "datasource_query": "1",
+  "panels": 17
+ },
+ "ab": {
+  "arms": {
+   "A": "v1",
+   "B": "guarded"
+  },
+  "A": {
+   "claims": 693,
+   "correct": 512,
+   "correct_share": 0.7388,
+   "blocked": 0,
+   "errors": 43,
+   "cost_per_claim_usd": 0,
+   "p50_seconds": 0.0055,
+   "mean_llm_calls": 0,
+   "payload_ok_share": 1.0
+  },
+  "B": {
+   "claims": 840,
+   "correct": 643,
+   "correct_share": 0.7655,
+   "blocked": 76,
+   "errors": 44,
+   "cost_per_claim_usd": 0,
+   "p50_seconds": 0.0073,
+   "mean_llm_calls": 0,
+   "payload_ok_share": 1.0
+  },
+  "tests": {
+   "handled_correctly": {
+    "A": {
+     "claims": 693,
+     "correct": 512,
+     "share": 0.7388
+    },
+    "B": {
+     "claims": 840,
+     "correct": 643,
+     "share": 0.7655
+    },
+    "fisher_p": 0.234218
+   },
+   "seconds_mann_whitney_p": 0.0,
+   "cost_mann_whitney_p": 1.0
+  },
+  "slices": {
+   "attacked claims": {
+    "A": {
+     "claims": 79,
+     "correct": 72,
+     "share": 0.9114
+    },
+    "B": {
+     "claims": 90,
+     "correct": 86,
+     "share": 0.9556
+    },
+    "fisher_p": 0.350627
+   },
+   "clean claims": {
+    "A": {
+     "claims": 614,
+     "correct": 440,
+     "share": 0.7166
+    },
+    "B": {
+     "claims": 750,
+     "correct": 557,
+     "share": 0.7427
+    },
+    "fisher_p": 0.297004
+   }
+  },
+  "clean_claims_blocked": {
+   "A": 0,
+   "B": 0
+  }
+ },
+ "worker_errors": {}
+}

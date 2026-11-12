@@ -24,16 +24,15 @@ OWASP Agentic Top 10 Coverage:
 
 from __future__ import annotations
 
+import datetime as dt
 import hashlib
 import logging
-import os
 import re
 from dataclasses import dataclass
-from datetime import date
-from decimal import Decimal, InvalidOperation
+from decimal import Decimal
 from typing import Any
 
-from pydantic import BaseModel, Field, ValidationError
+from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 # Lazy imports to avoid circular dependencies
 _llm_cache: dict[str, Any] = {}
@@ -78,9 +77,7 @@ class OutOfScopeException(SecurityViolationException):
     """Raised when the request is outside insurance claims domain."""
 
     def __init__(self, detected_intent: str):
-        super().__init__(
-            f"Out-of-scope request: {detected_intent}", category="scope_violation"
-        )
+        super().__init__(f"Out-of-scope request: {detected_intent}", category="scope_violation")
         self.detected_intent = detected_intent
 
 
@@ -88,13 +85,42 @@ class OutOfScopeException(SecurityViolationException):
 # PII MASKING (OWASP LLM06: Sensitive Information Disclosure)
 # ================================================================================================
 
-# Indian-specific patterns
-_AADHAAR_PATTERN = re.compile(r"\b\d{4}\s?\d{4}\s?\d{4}\b")  # 12 digits, optional spaces
-_PAN_PATTERN = re.compile(r"\b[A-Z]{5}\d{4}[A-Z]\b")  # PAN card format
-_PHONE_PATTERN = re.compile(r"\b(?:\+91[\-\s]?)?[6-9]\d{9}\b")  # Indian mobile
-_EMAIL_PATTERN = re.compile(r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b")
-_CREDIT_CARD_PATTERN = re.compile(r"\b\d{4}[\s\-]?\d{4}[\s\-]?\d{4}[\s\-]?\d{4}\b")
-_SSN_PATTERN = re.compile(r"\b\d{3}-\d{2}-\d{4}\b")  # US SSN for international coverage
+# Indian identifiers. A bill is full of numbers, so a bare 12-digit, 10-digit or 5+4+1 shape is
+# not enough: "4500 4500 4500" (three day-rates), "IP No 7004512345" and "TKRPK1234A" (a package
+# code) are not identifiers. Aadhaar, PAN and phone are masked only when their keyword (or +91)
+# comes just before them, a card only when it passes the Luhn check. Only the identifier itself
+# is replaced (the named group "id"); the keyword and every amount stay readable.
+_LEAD = r"[^\w\n]{0,12}(?:(?:is|no|number|num|card)\b\.?[^\w\n]{0,6}){0,2}"
+_AADHAAR_PATTERN = re.compile(  # an Aadhaar never starts with 0 or 1
+    rf"\b(?:aadhaa?r|uidai|uid){_LEAD}(?P<id>[2-9]\d{{3}}[\s-]?\d{{4}}[\s-]?\d{{4}})\b", re.I
+)
+_PAN_PATTERN = re.compile(rf"\bpan{_LEAD}(?P<id>[a-z]{{5}}\d{{4}}[a-z])\b", re.I)
+_PHONE_PATTERN = re.compile(
+    rf"\b(?:mob(?:ile)?|ph(?:one)?|tel(?:ephone)?|contact|cell|whatsapp){_LEAD}"
+    r"(?P<id>(?:\+91[\s-]?|0)?[6-9]\d{4}[\s-]?\d{5})\b",
+    re.I,
+)
+_PHONE_INTL_PATTERN = re.compile(r"(?P<id>\+91[\s-]?[6-9]\d{4}[\s-]?\d{5})\b")
+_EMAIL_PATTERN = re.compile(r"\b(?P<id>[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,})\b")
+_CREDIT_CARD_PATTERN = re.compile(r"\b(?P<id>\d{4}[\s-]?\d{4}[\s-]?\d{4}[\s-]?\d{4})\b")
+# The US SSN pattern was dropped: on an Indian bill "123-45-6789" is a lab or sample id.
+
+
+def _luhn_ok(number: str) -> bool:
+    digits = [int(d) for d in re.sub(r"\D", "", number)][::-1]
+    total = sum(d if i % 2 == 0 else (d * 2 - 9 if d > 4 else d * 2) for i, d in enumerate(digits))
+    return len(digits) >= 13 and total % 10 == 0
+
+
+#: (kind, pattern, extra check on the identifier). Most specific first: a card before Aadhaar.
+_PII_RULES: list[tuple[str, re.Pattern[str], Any]] = [
+    ("credit_card", _CREDIT_CARD_PATTERN, _luhn_ok),
+    ("aadhaar", _AADHAAR_PATTERN, None),
+    ("pan", _PAN_PATTERN, None),
+    ("phone", _PHONE_PATTERN, None),
+    ("phone", _PHONE_INTL_PATTERN, None),
+    ("email", _EMAIL_PATTERN, None),
+]
 
 
 @dataclass
@@ -117,11 +143,13 @@ def mask_pii(text: str, *, hash_identifiers: bool = True) -> PIIMaskingResult:
         PIIMaskingResult with masked text and metadata
 
     Examples:
-        >>> result = mask_pii("My Aadhaar is 1234 5678 9012")
+        >>> result = mask_pii("My Aadhaar is 2345 6789 0123")
         >>> "AADHAAR_" in result.masked_text
         True
         >>> result.pii_found["aadhaar"]
         1
+        >>> mask_pii("Room rent 3 days: 4500 4500 4500 = 13500").masked_text
+        'Room rent 3 days: 4500 4500 4500 = 13500'
     """
     if not text or not isinstance(text, str):
         return PIIMaskingResult(masked_text="", pii_found={}, hash_mapping={})
@@ -130,9 +158,8 @@ def mask_pii(text: str, *, hash_identifiers: bool = True) -> PIIMaskingResult:
     pii_counts: dict[str, int] = {}
     hash_map: dict[str, str] = {}
 
-    def _mask_or_hash(match: re.Match, pii_type: str) -> str:
+    def _mask_or_hash(original: str, pii_type: str) -> str:
         """Replace PII with masked token or hash."""
-        original = match.group(0)
         if hash_identifiers:
             hashed = hashlib.sha256(original.encode()).hexdigest()[:12]
             replacement = f"{pii_type.upper()}_{hashed}"
@@ -143,15 +170,24 @@ def mask_pii(text: str, *, hash_identifiers: bool = True) -> PIIMaskingResult:
         pii_counts[pii_type] = pii_counts.get(pii_type, 0) + 1
         return replacement
 
-    # Mask in order of specificity (most specific first)
-    masked = _AADHAAR_PATTERN.sub(lambda m: _mask_or_hash(m, "aadhaar"), masked)
-    masked = _PAN_PATTERN.sub(lambda m: _mask_or_hash(m, "pan"), masked)
-    masked = _CREDIT_CARD_PATTERN.sub(lambda m: _mask_or_hash(m, "credit_card"), masked)
-    masked = _SSN_PATTERN.sub(lambda m: _mask_or_hash(m, "ssn"), masked)
-    masked = _PHONE_PATTERN.sub(lambda m: _mask_or_hash(m, "phone"), masked)
-    masked = _EMAIL_PATTERN.sub(lambda m: _mask_or_hash(m, "email"), masked)
+    for pii_type, pattern, check in _PII_RULES:
+
+        def _replace(m: re.Match, pii_type: str = pii_type, check: Any = check) -> str:
+            value = m.group("id")
+            if check is not None and not check(value):
+                return m.group(0)
+            start, end = m.start("id") - m.start(), m.end("id") - m.start()
+            whole = m.group(0)
+            return whole[:start] + _mask_or_hash(value, pii_type) + whole[end:]
+
+        masked = pattern.sub(_replace, masked)
 
     return PIIMaskingResult(masked_text=masked, pii_found=pii_counts, hash_mapping=hash_map)
+
+
+# process_input_pipeline() has flags named mask_pii and verify_scope; inside it those names are
+# the booleans, so it calls the functions through these aliases (defect G-04).
+_mask_pii = mask_pii
 
 
 def validate_pii_masked(text: str) -> None:
@@ -162,18 +198,11 @@ def validate_pii_masked(text: str) -> None:
     if not text:
         return
 
-    checks = [
-        (_AADHAAR_PATTERN, "Aadhaar number"),
-        (_PAN_PATTERN, "PAN card"),
-        (_CREDIT_CARD_PATTERN, "credit card number"),
-        (_PHONE_PATTERN, "phone number"),
-        (_EMAIL_PATTERN, "email address"),
-    ]
-
-    for pattern, pii_type in checks:
-        if pattern.search(text):
-            logger.error("Unmasked PII detected: %s", pii_type)
-            raise PIIDetectedException(pii_type)
+    for pii_type, pattern, check in _PII_RULES:
+        for m in pattern.finditer(text):
+            if check is None or check(m.group("id")):
+                logger.error("Unmasked PII detected: %s", pii_type)
+                raise PIIDetectedException(pii_type)
 
 
 # ================================================================================================
@@ -187,21 +216,37 @@ _INJECTION_PATTERNS = [
     re.compile(r"disregard\s+(the\s+)?(policy|rules?|instructions?|prompt)", re.I),
     re.compile(r"forget\s+(all\s+)?(previous|prior|your)\s+(instructions?|rules?)", re.I),
     re.compile(r"bypass\s+(the\s+)?(approval|gate|policy|review|check)", re.I),
-    # System prompt manipulation
-    re.compile(r"(system|developer|admin)\s*(prompt|message|role|instructions?)", re.I),
+    # System prompt manipulation. Narrowed on 12 Nov 2026: discharge text says "New instructions:
+    # continue tablets", "Show the instructions to the nurse", "Admin instructions given to
+    # staff", "do not apply pressure", "pretend to be asleep"; none of those is an injection.
+    re.compile(r"\b(system|developer)\s*(prompt|message|role|instructions?)\b", re.I),
+    re.compile(r"\badmin\s*(prompt|message|role)\b", re.I),
     re.compile(r"</?\s*(system|instruction|prompt)\s*>", re.I),
     re.compile(r"you\s+are\s+now\s+(a|an|acting|going to)", re.I),
-    re.compile(r"new\s+(instructions?|role|task):", re.I),
+    re.compile(r"\b(your|my)\s+new\s+(instructions?|role|task)\b", re.I),
     # Information disclosure
-    re.compile(r"(reveal|show|display|output|print)\s+(the\s+)?(system\s+)?(prompt|instructions?)", re.I),
+    re.compile(
+        r"\b(reveal|show|display|output|print)\s+(me\s+)?(your|the\s+system)\s+(prompt|instructions?)",
+        re.I,
+    ),
     re.compile(r"what\s+(are|were)\s+your\s+(original\s+)?(instructions?|prompts?)", re.I),
     # Jailbreaks
     re.compile(r"do\s+anything\s+now|DAN\s+mode", re.I),
-    re.compile(r"pretend\s+(to\s+be|you\s+are)", re.I),
+    re.compile(r"\bpretend\s+(that\s+)?you\s+are\b", re.I),
+    re.compile(
+        r"\bpretend\s+to\s+be\s+(an?\s+|the\s+)?(ai|assistant|adjudicator|admin\w*|system|insurer)\b",
+        re.I,
+    ),
     re.compile(r"as\s+agreed\s+with\s+the\s+(insurer|company|provider)", re.I),
     # Approval manipulation
-    re.compile(r"(automatically|already|pre[-\s]?)approve", re.I),
-    re.compile(r"do\s+not\s+(reject|deny|deduct|apply|check)", re.I),
+    re.compile(r"\bautomatically\s+approve", re.I),
+    re.compile(r"\b(already|pre[-\s]?)approved?\s+(for\s+payment|in\s+full)\b", re.I),
+    re.compile(r"\bdo\s+not\s+(reject|deny|deduct)\b", re.I),
+    re.compile(
+        r"\bdo\s+not\s+(apply|check)\s+(the\s+|any\s+)?(co-?pay(ment)?|caps?|limits?|sub-?limits?"
+        r"|deductions?|exclusions?|polic(y|ies)|rules?)\b",
+        re.I,
+    ),
     re.compile(r"override\s+(the\s+)?(policy|rules?|limits?|copay)", re.I),
 ]
 
@@ -219,27 +264,34 @@ class InjectionClassificationResult:
 def classify_injection_fast(text: str) -> InjectionClassificationResult:
     """Fast pattern-based injection detection. No LLM calls.
 
-    This is the first line of defense - fast, deterministic, no cost.
+    This is the first line of defense - fast, deterministic, no cost. It adds this module's
+    patterns to `guardrails.scan_text`, the guardrail the pipeline runs (normalised text, spelt-out
+    words, Hinglish and Devanagari), so the two can never disagree on what they catch.
     """
     if not text:
         return InjectionClassificationResult(
             is_injection=False, confidence=0.0, patterns_matched=[]
         )
 
-    patterns_matched = []
-    for pattern in _INJECTION_PATTERNS:
-        matches = pattern.findall(text)
-        if matches:
-            patterns_matched.extend([m if isinstance(m, str) else m[0] for m in matches])
+    from claimsense.guardrails.guardrails import scan_text  # lazy: guardrails imports agents
 
+    patterns_matched = [f.message.split(": ", 1)[-1].strip("'") for f in scan_text(text)]
+    for pattern in _INJECTION_PATTERNS:
+        for m in pattern.finditer(text):
+            patterns_matched.append(m.group(0))
+
+    # Distinct cues, in the order found (scan_text's first): the first one is quoted in the
+    # extraction issue, which goes into the worksheet's fraud flags and so into its hash. A set
+    # would make that order, and the hash, change from one process to the next.
+    patterns_matched = list(dict.fromkeys(patterns_matched))
     # Simple confidence: more patterns = higher confidence
-    confidence = min(1.0, len(set(patterns_matched)) * 0.3)
+    confidence = min(1.0, len(patterns_matched) * 0.3)
     is_injection = confidence >= 0.3  # Threshold: 1+ distinct pattern
 
     return InjectionClassificationResult(
         is_injection=is_injection,
         confidence=confidence,
-        patterns_matched=list(set(patterns_matched)),
+        patterns_matched=patterns_matched,
     )
 
 
@@ -282,7 +334,9 @@ Format: VERDICT: <INJECTION|SAFE> | CONFIDENCE: <score>"""
         # Parse response
         is_injection = "INJECTION" in verdict_text.upper()
         confidence_match = re.search(r"confidence[:\s]+([\d.]+)", verdict_text, re.I)
-        confidence = float(confidence_match.group(1)) if confidence_match else (0.8 if is_injection else 0.2)
+        confidence = (
+            float(confidence_match.group(1)) if confidence_match else (0.8 if is_injection else 0.2)
+        )
 
         # Also run pattern matching
         pattern_result = classify_injection_fast(text)
@@ -331,7 +385,8 @@ _OUT_OF_SCOPE_PATTERNS = [
     # Completely unrelated domains
     re.compile(r"\b(bitcoin|crypto|stock|forex|trading|investment)\b", re.I),
     re.compile(r"\b(weather|sports|movie|recipe|music)\b", re.I),
-    re.compile(r"\b(politics|election|government|law\s+enforcement)\b", re.I),
+    # Not "government": "Government Medical College" or "a government hospital" is a normal claim.
+    re.compile(r"\b(politics|election|law\s+enforcement)\b", re.I),
     # Data exfiltration attempts
     re.compile(r"(send|email|post|upload|export)\s+(this|the\s+data|results?)\s+to", re.I),
     re.compile(r"https?://[^\s]+", re.I),  # URLs in user input
@@ -362,8 +417,17 @@ def verify_scope(text: str, *, allowed_domain: str = "insurance") -> None:
 
     # Check for insurance-related keywords (positive signal)
     insurance_keywords = [
-        "claim", "policy", "coverage", "bill", "hospital", "treatment",
-        "insurance", "medical", "health", "patient", "reimbursement"
+        "claim",
+        "policy",
+        "coverage",
+        "bill",
+        "hospital",
+        "treatment",
+        "insurance",
+        "medical",
+        "health",
+        "patient",
+        "reimbursement",
     ]
     text_lower = text.lower()
     has_insurance_context = any(kw in text_lower for kw in insurance_keywords)
@@ -371,6 +435,9 @@ def verify_scope(text: str, *, allowed_domain: str = "insurance") -> None:
     # If text is long and has no insurance keywords, flag it
     if len(text.split()) > 20 and not has_insurance_context:
         raise OutOfScopeException("No insurance-related context detected")
+
+
+_verify_scope = verify_scope  # see _mask_pii: the pipeline's flag has the same name (G-04)
 
 
 # ================================================================================================
@@ -381,19 +448,20 @@ def verify_scope(text: str, *, allowed_domain: str = "insurance") -> None:
 class ExtractedBillData(BaseModel):
     """Strictly typed bill data extracted from OCR text. No free text allowed."""
 
-    date: date = Field(description="Bill or discharge date (YYYY-MM-DD)")
+    # Forbid extra fields to prevent injection via unexpected keys.
+    model_config = ConfigDict(extra="forbid")
+
+    # `dt.date`, not `date`: a field named `date` typed `date` made Pydantic reject the whole
+    # module at import, so no input check could run (defect G-01).
+    date: dt.date = Field(description="Bill or discharge date (YYYY-MM-DD)")
     hospital_name: str = Field(max_length=200, description="Hospital or clinic name only")
     procedure: str = Field(max_length=200, description="Medical procedure name only")
     billed_amount: Decimal = Field(ge=0, description="Total billed amount in INR")
     line_items: list[dict[str, Any]] = Field(
         default_factory=list,
         max_length=100,
-        description="Parsed bill lines with description and amount only"
+        description="Parsed bill lines with description and amount only",
     )
-
-    class Config:
-        # Forbid extra fields to prevent injection via unexpected keys
-        extra = "forbid"
 
 
 def quarantined_ocr_reader(
@@ -440,14 +508,11 @@ def quarantined_ocr_reader(
     try:
         llm = _get_extraction_llm()
         if llm is None:
-            # Stub mode: return dummy data
-            logger.warning("Extraction LLM unavailable (stub mode)")
-            return ExtractedBillData(
-                date=date.today(),
-                hospital_name="STUB_HOSPITAL",
-                procedure="STUB_PROCEDURE",
-                billed_amount=Decimal("1000.00"),
-                line_items=[],
+            # Fail closed. This used to return made-up fields (a stub hospital, Rs 1,000): data
+            # that no document said, which a later step could pay out.
+            raise SecurityViolationException(
+                "No extraction model (stub mode): the document cannot be read",
+                category="extraction_failure",
             )
 
         prompt = f"""Extract ONLY the following structured fields from this medical bill text.
@@ -550,28 +615,20 @@ def process_input_pipeline(
     try:
         processed_text = raw_input
         pii_counts = {}
-        injection_result = None
 
         # Step 1: PII Masking
         if mask_pii:
-            pii_result = mask_pii(raw_input, hash_identifiers=True)
+            pii_result = _mask_pii(raw_input, hash_identifiers=True)
             processed_text = pii_result.masked_text
             pii_counts = pii_result.pii_found
 
-        # Step 2: Injection Detection (on masked text)
+        # Step 2: Injection Detection (on masked text). Raises InjectionDetectedException: block.
         if check_injection:
-            try:
-                detect_and_block_injection(processed_text, use_llm=use_llm_classifier)
-                injection_result = InjectionClassificationResult(
-                    is_injection=False, confidence=0.0, patterns_matched=[]
-                )
-            except InjectionDetectedException as exc:
-                # Re-raise to block
-                raise
+            detect_and_block_injection(processed_text, use_llm=use_llm_classifier)
 
         # Step 3: Scope Verification
         if verify_scope:
-            verify_scope(processed_text)
+            _verify_scope(processed_text)
 
         # All checks passed
         return InputGuardrailResult(
@@ -603,32 +660,15 @@ def process_input_pipeline(
 
 
 def _get_guard_llm():
-    """Get the guard LLM (Llama Guard) for classification tasks."""
-    if "guard" in _llm_cache:
-        return _llm_cache["guard"]
-
+    """The guard model, from the one place agents get a model (`agents.llm.get_llm("guard")`, as
+    `guardrails.classify_injection_llm` does). None in stub mode. No model ID is written here:
+    the old code hard-coded one, against the project rule (CLAUDE.md, config/models.yaml)."""
     try:
-        from claimsense.agents.llm import stub_mode
+        from claimsense.agents.llm import get_llm
 
-        if stub_mode():
-            _llm_cache["guard"] = None
-            return None
-
-        from langchain_openai import ChatOpenAI
-
-        llm = ChatOpenAI(
-            model=os.getenv("CLAIMSENSE_MODEL_GUARD", "meta-llama/llama-guard-3-8b"),
-            api_key=os.environ.get("OPENROUTER_API_KEY"),
-            base_url="https://openrouter.ai/api/v1",
-            temperature=0,
-            timeout=5,
-        )
-        _llm_cache["guard"] = llm
-        return llm
-
-    except Exception as exc:
-        logger.warning("Failed to initialize guard LLM: %s", exc)
-        _llm_cache["guard"] = None
+        return get_llm("guard")
+    except Exception as exc:  # noqa: BLE001 - no guard model means pattern checks only
+        logger.warning("Failed to initialize guard LLM: %s", type(exc).__name__)
         return None
 
 

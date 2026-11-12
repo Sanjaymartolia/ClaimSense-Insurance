@@ -693,7 +693,7 @@ CAUTION: A RUN WITHOUT `--stub` CALLS PAID MODELS. A FOUR-MINUTE DRILL COSTS ABO
 
 ### 13.7 Run the tests
 
-1. Type `pytest eval/tests -q` for the 299 evaluation tests.
+1. Type `pytest eval/tests -q` for the 305 evaluation tests.
 2. Type `pytest -q` for the product tests.
 
 NOTE: A plain `pytest` does not run the evaluation tests.
@@ -710,7 +710,7 @@ NOTE: A plain `pytest` does not run the evaluation tests.
 
 | Check | Result |
 |---|---|
-| Evaluation tests (`pytest eval/tests`) | 299 tests: 288 pass, 9 strict `xfail` pass by failure, 2 skip without optional packages. The 21 newest tests cover observability (`docs/OBSERVABILITY_REPORT.md`) |
+| Evaluation tests (`pytest eval/tests`) | 305 tests: 302 pass, 1 strict `xfail` passes by failure, 2 skip without optional packages. The 21 newest tests cover observability (`docs/OBSERVABILITY_REPORT.md`) |
 | Product tests (`pytest`) | 124 pass, 4 skip, 1 `xfail` |
 | Lint (`ruff check`, `ruff format --check`) | clean on `eval/monitoring/`, `eval/agent_suite/` and the new tests |
 | Review of the monitoring code | two reviewers found 12 findings, and an adversarial verifier for each reviewer checked them: 3 refuted, 1 documentation fix, 6 code fixes, each with a test |

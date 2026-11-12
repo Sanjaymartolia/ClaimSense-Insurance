@@ -28,6 +28,13 @@ def _default_interrupt(payload: dict) -> Any:
     return interrupt(payload)
 
 
+def registered_policy(s: ClaimState) -> str | None:
+    """The policy number the intake system filed this claim under (`packet["policy_number"]`,
+    set from the login and the policy record, never from document text). None if absent."""
+    value = (s.get("packet") or {}).get("policy_number")
+    return str(value) if value else None
+
+
 def _handoff(state: ClaimState, to: AgentName, step: str, summary: str, refs: list[str]) -> Handoff:
     return Handoff(
         sender=AgentName.SUPERVISOR,
@@ -96,6 +103,12 @@ class Nodes:
     def _hooked(self, fn: Callable[[ClaimState], dict]) -> Callable[[ClaimState], dict]:
         def run(s: ClaimState) -> dict:
             self.ensure_hooks(s["claim_id"])
+            registered = registered_policy(s)
+            if self.hook_guard is not None and registered:
+                # L15 least privilege: every tool may touch only the policy the intake system
+                # registered for this claim. Never the policy number the model read from the
+                # documents: injected text could set that one, and the check would then pass.
+                self.hook_guard.scope_to(policy_number=registered)
             return fn(s)
 
         run.__name__ = fn.__name__
@@ -108,6 +121,11 @@ class Nodes:
 
     def extract(self, s: ClaimState) -> dict:
         claim, issues = self.team.extraction.run(s["packet"])
+        registered = registered_policy(s)
+        if registered and claim.policy_number != registered:
+            # The documents name another policy than the one the claim was filed under: a
+            # person decides (and with hooks on, no tool may read that other policy).
+            issues = [*issues, "policy number in the documents differs from the registered policy"]
         return {
             "claim": claim,
             "extraction_issues": issues,
@@ -337,13 +355,28 @@ class Nodes:
             ],
         }
 
+    def _guard_blocked(self, s: ClaimState, step: str, error: Exception) -> dict:
+        """L15: the payment or letter guard refused (fail-closed). Nothing was paid or sent; the
+        claim is escalated to a person with the reason, and the approvals are void."""
+        return {
+            "status": Status.ESCALATED,
+            "escalation": f"{step} blocked by a guardrail: {error}",
+            "approvals": [],
+            "trace": [f"{step} blocked: {error}"],
+        }
+
     def settle(self, s: ClaimState) -> dict:
-        receipt, letter = self.team.settlement.settle(
-            s["claim"],
-            s["worksheet"],
-            s.get("approvals", []),
-            needs_senior=needs_senior(s, self.team),
-        )
+        from claimsense.agents.settlement import OutputGuardError
+
+        try:
+            receipt, letter = self.team.settlement.settle(
+                s["claim"],
+                s["worksheet"],
+                s.get("approvals", []),
+                needs_senior=needs_senior(s, self.team),
+            )
+        except OutputGuardError as e:
+            return self._guard_blocked(s, "settle", e)
         return {
             "settlement": receipt,
             "letter": letter,
@@ -362,10 +395,15 @@ class Nodes:
         }
 
     def repudiate(self, s: ClaimState) -> dict:
+        from claimsense.agents.settlement import OutputGuardError
+
         adm = s["admissibility"]
-        receipt, letter = self.team.settlement.repudiate(
-            s["claim"], adm.reasons, adm.clause_ids, s.get("approvals", [])
-        )
+        try:
+            receipt, letter = self.team.settlement.repudiate(
+                s["claim"], adm.reasons, adm.clause_ids, s.get("approvals", [])
+            )
+        except OutputGuardError as e:
+            return self._guard_blocked(s, "repudiate", e)
         return {
             "settlement": receipt,
             "letter": letter,
@@ -377,6 +415,9 @@ class Nodes:
     def memory_update(self, s: ClaimState) -> dict:
         # Claim history (used sub-limits, bills seen). Edits stay in edit_log for Reflexion; they
         # become lessons only after review (reflexion/), never automatically.
+        if s.get("status") not in (Status.SETTLED, Status.REPUDIATED):
+            # A guard blocked the settlement: nothing was paid, so no sub-limit was used.
+            return {"trace": ["memory: not updated (settlement blocked)"]}
         self.team.services.record_history(s["claim"], s.get("worksheet"))
         return {
             "plan": planner.mark(s["plan"], "update_memory", "done"),

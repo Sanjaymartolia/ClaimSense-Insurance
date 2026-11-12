@@ -28,8 +28,11 @@ class SettlementAgent:
     def settle(
         self, claim: Claim, worksheet: Worksheet, approvals: list[ApprovalToken], needs_senior: bool
     ) -> tuple[dict, str]:
-        letter = self.draft_letter(claim, worksheet)
-        self.output_guard(claim, worksheet, letter)
+        """Fail-closed order (L15 notebook section 7): the payment ceiling, then the letter guard,
+        and only then the tool that moves money. Any failure raises OutputGuardError: nothing is
+        paid, nothing is sent, and the claim goes back to a person."""
+        self.payment_guard(claim, worksheet)
+        letter = self.output_guard(claim, worksheet, self.draft_letter(claim, worksheet))
         receipt = self.belt.call(
             "settle_claim",
             claim_id=claim.claim_id,
@@ -46,15 +49,25 @@ class SettlementAgent:
         clause_ids: list[str],
         approvals: list[ApprovalToken],
     ) -> tuple[dict, str]:
-        receipt = self.belt.call(
-            "record_repudiation", claim_id=claim.claim_id, reasons=reasons, approvals=approvals
-        )
-        body = "\n".join(f"- {r} (clause {c})" for r, c in zip(reasons, clause_ids + [""] * 9))
+        # Every reason gets a line: the old padding (`clause_ids + [""] * 9`) silently dropped
+        # reasons beyond len(clause_ids) + 9.
+        padded = clause_ids + [""] * max(0, len(reasons) - len(clause_ids))
+        body = "\n".join(f"- {r} (clause {c})" for r, c in zip(reasons, padded, strict=False))
         letter = (
             f"Policy {claim.policy_number}, claim {claim.claim_id}, insured "
             f"{claim.patient_pseudonym}.\nYour claim is not admissible:\n{body}"
         )
-        return receipt, letter
+        # The letter is checked before the repudiation is recorded, so a blocked letter leaves
+        # nothing half done.
+        from claimsense.guardrails.output_guardrails import process_output_pipeline
+
+        checked = process_output_pipeline(letter, verify_grounding=False, min_citations=0)
+        if checked.blocked:
+            raise OutputGuardError(f"repudiation letter blocked: {checked.block_reason}")
+        receipt = self.belt.call(
+            "record_repudiation", claim_id=claim.claim_id, reasons=reasons, approvals=approvals
+        )
+        return receipt, checked.sanitized_output
 
     def draft_letter(self, claim: Claim, ws: Worksheet) -> str:
         rows = []
@@ -109,11 +122,26 @@ class SettlementAgent:
         return out if len(out) == len(rows) else [r[4] for r in rows]
 
     @staticmethod
-    def output_guard(claim: Claim, ws: Worksheet, letter: str) -> None:
-        """L15 output guard. Tools & Security may replace this; keep the call."""
-        if claim.claim_id != ws.claim_id:
-            raise OutputGuardError("worksheet belongs to a different claim")
-        if claim.policy_number not in letter or claim.patient_pseudonym not in letter:
-            raise OutputGuardError("letter does not name the right policy and insured person")
-        if f"Rs {ws.total_payable}" not in letter:
-            raise OutputGuardError("letter total does not match the worksheet")
+    def output_guard(claim: Claim, ws: Worksheet, letter: str) -> str:
+        """L15 output guard: `output_guardrails.check_letter_safe` (secret and prompt leaks,
+        internal ids, links, then the right claim, policy number, insured person and total).
+        Returns the letter as it may be sent; raises OutputGuardError if it is blocked."""
+        from claimsense.guardrails.output_guardrails import check_letter_safe
+
+        result = check_letter_safe(claim, ws, letter)
+        if result.blocked:
+            raise OutputGuardError(f"letter blocked: {result.block_reason}")
+        return result.sanitized_output
+
+    def payment_guard(self, claim: Claim, ws: Worksheet) -> None:
+        """L15 notebook section 7, a guardrail on the action, from trusted inputs: the worksheet
+        reconciles, pays nothing above what was claimed, and stays within the sum insured on the
+        policy record. No policy record means no payment (fail closed)."""
+        from claimsense.guardrails.guardrails import check_payment_ceiling
+
+        policy = self.belt.call("get_policy", policy_number=claim.policy_number)
+        if policy is None:
+            raise OutputGuardError("no policy record: the payment cannot be checked")
+        problems = check_payment_ceiling(ws, sum_insured=policy.sum_insured)
+        if problems:
+            raise OutputGuardError("payment blocked: " + "; ".join(p.message for p in problems))

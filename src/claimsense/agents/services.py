@@ -264,16 +264,19 @@ def real_calculate(
     return ws.model_copy(update={"version": version, "fraud_flags": list(fraud_flags or [])})
 
 
-def real_services() -> Services:
+def real_services(*, check: bool = True) -> Services:
     """Services bound to the teammates' plain-Python tool callables (no stubs left).
 
     Imports are lazy so the stub path and the unit tests never need retrieval or MCP deps.
     settle_claim / record_repudiation verify approvals against claims_db.get_db().approval_store,
     so the review gate must issue tokens into that same store (see graph/build.py).
+
+    L15 tool pinning: with check=True (the default) a tool whose name, description or arguments
+    changed since review does not load (`hooks.pins`, `config/tool_pins.json`).
     """
     from claimsense.mcp_servers import approvals, claims_db, policy_kb, tariff
 
-    return Services(
+    services = Services(
         policy_search=policy_kb.policy_search,
         get_clause=policy_kb.get_clause,
         calculate=real_calculate,
@@ -285,6 +288,11 @@ def real_services() -> Services:
         record_history=claims_db.record_history,
         senior_threshold=approvals.senior_threshold_inr(),
     )
+    if check:
+        from claimsense.hooks.pins import check_pins
+
+        check_pins(services.registry())
+    return services
 
 
 # --------------------------------------------------------------------------------------------

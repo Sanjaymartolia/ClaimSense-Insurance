@@ -75,6 +75,7 @@ __all__ = [
     "validate_claim_fields",
     "check_consistency",
     "validate_worksheet_arithmetic",
+    "check_payment_ceiling",
     "check_letter",
     "assert_letter_ok",
     "screen_input",
@@ -153,7 +154,17 @@ _EXTRA_INJECTION_PATTERNS = [
     re.compile(r"you\s+are\s+now\b", re.IGNORECASE),
     re.compile(r"reveal\s+(the\s+)?(system prompt|hidden|secret)", re.IGNORECASE),
     re.compile(r"as\s+agreed\s+with\s+the\s+insurer", re.IGNORECASE),
-    re.compile(r"\bpre[-\s]?approved?\s+(?:in\s+full|by\s+tpa|by\s+insurer|claim)\b", re.IGNORECASE),
+    re.compile(
+        r"\bpre[-\s]?approved?\s+(?:in\s+full|by\s+tpa|by\s+insurer|claim)\b", re.IGNORECASE
+    ),
+    # An order to drop a policy term: 'ignore the co-payment', 'waive the room cap'. A clinical
+    # document has no reason to tell its reader to set a policy limit aside.
+    re.compile(
+        r"\b(?:ignore|waive|skip|remove|override)\s+(?:the\s+|all\s+|any\s+)?"
+        r"(?:co-?pay(?:ment)?s?|room\s+(?:rent\s+)?(?:cap|limit)s?|sub-?limits?|deductibles?"
+        r"|exclusions?|waiting\s+periods?|policy\s+(?:limits?|terms?|conditions?))\b",
+        re.IGNORECASE,
+    ),
 ]
 
 # (a) Generic patterns for text addressed to an automated reader or reviewer bot
@@ -324,8 +335,15 @@ def _normalise(text: str) -> str:
     1. Apply Unicode NFKC (flattens fullwidth and compatibility characters).
     2. Strip zero-width and format characters (Unicode category 'Cf').
     3. Lowercase.
-    4. Collapse runs of 4 or more single letters separated by '.', a space, or both.
-       Leaves 2-letter and 3-letter initials/acronyms intact (e.g. 'Dr. A. K.', 'U.S.G.', 'I.V.').
+    4. Join a word spelt out letter by letter, one word at a time, keeping the space between
+       words: 'n.o.t.e f.o.r a.u.t.o.m.a.t.e.d r.e.v.i.e.w' -> 'note f.o.r automated review',
+       'i g n o r e the cap' -> 'ignore the cap', 'i. g. n. o. r. e.' -> 'ignore',
+       'i-g-n-o-r-e' -> 'ignore'. One word uses one separator all through: a dot (spaces
+       around it allowed), one run of whitespace (a space, two spaces, a tab, a new line), or
+       one of '-', '_', '/', ',', '·'. Only runs of 4 or more single letters are joined, so 2-
+       and 3-letter initials stay as they are ('Dr. A. K.', 'U.S.G.', 'I.V.', 'x-ray').
+       The earlier version also joined across the spaces between words
+       ('noteforautomatedreview'), so no word pattern could match the result (RT-012).
     """
     if not text:
         return ""
@@ -339,16 +357,15 @@ def _normalise(text: str) -> str:
     # 3. Lowercase
     norm = norm.lower()
 
-    # 4. Collapse runs of 4 or more single letters separated by dots or spaces
-    def _collapse_letters(match: re.Match[str]) -> str:
-        return re.sub(r"[\.\s]+", "", match.group(0))
+    def _letters_only(m: re.Match[str]) -> str:
+        return re.sub(r"[^a-z]", "", m.group(0))
 
-    collapsed = re.sub(
-        r"(?<![a-z])([a-z](?:(?:\s*\.\s*|\s+)[a-z]){3,}\.?)(?![a-z])",
-        _collapse_letters,
-        norm,
-    )
-    return collapsed
+    # 4a. Dots between the letters, spaces around a dot allowed: 'a.u.t.o' / 'i. g. n. o. r. e.'.
+    norm = re.sub(r"(?<![a-z.])[a-z](?:[ \t]*\.[ \t]*[a-z]){3,}\.?(?![a-z])", _letters_only, norm)
+    # 4b. The same whitespace run between every two letters: 'i g n o r e', 'i  g  n', tabs.
+    norm = re.sub(r"(?<![a-z])[a-z](\s+)[a-z](?:\1[a-z]){2,}(?![a-z])", _letters_only, norm)
+    # 4c. The same punctuation mark between every two letters: 'i-g-n-o-r-e', 'w_a_i_v_e'.
+    return re.sub(r"(?<![a-z])[a-z]([-_/,·])[a-z](?:\1[a-z]){2,}(?![a-z])", _letters_only, norm)
 
 
 def scan_text(text: str, *, source: str | None = None) -> list[GuardFinding]:
@@ -361,9 +378,7 @@ def scan_text(text: str, *, source: str | None = None) -> list[GuardFinding]:
     seen: set[str] = set()
 
     base_patterns: list[re.Pattern[str]] = (
-        [INJECTION_PATTERNS]
-        if hasattr(INJECTION_PATTERNS, "search")
-        else list(INJECTION_PATTERNS)
+        [INJECTION_PATTERNS] if hasattr(INJECTION_PATTERNS, "search") else list(INJECTION_PATTERNS)
     )
 
     all_patterns = [
@@ -651,6 +666,56 @@ def validate_worksheet_arithmetic(worksheet: Worksheet | dict) -> list[GuardFind
                 code="total_arithmetic",
                 category="arithmetic",
                 message="total_payable does not reconcile with lines",
+                severity="block",
+            )
+        )
+    return findings
+
+
+def check_payment_ceiling(
+    worksheet: Worksheet | dict, *, sum_insured: Decimal | None = None
+) -> list[GuardFinding]:
+    """L15 notebook section 7, a guardrail on the action: before money moves, plain code checks the
+    payment against limits worked out from trusted inputs, never from model text.
+
+    - the worksheet reconciles (:func:`validate_worksheet_arithmetic`);
+    - nothing is negative, and no line pays more than it claimed;
+    - the total payable is at most the total claimed;
+    - the total payable is at most the policy's sum insured, when the policy record gives it.
+
+    Fails closed: a worksheet that does not validate is a block, not a pass. Every finding is
+    severity "block"; the caller must not pay, and the claim goes back to a person.
+    """
+    findings = validate_worksheet_arithmetic(worksheet)
+    if any(f.code == "worksheet_invalid" for f in findings):
+        return findings
+    ws = worksheet if isinstance(worksheet, Worksheet) else Worksheet.model_validate(worksheet)
+    for line in ws.lines:
+        if line.payable < 0 or line.payable > line.claimed:
+            findings.append(
+                GuardFinding(
+                    code="line_over_claimed",
+                    category="arithmetic",
+                    message=f"line {line.line_id}: payable outside 0..claimed",
+                    severity="block",
+                    location=line.line_id,
+                )
+            )
+    if ws.total_payable < 0 or ws.total_payable > ws.total_claimed:
+        findings.append(
+            GuardFinding(
+                code="payable_over_claimed",
+                category="arithmetic",
+                message="total payable outside 0..total claimed",
+                severity="block",
+            )
+        )
+    if sum_insured is not None and ws.total_payable > sum_insured:
+        findings.append(
+            GuardFinding(
+                code="payable_over_sum_insured",
+                category="arithmetic",
+                message="total payable is above the policy's sum insured",
                 severity="block",
             )
         )

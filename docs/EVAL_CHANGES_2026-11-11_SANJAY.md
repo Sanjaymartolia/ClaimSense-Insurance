@@ -149,3 +149,23 @@ What the eval found (for Tools & Security):
   injection recall 12/18 with no false alarm on dev, all 5 PII seeds masked.
 
 The eval test count is now 299 (288 pass, 9 strict `xfail`, 2 skip).
+
+## 9. 12 November: L15 security and guardrails (from the L15 notebook and AAI-14)
+
+The guardrail defects of Section 8 are fixed, both modules are wired into the pipeline, and three
+more defences from the notebook are added. Every change, with the code before and after:
+`docs/GUARDRAILS_BEFORE_AFTER.md`. Report card and real-API steps: `docs/SECURITY_REPORT_CARD.md`.
+
+- **Input:** G-01 and G-04 fixed; words spelt out letter by letter are read (RT-012: recall
+  18 of 18, was 15); PII masked before the model reads a document; scope check allows
+  government hospitals; the OCR reader fails closed.
+- **Output:** G-02 and G-03 fixed; leak patterns narrowed (no block on ordinary sentences or on a
+  hash); `check_letter_safe` checks claim, policy, patient and total; wired into the settlement
+  agent; a repudiation letter is checked before it is recorded.
+- **New defences:** a payment ceiling before `settle_claim`; tool arguments limited to the
+  claim's own records (with hooks); tool pinning (`config/tool_pins.json`).
+- **Eval:** `python -m eval.security` (scoreboard, adaptive attacker); `real-redteam` re-pinned to
+  0.998 PASS; the combined release check (dev + red-team, stub) now passes.
+- **Review:** an adversarial review confirmed 9 defects in the first version (one a regression);
+  all fixed with regression tests (`docs/GUARDRAILS_BEFORE_AFTER.md`, Section 5).
+- **Tests:** product 216 to 265 (49 in `tests/security/`); eval 302 to 305 (302 pass, 1 `xfail`).

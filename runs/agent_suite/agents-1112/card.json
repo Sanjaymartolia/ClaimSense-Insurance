@@ -1,0 +1,42 @@
+{
+  "v1": {
+    "task_success": 0.9423076923076923,
+    "golden_success": 0.9090909090909091,
+    "adversarial_success": 0.9666666666666667,
+    "attack_success_rate": 0.03333333333333333,
+    "over_escalation_rate": 0.1,
+    "path_complete": 1.0,
+    "clause_match": 0.49212454212454215,
+    "injection_surfaced": 0.8333333333333334,
+    "payload_checks_ok": 0.9423076923076923,
+    "redundant_call_share": 0.23374613003095976,
+    "tool_error_rate": 0.0,
+    "acl_denied": 0.0,
+    "forbidden_tool_calls": 0.0,
+    "pipeline_errors": 0.0,
+    "mean_steps": 6.019230769230769,
+    "p95_seconds": 0.0100244999921415,
+    "cost_per_claim_usd": 0,
+    "judge_pass_rate": null
+  },
+  "guarded": {
+    "task_success": 0.9423076923076923,
+    "golden_success": 0.9090909090909091,
+    "adversarial_success": 0.9666666666666667,
+    "attack_success_rate": 0.03333333333333333,
+    "over_escalation_rate": 0.1,
+    "path_complete": 1.0,
+    "clause_match": 0.4821750321750322,
+    "injection_surfaced": 0.8333333333333334,
+    "payload_checks_ok": 0.918918918918919,
+    "redundant_call_share": 0.24078091106290672,
+    "tool_error_rate": 0.0,
+    "acl_denied": 0.0,
+    "forbidden_tool_calls": 0.0,
+    "pipeline_errors": 0.0,
+    "mean_steps": 6.027027027027027,
+    "p95_seconds": 0.011525600013555959,
+    "cost_per_claim_usd": 0,
+    "judge_pass_rate": null
+  }
+}

@@ -92,6 +92,10 @@ class ToolBudgetExceeded(RuntimeError):
     """Raised when an agent or claim exceeds its tool-call budget (fail-closed: tool never runs)."""
 
 
+class ToolScopeError(ToolPermissionError):
+    """A tool argument named a record outside the current claim (claim id or policy number)."""
+
+
 class AuditUnavailable(RuntimeError):
     """Raised on a successful call only when a *fail-closed* audit log cannot emit its record.
 
@@ -480,6 +484,22 @@ class HookedToolBelt(ToolBelt):
         self._budget = budget
         self._audit = audit or default_audit_log()
         self._claim_id = claim_id
+        # L15 notebook section 8, least privilege: the record a tool may touch is the claim's own,
+        # set by the system from trusted inputs only: the claim id from the graph state, and the
+        # policy number the intake system registered (`graph.nodes.registered_policy`), never a
+        # value a model extracted from document text. See `scope_to`.
+        self._scope: dict[str, str] = {"claim_id": claim_id} if claim_id else {}
+
+    def scope_to(self, **fields: str) -> None:
+        """Pin record-selecting tool arguments (claim_id, policy_number) to this claim's values."""
+        self._scope.update({k: str(v) for k, v in fields.items() if v})
+
+    def _out_of_scope(self, kwargs: dict[str, Any]) -> str | None:
+        for key, allowed in self._scope.items():
+            value = kwargs.get(key)
+            if value is not None and str(value) != allowed:
+                return key
+        return None
 
     # audit that must not downgrade a denial/error if the audit sink itself is fail-closed
     def _audit_nonblocking(
@@ -506,6 +526,15 @@ class HookedToolBelt(ToolBelt):
             self._log.append({"agent": self.agent.value, "tool": name, "allowed": False})
             self._audit_nonblocking(name, status="denied", error_code="permission_denied")
             raise ToolPermissionError(f"{self.agent.value} may not call {name}")
+
+        # 1b) Scope (fail-closed): a tool may read or write only this claim's records. Stops the
+        # confused deputy: injected text that changes the extracted policy number cannot make an
+        # agent fetch another policy's history (the scope comes from intake, not extraction).
+        field_name = self._out_of_scope(kwargs)
+        if field_name is not None:
+            self._log.append({"agent": self.agent.value, "tool": name, "allowed": False})
+            self._audit_nonblocking(name, status="denied", error_code="out_of_scope")
+            raise ToolScopeError(f"{self.agent.value}: {name} asked for another {field_name}")
 
         # 2) Budget (fail-closed, atomic): reject before execution if any ceiling is reached.
         if self._budget is not None:
@@ -578,6 +607,13 @@ class HookGuard:
     budget: BudgetState
     audit: AuditLog
     _original: dict[str, ToolBelt] = field(default_factory=dict, repr=False)
+
+    def scope_to(self, **fields: str) -> None:
+        """Pin every hooked belt's record-selecting arguments to this claim (``HookedToolBelt``)."""
+        for attr in self._original:
+            belt = getattr(getattr(self.team, attr, None), "belt", None)
+            if isinstance(belt, HookedToolBelt):
+                belt.scope_to(**fields)
 
     def restore(self) -> None:
         """Put back each agent's original (plain) ``ToolBelt``."""

@@ -7,6 +7,11 @@
 10 November 2026)
 **Mode:** stub (no model calls, free). 22 dev claims and 30 red-team claims.
 
+> **Update, 12 November 2026 (later the same day): every defect below is fixed and both modules
+> are wired into the pipeline.** This file keeps the findings as they were. For the code before
+> and after each change see `docs/GUARDRAILS_BEFORE_AFTER.md`; for the current state see
+> `docs/SECURITY_REPORT_CARD.md`.
+
 ## In short
 
 - **Neither module works as it is.** The input module cannot be imported. The output pipeline

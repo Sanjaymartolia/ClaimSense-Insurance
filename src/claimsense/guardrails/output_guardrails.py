@@ -20,15 +20,11 @@ OWASP Agentic Top 10 Coverage:
 from __future__ import annotations
 
 import logging
-import os
 import re
 from dataclasses import dataclass
 from typing import Any
 
-from pydantic import BaseModel, Field
-
-# Lazy imports
-_llm_cache: dict[str, Any] = {}
+from pydantic import BaseModel, ConfigDict, Field
 
 logger = logging.getLogger(__name__)
 
@@ -59,9 +55,7 @@ class LeakDetected(OutputGuardViolation):
     """Raised when sensitive information leak is detected in output."""
 
     def __init__(self, leak_type: str, snippet: str = ""):
-        super().__init__(
-            f"Detected {leak_type} leak in output", category="information_disclosure"
-        )
+        super().__init__(f"Detected {leak_type} leak in output", category="information_disclosure")
         self.leak_type = leak_type
         self.snippet = snippet[:50]  # Truncate for logging
 
@@ -77,12 +71,11 @@ class GroundingVerdict(BaseModel):
     grounded: bool = Field(description="True if the decision is supported by policy rules")
     confidence: float = Field(ge=0.0, le=1.0, description="Confidence in the verdict")
     reasoning: str = Field(max_length=500, description="Brief explanation of the verdict")
+    model_config = ConfigDict(extra="forbid")
+
     missing_citations: list[str] = Field(
         default_factory=list, description="Claims made without policy support"
     )
-
-    class Config:
-        extra = "forbid"
 
 
 def verify_grounding(
@@ -133,7 +126,7 @@ def verify_grounding(
 
         # Construct judge prompt
         policy_context = "\n\n".join(
-            f"[POLICY {i+1}]\n{rule}" for i, rule in enumerate(retrieved_policy_rules[:5])
+            f"[POLICY {i + 1}]\n{rule}" for i, rule in enumerate(retrieved_policy_rules[:5])
         )
 
         prompt = f"""You are a medical insurance policy judge. Your task is to verify if a claim decision is grounded in the provided policy rules.
@@ -232,7 +225,9 @@ def verify_citations_present(output_text: str, *, min_citations: int = 1) -> Non
 
     unique_citations = set(citations_found)
     if len(unique_citations) < min_citations:
-        logger.warning("Insufficient citations: found %d, need %d", len(unique_citations), min_citations)
+        logger.warning(
+            "Insufficient citations: found %d, need %d", len(unique_citations), min_citations
+        )
         raise GroundingViolation(
             f"Insufficient policy citations: found {len(unique_citations)}, need {min_citations}"
         )
@@ -244,12 +239,14 @@ def verify_citations_present(output_text: str, *, min_citations: int = 1) -> Non
 # LEAK PREVENTION (OWASP LLM01, LLM06: Information Disclosure)
 # ================================================================================================
 
-# System prompt fragments that should never appear in output
+# System prompt fragments that should never appear in output. Only phrases a letter to a patient
+# has no reason to contain: the old list also had "you are a", "your role is" and "instructions:",
+# which block an ordinary sentence ("if you are a member...", "Discharge instructions: ...").
 _SYSTEM_PROMPT_FRAGMENTS = [
-    "you are a",
-    "your role is",
+    "you are a claims",
+    "you are an ai",
+    "as an ai",
     "system prompt",
-    "instructions:",
     "assistant instructions",
     "do not reveal",
     "never tell the user",
@@ -266,12 +263,17 @@ _INTERNAL_ID_PATTERNS = [
     r"trace[_\-]id[:\s]+[\w\-]+",  # trace IDs
     r"session[_\-]id[:\s]+[\w\-]+",  # session IDs
     r"tool[_\-]call[_\-]id[:\s]+[\w\-]+",  # tool call IDs
+    # A bare run of 32+ hex digits: a hash or a token. Replaced, not blocked: the approval's own
+    # worksheet_hash (64 hex) is one, and a letter that shows it must not stop a settlement.
+    # Bounded by non-hex characters, not by \b, so a run glued to 'sig_' or '0x' is caught too.
+    r"(?<![0-9a-f])[0-9a-f]{32,}(?![0-9a-f])",
 ]
 
-# API key patterns
+# Secret patterns: these block the output.
 _API_KEY_PATTERNS = [
-    r"sk-[a-zA-Z0-9]{20,}",  # OpenAI-style keys
-    r"[a-f0-9]{32,}",  # Generic hex keys (32+ chars)
+    r"\bsk-(?:or-v1-|proj-|ant-|lf-)?[A-Za-z0-9_\-]{20,}",  # OpenAI, OpenRouter, Anthropic, Langfuse
+    r"\bpk-lf-[A-Za-z0-9\-]{20,}",  # Langfuse public key
+    r"\blsv2_[A-Za-z0-9_]{20,}",  # LangSmith key
     r"(?:api[_\-]?key|token|secret)[:\s=]+[\w\-]{20,}",  # key=value format
 ]
 
@@ -295,7 +297,11 @@ def scrub_system_prompt_leaks(text: str) -> str:
     leaked_fragments = []
 
     for fragment in _SYSTEM_PROMPT_FRAGMENTS:
-        if fragment in text_lower:
+        # Whole words only: a plain substring test let "as an ai" block "has an air conditioner".
+        # The boundary applies only at an edge that is a letter ("<system>" ends in ">").
+        head = r"(?<!\w)" if fragment[0].isalnum() else ""
+        tail = r"(?!\w)" if fragment[-1].isalnum() else ""
+        if re.search(head + re.escape(fragment) + tail, text_lower):
             leaked_fragments.append(fragment)
 
     if leaked_fragments:
@@ -373,6 +379,13 @@ def scrub_leaks(text: str) -> str:
     scrubbed = scrub_internal_ids(scrubbed)  # Replaces, doesn't raise
 
     return scrubbed
+
+
+# process_output_pipeline() has flags named scrub_leaks and verify_grounding; inside it those
+# names are the booleans, so it calls the functions through these aliases (defect G-02, which
+# made check_output_safe block every letter, G-03).
+_scrub_leaks = scrub_leaks
+_verify_grounding = verify_grounding
 
 
 # ================================================================================================
@@ -530,7 +543,7 @@ def process_output_pipeline(
         # Step 1: Leak Detection & Scrubbing
         if scrub_leaks:
             try:
-                processed_output = scrub_leaks(processed_output)
+                processed_output = _scrub_leaks(processed_output)
             except LeakDetected as exc:
                 leaks_found.append(exc.leak_type)
                 # Re-raise to block output
@@ -549,7 +562,7 @@ def process_output_pipeline(
 
         # Step 4: Grounding Check (if policy rules provided)
         if verify_grounding and retrieved_policy_rules:
-            grounding_verdict = verify_grounding(
+            grounding_verdict = _verify_grounding(
                 processed_output, retrieved_policy_rules, confidence_threshold=0.7
             )
 
@@ -583,32 +596,14 @@ def process_output_pipeline(
 
 
 def _get_judge_llm():
-    """Get the judge LLM for grounding verification."""
-    if "judge" in _llm_cache:
-        return _llm_cache["judge"]
-
+    """The grounding judge, from `agents.llm.get_llm("judge")`. None in stub mode. No model ID is
+    written here: the old code hard-coded one, against the project rule (config/models.yaml)."""
     try:
-        from claimsense.agents.llm import stub_mode
+        from claimsense.agents.llm import get_llm
 
-        if stub_mode():
-            _llm_cache["judge"] = None
-            return None
-
-        from langchain_openai import ChatOpenAI
-
-        llm = ChatOpenAI(
-            model=os.getenv("CLAIMSENSE_MODEL_JUDGE", "google/gemini-flash-1.5-8b"),
-            api_key=os.environ.get("OPENROUTER_API_KEY"),
-            base_url="https://openrouter.ai/api/v1",
-            temperature=0,
-            timeout=10,
-        )
-        _llm_cache["judge"] = llm
-        return llm
-
-    except Exception as exc:
-        logger.warning("Failed to initialize judge LLM: %s", exc)
-        _llm_cache["judge"] = None
+        return get_llm("judge")
+    except Exception as exc:  # noqa: BLE001 - no judge means no grounding check, logged
+        logger.warning("Failed to initialize judge LLM: %s", type(exc).__name__)
         return None
 
 
@@ -677,8 +672,10 @@ def check_output_safe(
 
         if result.blocked:
             logger.warning("Output blocked for claim %s: %s", claim_id, result.block_reason)
-            return False, "", get_safe_error_message(
-                OutputGuardViolation(result.block_reason or "Unknown")
+            return (
+                False,
+                "",
+                get_safe_error_message(OutputGuardViolation(result.block_reason or "Unknown")),
             )
 
         logger.info(
@@ -696,6 +693,37 @@ def check_output_safe(
         # Fail-closed: any unexpected error blocks output
         logger.error("Unexpected output guardrail error for claim %s: %s", claim_id, exc)
         return False, "", "Response blocked due to unexpected error. Please contact support."
+
+
+def check_letter_safe(claim: Any, worksheet: Any, letter: str) -> OutputGuardrailResult:
+    """The output guardrail for a claim letter, as the settlement agent runs it before any money
+    moves (fail-closed: a blocked result means no settlement and no letter).
+
+    1. This module's generic checks: secret and system-prompt leaks block; internal ids are
+       replaced; links and images are removed.
+    2. The checks only the claim can support (`guardrails.check_letter`): the worksheet belongs to
+       this claim, and the letter names its policy number, its insured person and its total. A
+       letter for another patient (RT-005) fails here; the generic checks cannot see it.
+
+    No grounding judge: every number in the letter is copied from the worksheet by code.
+    """
+    from claimsense.guardrails.guardrails import check_letter  # lazy: guardrails imports agents
+
+    result = process_output_pipeline(letter, verify_grounding=False, min_citations=0)
+    if result.blocked:
+        return result
+    problems = check_letter(claim, worksheet, result.sanitized_output)
+    if problems:
+        return OutputGuardrailResult(
+            sanitized_output="",
+            grounded=False,
+            grounding_confidence=0.0,
+            leaks_found=result.leaks_found,
+            links_removed=0,
+            blocked=True,
+            block_reason="; ".join(p.message for p in problems),
+        )
+    return result
 
 
 # ================================================================================================
@@ -724,6 +752,7 @@ __all__ = [
     "process_output_pipeline",
     "OutputGuardrailResult",
     "check_output_safe",
+    "check_letter_safe",
     # Utilities
     "get_safe_error_message",
 ]
