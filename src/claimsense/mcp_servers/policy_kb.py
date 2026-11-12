@@ -190,7 +190,7 @@ class _PolicyMeta:
 
 @dataclass(frozen=True)
 class _Engine:
-    retriever: HybridRetriever
+    retriever: "HybridRetriever"
     meta: _PolicyMeta
 
 
@@ -255,7 +255,7 @@ def _source_url(document: str, page_numbers: list[int]) -> str:
     return f"{base}#page={page}" if page else base
 
 
-def _clause_from_hit(hit: SearchHit, meta: _PolicyMeta, effective_date: date) -> Clause:
+def _clause_from_hit(hit: "SearchHit", meta: _PolicyMeta, effective_date: date) -> Clause:
     return Clause(
         clause_id=hit.clause_id,
         policy_name=meta.product,
@@ -268,14 +268,14 @@ def _clause_from_hit(hit: SearchHit, meta: _PolicyMeta, effective_date: date) ->
     )
 
 
-def _clause_from_full(full: FullClause, meta: _PolicyMeta, effective_date: date) -> Clause:
+def _clause_from_full(full: "FullClause", meta: _PolicyMeta, effective_date: date) -> Clause:
     return Clause(
         clause_id=full.clause_id,
         policy_name=meta.product,
         insurer=meta.insurer,
         section=full.clause_number,
         title=full.title,
-        text=full.text,  # the whole clause, with its split parts already merged by the retriever
+        text=full.context_text,  # headings plus the merged full clause text
         effective_date=effective_date,
         source_url=_source_url(full.document, full.page_numbers),
     )
@@ -288,14 +288,14 @@ def _clause_from_full(full: FullClause, meta: _PolicyMeta, effective_date: date)
 def policy_search(query: str, category: str | None = None, k: int = 5) -> list[RetrievedPassage]:
     """[read] Hybrid search over the policy wording, via Role 2's ``HybridRetriever``.
 
-    ``category`` is accepted for interface parity with the Role 3 stub but is intentionally unused:
-    the hybrid retriever performs its own bill-line query rewriting and ranking and takes no
-    category. A blank query yields ``[]`` (the retriever's own behaviour). Raises ``StaleIndexError``
-    when the index needs rebuilding rather than returning an empty list.
+    ``category`` is the bill line's ``LineCategory`` value and is passed to the retriever so its
+    query rewrite can add the category-specific wording that governs payment. A blank query yields
+    ``[]`` (the retriever's own behaviour). Raises ``StaleIndexError`` when the index needs
+    rebuilding rather than returning an empty list.
     """
     engine = _engine()
     effective_date = _configured_effective_date()
-    hits = engine.retriever.search(query, k=k)
+    hits = engine.retriever.search(query, k=k, category=category)
     return [
         RetrievedPassage(
             clause=_clause_from_hit(hit, engine.meta, effective_date),
