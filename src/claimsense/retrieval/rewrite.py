@@ -14,14 +14,18 @@ _DIAGNOSTICS = "costs towards diagnostics, diagnostic imaging modalities"
 _MEDICINES = "medicines and drugs"
 _FEES = "surgeon, anaesthetist, medical practitioner, consultants, specialist fees"
 _THEATRE = "operation theatre charges"
+# The dev cataract bills name the operation, never the word "cataract" that clause 4.3 limits.
+_CATARACT = "treatment of cataract"
 
 GLOSSARY = {
     "diagnostics": _DIAGNOSTICS,
     "icu": "intensive care unit expenses",
+    "iol": _CATARACT,
     "laboratory": _DIAGNOSTICS,
     "medicines": _MEDICINES,
     "nursing": _ROOM,
     "ot": _THEATRE,
+    "phacoemulsification": _CATARACT,
     "pharmacy": _MEDICINES,
     "rmo": "medical practitioner fees",
     "room charges": _ROOM,

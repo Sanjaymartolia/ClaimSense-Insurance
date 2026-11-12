@@ -287,6 +287,18 @@ def test_pre_existing_query_finds_clause_6_1_without_the_conflicting_row(real_re
     assert "12.5" not in clauses
 
 
+@pytest.mark.parametrize(
+    "line",
+    ["Phacoemulsification with foldable IOL (right eye)", "Secondary IOL implantation (left eye)"],
+)
+def test_a_cataract_bill_line_finds_the_cataract_limit(real_retriever, line):
+    # The fake reranker matches "eye" by word overlap; the real one needs the glossary's wording.
+    plain = [hit.clause_number for hit in real_retriever.search(line, rewrite=False)]
+    as_sent = [hit.clause_number for hit in real_retriever.search(line, category="procedure")]
+    assert "4.3" not in plain
+    assert "4.3" in as_sent
+
+
 def test_reranker_accepts_the_longest_chunk(chunks, real_models):
     longest = max(chunks, key=lambda chunk: len(chunk["text"]))
     assert len(load_reranker(real_models[1])("day care", [longest["text"]])) == 1

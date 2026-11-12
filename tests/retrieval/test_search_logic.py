@@ -110,3 +110,9 @@ def test_labels_keep_their_any_of_clauses():
     product = "new_india_arogya_sanjeevani"
     assert labels["Hysterectomy"] == [f"{product}:4.1", f"{product}:6.2.6"]
     assert labels["Caesarean section"] == [f"{product}:7.15"]
+    # The dev cataract lines (CLM-0021, CLM-0022): the limit, in the clause or the benefit table.
+    for line in (
+        "Phacoemulsification with foldable IOL (right eye)",
+        "Secondary IOL implantation (left eye)",
+    ):
+        assert labels[line] == [f"{product}:4.3", f"{product}:12.3"]

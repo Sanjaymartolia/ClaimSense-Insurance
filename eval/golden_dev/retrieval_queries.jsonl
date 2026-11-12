@@ -45,3 +45,5 @@
 {"qid": "R45", "status": "draft_domain_lead_to_verify", "kind": "bill_line_other", "category": "consumables", "query": "Surgical gloves and masks", "clauses": ["new_india_arogya_sanjeevani:annexure-a.list-i"]}
 {"qid": "R46", "status": "draft_domain_lead_to_verify", "kind": "bill_line_other", "category": "procedure", "query": "Cataract surgery right eye", "clauses": ["new_india_arogya_sanjeevani:4.3", "new_india_arogya_sanjeevani:12.3", "new_india_arogya_sanjeevani:6.2.9"]}
 {"qid": "R47", "status": "draft_domain_lead_to_verify", "kind": "bill_line_other", "category": "medicines", "query": "Medicines after discharge", "clauses": ["new_india_arogya_sanjeevani:4.5"]}
+{"qid": "R48", "status": "draft_domain_lead_to_verify", "kind": "bill_line_dev", "category": "procedure", "query": "Phacoemulsification with foldable IOL (right eye)", "clauses": ["new_india_arogya_sanjeevani:4.3", "new_india_arogya_sanjeevani:12.3"]}
+{"qid": "R49", "status": "draft_domain_lead_to_verify", "kind": "bill_line_dev", "category": "procedure", "query": "Secondary IOL implantation (left eye)", "clauses": ["new_india_arogya_sanjeevani:4.3", "new_india_arogya_sanjeevani:12.3"]}
