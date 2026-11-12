@@ -72,7 +72,9 @@ def attack(case: Case, rounds: int = 6, out: Path | None = None) -> list[Round]:
 
     if stub_mode():
         raise RuntimeError("the adaptive attacker needs real models (OPENROUTER_API_KEY)")
-    attacker = get_llm("reflector")  # a stronger model plays the attacker
+    # The agents' own model plays the attacker, as in the notebook (gpt-4.1-mini). A stronger one
+    # can be set with CLAIMSENSE_MODEL_COVERAGE; your OpenRouter workspace must allow it.
+    attacker = get_llm("coverage")
     base = run_traced(case.eval_case)
     chat = [("system", ATTACKER), ("human", f"Claim {case.claim_id}. First try.")]
     history: list[Round] = []

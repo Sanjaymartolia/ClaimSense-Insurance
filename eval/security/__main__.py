@@ -44,7 +44,30 @@ def main(argv: list[str] | None = None) -> int:
         print(f"{out} already exists: use a new --label", file=sys.stderr)
         return 2
     out.mkdir(parents=True)
+    try:
+        return _run(args, mode, out)
+    except KeyboardInterrupt:
+        print("\nstopped", file=sys.stderr)
+        return 130
+    except Exception as e:  # noqa: BLE001 - a model or provider error: say what, not a traceback
+        hint = (
+            " Your OpenRouter workspace blocks this model: allow it at "
+            "https://openrouter.ai/workspaces/default/guardrails, or pick another with "
+            "CLAIMSENSE_MODEL_COVERAGE."
+            if "guardrail" in str(e).lower() and "blocked" in str(e).lower()
+            else ""
+        )
+        print(
+            f"eval.security: {type(e).__name__}: {str(e).splitlines()[0][:300]}{hint}",
+            file=sys.stderr,
+        )
+        return 2
+    finally:
+        if out.exists() and not any(out.iterdir()):
+            out.rmdir()  # nothing written: the label stays free for the next try
 
+
+def _run(args: argparse.Namespace, mode: str, out) -> int:  # noqa: ANN001 - Path
     if args.command == "scoreboard":
         from .scoreboard import scoreboard, to_markdown
 

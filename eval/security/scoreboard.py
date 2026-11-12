@@ -19,6 +19,7 @@ from __future__ import annotations
 import contextlib
 import os
 from collections.abc import Callable, Iterator
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from unittest import mock
 
@@ -55,6 +56,8 @@ DEFENCES: tuple[Defence, ...] = (
     Defence("+ guard model", _guard_model, real_only=True),
 )
 
+WORKERS = 4
+
 #: Rs 1, the harness's default settlement tolerance (rounding), so this agrees with the suite.
 TOLERANCE_INR = 1
 
@@ -67,8 +70,12 @@ COLUMNS = (
 
 
 def score_defence(defence: Defence, cases: list[Case]) -> dict[str, str]:
-    with defence.context():
-        traces = [run_traced(c.eval_case, **VARIANTS[defence.variant]) for c in cases]
+    # 4 claims at a time: in real mode one claim takes about 10 s, so 3 defences x 52 claims
+    # would take 25 minutes one by one.
+    with defence.context(), ThreadPoolExecutor(WORKERS) as pool:
+        traces = list(
+            pool.map(lambda c: run_traced(c.eval_case, **VARIANTS[defence.variant]), cases)
+        )
     attacked = [(c, t) for c, t in zip(cases, traces, strict=True) if c.source == "adversarial"]
     injected = [(c, t) for c, t in attacked if c.injected]
     honest = [(c, t) for c, t in zip(cases, traces, strict=True) if c.source == "golden"]
