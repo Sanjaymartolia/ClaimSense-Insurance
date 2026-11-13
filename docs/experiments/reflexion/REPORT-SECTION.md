@@ -310,8 +310,10 @@ is the citation, not the money: section 9 measures that and GEPA closes it.
 ### 4.5 Held-out, 60 claims — PENDING
 
 Run once by the Evaluation owner with `scripts/run_reflexion_heldout.py` against the frozen
-`run-03` playbook (hash above); before/after table and the spread over 3 repeats to be pasted from
-its `heldout_report.md`.
+`run-04` playbook (section 10.4; same hash as `run-03`, both without an approved lesson);
+before/after table and the spread over 3 repeats to be pasted from its `heldout_report.md`.
+With no approved lesson, before equals after by construction; the run is still owed as the brief's
+evidence, and its "before" column is the system's held-out score.
 
 ## 5. Design decisions
 
@@ -358,7 +360,9 @@ Capstone guide page 10, signature challenge B and the L12 row of "What you build
 | Measure settlement error and adjudicator edit rate before and after | `metrics.summarize()`, `compare_table()`; after pass run twice | tables in section 4 |
 | Identify lessons that made results worse | `loop.ablate()` leave-one-out; "Lessons that made results worse" in every `report.md` | 4.2: none in `run-01` |
 | L12: run the loop on development claims, then freeze it before the held-out run | `Playbook.freeze()` SHA-256; `run_heldout()` refuses an unfrozen or changed playbook | `test_reflexion.py::test_heldout_refuses_unfrozen_or_leaky_playbook`; `run-03` frozen hash in 4.4 |
-| Step 9: adjudicator corrections become candidate lessons, used only after review | status flow PROPOSED → APPROVED; PROPOSED lessons are never retrieved | section 1.2 |
+| Step 9: adjudicator corrections become candidate lessons, used only after review | a live run leaves its edits in `edit_log` (`run_one.py --edits-out`); `review_cli propose-from-edits` files them as PROPOSED offline; only `review` approves; PROPOSED lessons are never retrieved | section 10; `test_playbook_in_graph.py::test_edits_become_proposed_lessons_only_after_the_offline_step` |
+| The coverage analyst reads the playbook in a normal claim run, not only in the experiment | `Playbook.load_frozen` (T46) → `run_one.py --playbook`; `lessons_used` in the state and trace | section 10; `test_playbook_in_graph.py::test_frozen_playbook_lesson_is_used_in_a_normal_run` |
+| L12: when a lesson cannot fix something, change something else | `triage.is_clause_choice`: non-clause mistakes go to an engineering backlog in `report.md`, not to the reflector | section 10; `test_reflexion_triage.py` |
 | L12 §6-7: DSPy signatures, modules and metrics; BootstrapFewShot, a stronger teacher, GEPA; one table beside the playbook | `reflexion/dspy_coverage.py`, `reflexion/optimizers.py`, `scripts/run_reflexion_dspy.py` | section 9; `tests/orchestration/test_dspy_coverage.py` |
 
 The evaluation owner's metrics for the whole system (`eval/`) are separate from these; this section
@@ -598,3 +602,96 @@ the `chooser` seam makes the swap a one-line change when it is approved.
 - **One systematic mistake.** The dev set has one teachable error (4.1 vs 4.1.1 after a room breach),
   so "reached the ceiling" means "learned one rule". A set with several interacting rules would
   separate the methods better and is the same headroom request as REF-09.
+
+## 10. From experiment to product: the playbook in a claim run, and edits that become lessons (13 November 2026, ADR-0013)
+
+Two questions from the team review had no answer in code: *how does a normal claim run use the
+playbook?* and *how does a live adjudicator edit become a lesson?* Until 13 November only the two
+experiment scripts ever passed a playbook to the team, and the graph's `apply_edits` left the
+adjudicator's corrections in `edit_log` with nothing reading them outside the offline evaluator.
+
+### 10.1 What was added
+
+| Piece | Where | What it does |
+|---|---|---|
+| frozen loader (T46) | `Playbook.load_frozen` | the only loader a claim run may use: refuses a playbook that was never frozen, or whose approved lessons changed after freezing (the hash in the file must equal the SHA-256 of its content). The held-out script now uses the same loader. |
+| `--playbook` | `scripts/run_one.py` | hands the frozen playbook to `Team(playbook=...)`; prints `Playbook: <hash[:12]>, N approved lessons` (or `Playbook: none`) and the `lessons_used` ids after the run. Without the flag the run is unchanged. |
+| `--edits-out`, `edit` at the console | `scripts/run_one.py` | the console reviewer accepts `edit` (line id, governing clause, reason); the run appends its `edit_log` records (claim id, level, line id, category, old and new clause, reason; no document text) to a JSON-lines file |
+| `propose-from-edits` | `reflexion/from_edits.py`, `review_cli.py` | reads the records, triages each, reflects, files one PROPOSED lesson per clause-choice edit into an unfrozen playbook, prints the backlog. Approves nothing; refuses a frozen playbook. `review` is the gate, as before. |
+| triage | `reflexion/triage.py`, `loop.learn()` | before reflection: a mistake reaches the reflector and the reviewer only if it names a line and a clause the analyst could have chosen. Claim-level rulings (admissibility), same-clause rupee differences (calculator or gold gaps), critic arithmetic issues and deductions made under clause 2 by the calculator (REF-17) go to an engineering backlog printed in `report.md`, each with its reason. |
+| dedupe against refused lessons | `Playbook.duplicate_of`, `propose` | a near-duplicate (same clauses, >0.6 word overlap) of a REJECTED or WITHDRAWN lesson is not shown to the reviewer again; the backlog names the refused lesson |
+| clause-id guard (REF-08) | `reflector._checked`, `triage.known_clause_ids` | a draft's clause ids are filtered against the agents' registry (`agents/clauses.py`); a draft left with none is dropped. The amounts-and-ids block now runs on the stub path too. |
+
+The graph is untouched. `memory_update` records claim history only; ADR-0005 (memory ownership)
+holds: the graph reads lessons, it never writes one.
+
+### 10.2 What it would have done to run-03
+
+Of the 16 proposals the reviewer rejected in `run-03` (4.4), triage keeps 14 away from the gate:
+the 8 critic rejections of the clause-2 duplicate-line deduction (REF-17; the deduction is the
+calculator's, the clause is claim-level) and the 6 proposals from CLM-0008 (a 6.2 waiting period,
+applied by the admissibility gate, ADR-0011). The 2 cataract proposals from CLM-0021/0022 still
+reach the gate, correctly: 4.3 against 4.1 is a clause choice, even though the calculator treats
+4.3 as informational today. The clause-id guard would have dropped the 8 of 33 proposals in
+`run-01` and `run-02` that cited an invented id. The reviewer's time goes to clause choices only,
+which is what the brief's human gate is for. This is a reading of the stored lessons against the new
+rules; the measured effect is the `run-04` rerun (10.4).
+
+### 10.3 The deployment story, in one paragraph
+
+A frozen `playbook.json` is a versioned artefact like a prompt file. A claim run loads it once with
+`Playbook.load_frozen`, the coverage analyst reads at most three approved lessons that share a
+clause or wording with the claim, and the ids it read are in `lessons_used` in the state and the
+trace. An adjudicator's edit at the approval gate lands in `edit_log`; an offline review session
+turns the edits into PROPOSED lessons, a named person approves or rejects each one with a reason,
+and a new freeze gives a new hash, which is a new release. The eval harness never loads a playbook
+(lessons learned on dev claims would inflate the dev score); the with/without comparison is the
+held-out run.
+
+### 10.4 Reviewed run with triage (`run-04`, 14 November 2026, tolerance Rs 1) — the current result
+
+Same setup as `run-03` (`openai/gpt-4.1-mini` for every agent and the reflector, reference
+calculator, reviewer Dhruvi Ramani at the terminal), on `main` after the revert of commit
+`78114a5` (REF-21): 22 development claims, gold as of ADR-0007/0009/0011. Files:
+`docs/experiments/reflexion/run-04/`.
+
+| metric | before | after run 1 | after run 2 |
+|---|---|---|---|
+| settlement_error_total_rs | 39904.80 | 39904.80 | 39904.80 |
+| settlement_error_mean_rs | 1813.85 | 1813.85 | 1813.85 |
+| exact_match_rate | 0.909 | 0.909 | 0.909 |
+| edit_rate | 0.091 | 0.091 | 0.091 |
+| critic_rejection_rate | 0.182 | 0.182 | 0.182 |
+
+Where the baseline error comes from: 8 cases exact, 12 within Rs 1 (rounding, counted as matches),
+2 real misses: CLM-0021 and CLM-0022, the cataract sub-limit (clause 4.3, informational in the
+calculator; section 7). CLM-0008, a miss in `run-03`, is gone: ADR-0011 put the 6.2 waiting-period
+list into the admissibility check on 12 November. The total error fell from Rs 112,102.91 to
+Rs 39,904.80 between the two runs for that reason, not because of any lesson.
+
+**Lessons: 1 proposed, 0 approved, 1 rejected, 0 withdrawn; 9 mistakes triaged to the backlog.**
+Frozen playbook hash `4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945`.
+
+| Lesson | From | Clauses cited | Lesson text (shortened) | Decision | Reviewer's reason |
+|---|---|---|---|---|---|
+| LSN-2735248b | CLM-0021 | 4.3 | For procedure category claims, verify and apply clause 4.3 as specified | rejected | too broad: 4.3 is the cataract sub-limit, not every procedure; and 4.3 is informational in the calculator, so the lesson cannot change the amount. *The stored note is the default "rejected": the reviewer pressed Enter without typing; the reason is the same as for the two 4.3 lessons in `run-03`.* |
+
+The backlog (first time in a report):
+
+| Mistake | Source | Why no lesson |
+|---|---|---|
+| CLM-0005, 0009, 0010, 0015, line L06 (two issues each, 8 in all) | critic rejection | the deduction is the calculator's in-bill duplicate rule under clause 2 (DEC-04); the critic's keyword table does not recognise it (REF-17). A claim-level clause the analyst never chooses; a critic item |
+| CLM-0022 L01 | adjudicator edit | near-duplicate of LSN-2735248b, which the reviewer had just refused |
+
+**Reading of the result.** The reviewer saw one lesson instead of sixteen. Triage removed the eight
+REF-17 critic items and the dedupe removed the repeat from CLM-0022, so the gate's time went to the
+one genuine clause choice on this set, the cataract sub-limit, which the reviewer refused for the
+same reason as in `run-03`. Before equals after because the playbook has no approved lesson and both
+remaining misses are a calculator gap (4.3 is informational), not a clause the analyst could have
+chosen better. The frozen hash equals `run-03`'s: the hash covers approved lessons only, and both
+playbooks have none, so the held-out run (4.5) gives the same before/after with either file, and
+`eval/experiments/configs/E3_reflexion.yaml` stays pointed at `run-03`.
+
+**Demo check (T46).** `python scripts/run_one.py CLM-0004 --playbook .../run-04/playbook.json`
+printed `Playbook: 4f53cda18c2b, 0 approved lessons`, ran the claim with the real model,
+`lessons_used: []`, and settled Rs 67,067.10 with the proportional cut and room cap cited.

@@ -25,6 +25,7 @@ from .evaluator import DevCase, Mistake, SimulatedAdjudicator, mistakes_from_run
 from .metrics import CaseResult, compare_table, summarize
 from .playbook import Playbook
 from .reflector import reflect
+from .triage import NO_LESSON, backlog_entry, backlog_md, is_clause_choice
 
 RunFn = Callable[[DevCase, Playbook | None, Callable[[dict], dict]], dict]
 ServicesFactory = Callable[[DevCase], Services]
@@ -114,21 +115,41 @@ def learn(
     approve_fn: ApproveFn,
     get_clause_text: Callable[[str], str] = lambda cid: "",
     tolerance_rs: Decimal = Decimal("0"),
+    known_clause_ids: set[str] | None = None,
+    triage: list[dict] | None = None,
 ) -> list[Lesson]:
-    """One pass over dev cases in order. Each mistake → reflect → PROPOSED → human gate.
-    Later cases read lessons approved on earlier ones (L12 notebook §5)."""
+    """One pass over dev cases in order. Each mistake → triage → reflect → PROPOSED → gate.
+    Later cases read lessons approved on earlier ones (L12 notebook §5).
+
+    `triage`, when given, collects the mistakes that never reached the reviewer, and why:
+    not a clause choice (triage.py), a near-duplicate of a lesson already decided, or a draft
+    the reflector's guard dropped. They are the engineering backlog, not lessons."""
     assert all(c.split == "dev" for c in cases), "Reflexion may only learn from development cases"
     proposed: list[Lesson] = []
+    sink = triage if triage is not None else []
     for case in cases:
         _, mistakes = run_case(run_fn, case, playbook, tolerance_rs)
         for m in mistakes:
-            draft = reflect(m, get_clause_text(m.expected_clause or ""))
+            ok, why = is_clause_choice(m)
+            if not ok:
+                sink.append(backlog_entry(m, why))
+                continue
+            draft = reflect(
+                m, get_clause_text(m.expected_clause or ""), known_clause_ids=known_clause_ids
+            )
             if draft is None:
+                sink.append(backlog_entry(m, NO_LESSON))
+                continue
+            dup = playbook.duplicate_of(draft.lesson, draft.applies_when, draft.clause_ids)
+            if dup is not None:
+                sink.append(
+                    backlog_entry(m, f"near-duplicate of {dup.lesson_id} ({dup.status.value})")
+                )
                 continue
             lesson = playbook.propose(
                 draft.lesson, draft.applies_when, draft.clause_ids, case.case_id
             )
-            if lesson is None:  # duplicate
+            if lesson is None:  # pragma: no cover - duplicate_of already answered
                 continue
             proposed.append(lesson)
             ok, reviewer, note = approve_fn(lesson)
@@ -172,6 +193,7 @@ class Report:
     heldout_baseline: dict | None = None
     heldout_after: dict | None = None
     per_case: dict = field(default_factory=dict)
+    triage: list[dict] = field(default_factory=list)
 
     def markdown(self) -> str:
         parts = [
@@ -186,6 +208,11 @@ class Report:
             for r in self.ablation
             if r["harmful"]
         ] or ["- none"]
+        parts += [
+            "",
+            "## Mistakes sent to the engineering backlog (not clause choices, no lesson)",
+            backlog_md(self.triage),
+        ]
         parts.append(f"\nFrozen playbook hash: `{self.frozen_hash}`")
         if self.heldout_after:
             parts += [
@@ -205,9 +232,20 @@ def experiment(
     reviewer_id: str = "lead-adjudicator",
     get_clause_text=lambda cid: "",
     tolerance_rs: Decimal = Decimal("0"),
+    known_clause_ids: set[str] | None = None,
 ) -> Report:
     baseline = summarize(evaluate(run_fn, dev, None, tolerance_rs))
-    learn(run_fn, dev, playbook, approve_fn, get_clause_text, tolerance_rs)
+    triage: list[dict] = []
+    learn(
+        run_fn,
+        dev,
+        playbook,
+        approve_fn,
+        get_clause_text,
+        tolerance_rs,
+        known_clause_ids=known_clause_ids,
+        triage=triage,
+    )
     ablation = ablate(run_fn, dev, playbook, tolerance_rs)
     withdrawn = []
     for r in ablation:
@@ -216,7 +254,7 @@ def experiment(
             withdrawn.append(r["lesson_id"])
     after = summarize(evaluate(run_fn, dev, playbook, tolerance_rs))
     frozen = playbook.freeze()
-    report = Report(baseline, after, ablation, withdrawn, frozen)
+    report = Report(baseline, after, ablation, withdrawn, frozen, triage=triage)
     if heldout:
         report.heldout_baseline, report.heldout_after = run_heldout(
             run_fn, heldout, playbook, dev, tolerance_rs

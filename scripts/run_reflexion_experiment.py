@@ -1,4 +1,4 @@
-"""Day 4 of the agents plan: the Reflexion experiment on the 20 development claims.
+"""Day 4 of the agents plan: the Reflexion experiment on the development claims (22 today).
 
     # 1. baseline: empty playbook, save the numbers
     python scripts/run_reflexion_experiment.py baseline --out docs/experiments/reflexion/run-01
@@ -64,6 +64,7 @@ from claimsense.reflexion.reporting import (
     to_json,
 )
 from claimsense.reflexion.review_cli import console_approver
+from claimsense.reflexion.triage import backlog_md, known_clause_ids
 
 HELDOUT_MARKERS = ("heldout", "held-out", "held_out")
 
@@ -121,7 +122,7 @@ def stage_baseline(args) -> list[CaseResult]:
     (out / "baseline.md").write_text(
         "\n".join(
             [
-                "# Reflexion baseline (empty playbook), 20 development claims",
+                f"# Reflexion baseline (empty playbook), {len(cases)} development claims",
                 "",
                 mode_banner(args),
                 "",
@@ -186,11 +187,24 @@ def stage_experiment(args) -> None:
     baseline = summarize(baseline_results)
     print(to_json(baseline))
 
-    print("\n[2/6] learning pass: each mistake -> one lesson -> your decision")
-    proposed = learn(run_fn, cases, pb, approve_fn, get_clause_text, args.tolerance_rs)
+    print("\n[2/6] learning pass: each mistake -> triage -> one lesson -> your decision")
+    triage: list[dict] = []
+    proposed = learn(
+        run_fn,
+        cases,
+        pb,
+        approve_fn,
+        get_clause_text,
+        args.tolerance_rs,
+        known_clause_ids=known_clause_ids(),
+        triage=triage,
+    )
     approved = pb.by_status(LessonStatus.APPROVED)
     rejected = pb.by_status(LessonStatus.REJECTED)
-    print(f"proposed {len(proposed)}, approved {len(approved)}, rejected {len(rejected)}")
+    print(
+        f"proposed {len(proposed)}, approved {len(approved)}, rejected {len(rejected)}; "
+        f"{len(triage)} mistake(s) sent to the backlog without a lesson"
+    )
 
     print("\n[3/6] ablation: leave one lesson out at a time")
     ablation = ablate(run_fn, cases, pb, args.tolerance_rs)
@@ -222,7 +236,7 @@ def stage_experiment(args) -> None:
     frozen = pb.freeze()
     print(f"frozen playbook hash {frozen}")
 
-    report = Report(baseline, summarize(after_runs[0]), ablation, withdrawn, frozen)
+    report = Report(baseline, summarize(after_runs[0]), ablation, withdrawn, frozen, triage=triage)
     extra = [
         "",
         "## Run details",
@@ -232,7 +246,8 @@ def stage_experiment(args) -> None:
         f"- development cases: {len(cases)} from `{args.cases}`",
         f"- rounding tolerance: Rs {args.tolerance_rs} (0 = strict; rupee error is exact either way)",
         f"- lessons proposed {len(proposed)}, approved {len(approved)}, rejected {len(rejected)}, "
-        f"withdrawn after ablation {len(withdrawn)}",
+        f"withdrawn after ablation {len(withdrawn)}; {len(triage)} mistake(s) triaged to the "
+        "backlog (not clause choices)",
         f"- generated {datetime.now(UTC).isoformat()}",
         "",
         "## Baseline: where the error comes from",
@@ -262,6 +277,10 @@ def stage_experiment(args) -> None:
         "",
         ablation_md(ablation),
         "",
+        "## Engineering backlog: mistakes that are not clause choices (no lesson proposed)",
+        "",
+        backlog_md(triage),
+        "",
         "## Known gold vs calculator rule disagreements (not fixable by any lesson)",
         "",
         disagreements_md(),
@@ -272,7 +291,7 @@ def stage_experiment(args) -> None:
     ]
     for i, results in enumerate(after_runs, 1):
         extra += ["", f"## Per case: after pass, run {i}", "", case_table(results)]
-    header = ["# Reflexion experiment: 20 development claims", ""]
+    header = [f"# Reflexion experiment: {len(cases)} development claims", ""]
     if args.approve == "auto":
         header += [
             "> **HARNESS CHECK ONLY.** Lessons were auto-approved. These numbers must not be "
@@ -290,6 +309,7 @@ def stage_experiment(args) -> None:
                 "ablation": ablation,
                 "withdrawn": withdrawn,
                 "frozen_hash": frozen,
+                "triage": triage,
                 "lessons": [lesson.model_dump(mode="json") for lesson in pb.lessons.values()],
                 "per_case_baseline": [r.model_dump(mode="json") for r in baseline_results],
                 "per_case_after": [[r.model_dump(mode="json") for r in run] for run in after_runs],
@@ -328,7 +348,7 @@ def main(argv=None):
     )
     ap.add_argument("--approve", choices=["console", "auto"], default="console")
     ap.add_argument(
-        "--after-runs", type=int, default=2, help="repeat the after pass (20 claims is noisy)"
+        "--after-runs", type=int, default=2, help="repeat the after pass (22 claims is noisy)"
     )
     ap.add_argument("--executor", choices=["local", "langgraph"], default="local")
     ap.add_argument(

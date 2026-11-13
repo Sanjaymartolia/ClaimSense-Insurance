@@ -2,18 +2,27 @@
 printing a node-by-node trace.
 
 Usage (from repo root):
-    python scripts/run_one.py --list                       # show the 20 claim ids
+    python scripts/run_one.py --list                       # show the claim ids (22 today)
     python scripts/run_one.py <claim_id>                   # auto-approve every pause
     python scripts/run_one.py <claim_id> --reviewer console
     python scripts/run_one.py <claim_id> --sqlite          # durable checkpointer
     python scripts/run_one.py <claim_id> --file eval/golden_dev/claims.jsonl
     python scripts/run_one.py <claim_id> --real-tools      # policy-kb / claims-db / tariff
     python scripts/run_one.py <claim_id> --no-tool-hooks   # skip the ACL/budget/audit hooks
+    python scripts/run_one.py <claim_id> --playbook docs/experiments/reflexion/run-03/playbook.json
+    python scripts/run_one.py <claim_id> --reviewer console --edits-out runs/edits.jsonl
 
 Agents use OpenRouter models (agents/llm.py). Tools are stubs (make_stub_services) by default.
 --real-tools uses agents/services.real_services() and signs approvals into the claims-db approval
 store that settle_claim verifies against. It needs CLAIMSENSE_APPROVAL_SECRET set, the policy
 seeded (python -m claimsense.mcp_servers.seed_dev_policies) and the policy index built.
+
+--playbook (T46) hands a FROZEN Reflexion playbook to the coverage analyst, which reads at most
+three approved lessons relevant to the claim; the ids it used appear as `lessons_used`. An
+unfrozen or edited playbook is refused. Without the flag nothing changes.
+--edits-out appends the adjudicator's edits from this run (ids, clauses, reason; no patient text)
+to a JSON-lines file, the input of `python -m claimsense.reflexion.review_cli propose-from-edits`.
+With `--reviewer console` the pause accepts `edit`, then asks for the line, the clause and why.
 """
 
 from __future__ import annotations
@@ -94,8 +103,26 @@ def auto_reviewer(payload: dict) -> dict:
 def console_reviewer(payload: dict) -> dict:
     print("\n" + "=" * 70 + f"\n⏸  PAUSED for human review: {payload.get('kind')}")
     print(json.dumps(payload, indent=2, default=str)[:4000])
-    choice = input("approve / reject? [approve]: ").strip() or "approve"
-    return {"decision": choice, "approver_id": input("approver id [adj-1]: ").strip() or "adj-1"}
+    choice = input("approve / edit / reject? [approve]: ").strip() or "approve"
+    approver = input("approver id [adj-1]: ").strip() or "adj-1"
+    if choice != "edit":
+        return {"decision": choice, "approver_id": approver}
+    # One line per edit: re-point the line to another clause (the Reflexion feedback), or fix an
+    # amount the extraction misread. Totals are recomputed by the calculator, never typed in.
+    edits = []
+    while True:
+        line_id = input("line id to edit (blank to finish): ").strip()
+        if not line_id:
+            break
+        clause_id = input("  clause id that should govern it (blank = keep): ").strip() or None
+        amount = input("  corrected amount (blank = keep): ").strip() or None
+        reason = input("  why (becomes Reflexion feedback): ").strip() or "adjudicator edit"
+        edits.append(
+            {"line_id": line_id, "clause_id": clause_id, "amount": amount, "reason": reason}
+        )
+    if not edits:
+        return {"decision": "approve", "approver_id": approver}
+    return {"decision": "edit", "approver_id": approver, "edits": edits}
 
 
 # ---- 4. Trace printing ----
@@ -133,6 +160,18 @@ def main() -> None:
         action="store_true",
         help="do not install the per-claim tool hooks (ACL, budget, audit)",
     )
+    ap.add_argument(
+        "--playbook",
+        type=Path,
+        default=None,
+        help="FROZEN Reflexion playbook.json for the coverage analyst (T46); refused otherwise",
+    )
+    ap.add_argument(
+        "--edits-out",
+        type=Path,
+        default=None,
+        help="append this run's adjudicator edits (JSON lines) for review_cli propose-from-edits",
+    )
     args = ap.parse_args()
 
     if args.list:
@@ -165,11 +204,20 @@ def main() -> None:
         sqlite_checkpointer,
     )
     from claimsense.graph.state import initial_state
+    from claimsense.reflexion import Playbook, edits_from_state, write_edits
 
     llm = get_llm("coverage")
     if llm is None:
         sys.exit("get_llm() returned None: still in stub mode. Check agents/llm.py.")
     print(f"LLM mode ON  (coverage model: {getattr(llm, 'model_name', '?')})")
+
+    # T46: only a frozen, unchanged playbook may reach a claim run; the graph never writes lessons.
+    playbook = None
+    if args.playbook is not None:
+        try:
+            playbook = Playbook.load_frozen(args.playbook)
+        except ValueError as err:
+            sys.exit(f"--playbook refused: {err}")
 
     pol = PolicyInfo.model_validate(packet["fixture_policy"])
     if args.real_tools:
@@ -185,8 +233,13 @@ def main() -> None:
         # Same as reflexion.cases.stub_services_factory: policy record keyed by policy_number
         services = make_stub_services(policies={pol.policy_number: pol})
         review_kwargs = {}  # in-memory approval store; stub settle_claim checks hashes only
-    team = Team(services)
+    team = Team(services, playbook=playbook)
     print(f"Tools: {'REAL (real_services)' if args.real_tools else 'stubs'}")
+    if playbook is None:
+        print("Playbook: none")
+    else:
+        n_approved = len(playbook.by_status("approved"))
+        print(f"Playbook: {playbook.frozen_hash[:12]}, {n_approved} approved lessons")
 
     checkpointer = sqlite_checkpointer() if args.sqlite else memory_checkpointer()
     # Tool hooks (hooks/hooks.py): installed once for this claim, with a fresh tool budget.
@@ -218,12 +271,22 @@ def main() -> None:
 
     final = app.get_state(cfg).values
     print("\n" + "=" * 70 + "\nFINAL")
-    for key in ("plan", "worksheet", "fraud_flags", "coverage_notes", "settlement"):
+    for key in ("plan", "worksheet", "fraud_flags", "coverage_notes", "lessons_used", "settlement"):
         if key in final:
             show(key, {key: final[key]})
     print("\nTool log:")
     for entry in services.tool_log:
         print("  ", entry)
+
+    if args.edits_out is not None:
+        records = edits_from_state(final)
+        n = write_edits(args.edits_out, records)
+        print(f"\nEdits: {n} record(s) appended to {args.edits_out}")
+        if n:
+            print(
+                "next: python -m claimsense.reflexion.review_cli propose-from-edits "
+                f"<new-playbook.json> --edits {args.edits_out}"
+            )
 
 
 if __name__ == "__main__":

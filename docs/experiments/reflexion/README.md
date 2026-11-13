@@ -15,7 +15,8 @@ words and how it differs from the adjudicator approval in the graph.
 | `harness-check-stub/` | a complete stub-mode run, auto-approved, stamped "HARNESS CHECK ONLY", proving the loop runs on the current gold (rerun 7 Nov 2026) |
 | `langgraph-check/` | the real-model baseline run through the LangGraph executor instead of the local runner, same numbers |
 | `run-02/` | the reviewed run of 7 Nov 2026 on the gold as corrected by the 4 Nov 2026 audit, tolerance Rs 1 |
-| `run-03/` | the reviewed run of 12 Nov 2026 on the final gold (ADR-0006/0007/0009), tolerance Rs 1: **the current result**; its frozen playbook is the one for the held-out run |
+| `run-03/` | the reviewed run of 12 Nov 2026 on the final gold (ADR-0006/0007/0009), tolerance Rs 1 |
+| `run-04/` | the reviewed run of 14 Nov 2026 with triage (ADR-0013), tolerance Rs 1: **the current result**; `REPORT-SECTION.md` section 10.4. Its frozen playbook has the same hash as `run-03` (no approved lesson in either) |
 | `dspy-harness-check-stub/` | the L12 §6-7 comparison (DSPy Predict/ChainOfThought, BootstrapFewShot, BootstrapFewShot + coach, GEPA, the playbook, the retrieval ceiling) run offline with stub LMs on 12 Nov 2026: proves the loop, stamped "HARNESS CHECK ONLY" |
 | `dspy-run-01/` | the same comparison with the real models, 12 Nov 2026: GEPA reaches the retrieval ceiling (1.0) and is the chosen method; `REPORT-SECTION.md` section 9.4 |
 
@@ -29,7 +30,9 @@ words and how it differs from the adjudicator approval in the graph.
 | `src/claimsense/reflexion/playbook.py` | the playbook: lessons and their status, retrieval of approved lessons, freeze with SHA-256 |
 | `src/claimsense/reflexion/loop.py` | baseline → learn → ablate → withdraw → after → freeze; the held-out guards |
 | `src/claimsense/reflexion/metrics.py` | settlement error, exact-match rate, edit rate |
-| `src/claimsense/reflexion/review_cli.py` | the human gate at the terminal (`y`/`n` plus a reason) |
+| `src/claimsense/reflexion/review_cli.py` | the human gate at the terminal (`y`/`n` plus a reason); `propose-from-edits` turns a claim run's adjudicator edits into PROPOSED lessons (never approves) |
+| `src/claimsense/reflexion/triage.py` | before reflection: only a clause-choice mistake becomes a lesson; the rest go to an engineering backlog with a reason; `known_clause_ids()` is the registry the reflector may cite (ADR-0013) |
+| `src/claimsense/reflexion/from_edits.py` | brief step 9 offline: `edit_log` records from a run (`run_one.py --edits-out`) → triage → reflect → PROPOSED; the graph never writes a lesson |
 | `src/claimsense/reflexion/reporting.py` | Markdown/JSON rendering shared by both scripts |
 | `scripts/run_reflexion_experiment.py` | Day 4: `baseline`, `experiment`, `status`. Writes `baseline.md/json`, `report.md/json`, `playbook.json` into `--out`. |
 | `scripts/run_reflexion_heldout.py` | Day 5, for the Evaluation owner: before/after on the held-out set with the frozen playbook, 3 repeats, spread. Refuses anything inside the repo. |
@@ -37,8 +40,10 @@ words and how it differs from the adjudicator approval in the graph.
 | `src/claimsense/reflexion/optimizers.py` | the comparison: `split_cases` (admissible dev claims, alternating train/test), `compile_bootstrap`, `compile_gepa`, `measure` (clause accuracy + the pipeline's settlement error / edit rate per row), `choose_winner`, `comparison_md`, `plot`, `save_program` / `load_program` |
 | `scripts/run_reflexion_dspy.py` | runs the eight rows of the notebook's §9 table on the dev claims and writes `report.md`, `results.json`, `plot.png`, `programs/*.json` into `--out` |
 | `tests/orchestration/test_dspy_coverage.py` | 13 tests, offline: examples leak nothing, metric and reachable lines, stub LM == stub analyst through the pipeline, oracle coach bootstraps demos, program save/load, GEPA runs offline, the `chooser` seam is validated, winner rule, the script end to end (skipped when `dspy` is not installed) |
-| `tests/orchestration/test_cases.py` | 11 tests: loading, contract validity, gold reconciliation, reason-code mapping, the 4 Nov gold relabels, unknown codes raise, stub dry run of all 20, the tolerance, both scripts end to end including every refusal |
+| `tests/orchestration/test_cases.py` | loading, contract validity, gold reconciliation, reason-code mapping, the gold relabels, unknown codes raise, stub dry run of all 22, the tolerance, both scripts end to end including every refusal |
 | `tests/orchestration/test_reflexion.py` | 5 harness tests: learn → approve → improve → ablate → freeze on synthetic cases |
+| `tests/orchestration/test_playbook_in_graph.py` | T46 and step 9: `load_frozen` refuses an unfrozen or edited playbook; a frozen lesson is used in a normal run (`lessons_used`); no playbook → no lessons; PROPOSED/REJECTED lessons never reach a run; an adjudicator edit becomes exactly one PROPOSED lesson only through the offline step, and the CLI refuses a frozen playbook |
+| `tests/orchestration/test_reflexion_triage.py` | triage rules (claim-level, gate clauses, same-clause gold gaps, critic arithmetic, REF-17), the clause-id registry, the reflector dropping invented ids, a refused lesson never proposed again, `learn()` writing the backlog |
 
 Outside these files this part touches `agents/coverage.py` and `agents/__init__.py` only: the
 playbook hook (`CoverageAgent.lessons_for()`) already existed, and on 12 Nov 2026 a `chooser`
@@ -50,7 +55,7 @@ run functions pass it through.
 
 ```bash
 pip install -e ".[dev,agents]"       # once, inside your virtualenv
-pytest tests/orchestration -q        # 32 tests, no key, no network
+pytest tests/orchestration -q        # no key, no network
 
 # baseline with an empty playbook (what the system does before any lesson)
 python scripts/run_reflexion_experiment.py baseline --out /tmp/reflexion-check --tolerance-rs 1
@@ -176,11 +181,14 @@ per compiled program (instruction + demos: the notebook's "the improvement is a 
 
 ## 3. Day 5: held-out run (Evaluation owner only)
 
+Use the **latest frozen** playbook: `run-03` today, `run-04` once the rerun after ADR-0013 is
+frozen (its hash goes into `eval/experiments/configs/E3_reflexion.yaml` as well).
+
 ```bash
 python scripts/run_reflexion_heldout.py \
-    --playbook docs/experiments/reflexion/run-02/playbook.json \
-    --heldout data/claimsense-heldout \
-    --out ../claimsense-heldout-results/run-02 --repeat 3 --tolerance-rs 1
+    --playbook docs/experiments/reflexion/run-03/playbook.json \
+    --heldout ../claimsense-heldout \
+    --out ../claimsense-heldout-results/run-03 --repeat 3 --tolerance-rs 1
 ```
 
 Use the same `--tolerance-rs` as the day-4 run. It refuses to run if the playbook is not frozen,
@@ -197,6 +205,7 @@ tables into `REPORT-SECTION.md` section 4.4.
 | `harness-check-stub/` (7 Nov 2026, not a result) | post-audit (4 Nov) | stub, auto-approved | Rs 1 | Rs 186,368.94 / exact 0.50 / edit 0.30 → identical | 6 template lessons, none harmful |
 | `run-02/` (7 Nov 2026, reviewed) | post-audit (4 Nov) | `openai/gpt-4.1-mini`, reviewer Dhruvi Ramani at the console | Rs 1 | Rs 186,368.94 / exact 0.50 / edit 0.30 → identical, both after runs | 19 proposed, 1 approved, 18 rejected with reasons, 0 withdrawn; frozen hash `b5666378…` |
 | `run-03/` (12 Nov 2026, reviewed) | final (ADR-0006/0007/0009) | `openai/gpt-4.1-mini`, reviewer Dhruvi Ramani at the console | Rs 1 | Rs 112,102.91 / exact 0.864 / edit 0.136 / critic rejection 0.182 → identical, both after runs | 16 proposed, 0 approved, 16 rejected with reasons, 0 withdrawn; frozen hash `4f53cda1…` |
+| `run-04/` (14 Nov 2026, reviewed, triage on) | final, after the revert of `78114a5` | `openai/gpt-4.1-mini`, reviewer Dhruvi Ramani at the console | Rs 1 | Rs 39,904.80 / exact 0.909 / edit 0.091 / critic rejection 0.182 → identical, both after runs | 1 proposed, 0 approved, 1 rejected with reason, 9 mistakes triaged to the backlog (8 REF-17 critic items, 1 duplicate); frozen hash `4f53cda1…` (same as run-03: no approved lesson in either) |
 | `dspy-harness-check-stub/` (12 Nov 2026, not a result) | current (ADR-0006/0007/0009) | stub LMs (student = top candidate, coach = gold replay) | Rs 1 | test half (7 claims): clause accuracy 0.574 for every method, 1.0 for the retrieval ceiling; settlement error Rs 18,052.33 for every row | all eight rows run, 5 programs saved, GEPA loop runs offline |
 | `dspy-run-01/` (12 Nov 2026, real models, Dhruvi Ramani's key) | current | `openai/gpt-4.1-mini` as student, coach and reflector | Rs 1 | test clause accuracy: agent prompt 0.645, + playbook 0.61, Predict 0.574, ChainOfThought 0.917, BootstrapFewShot 0.952, + coach 0.952, **GEPA 1.0** (= ceiling); settlement error Rs 18,052.33 in every row | **GEPA chosen**; its 2,777-char instruction is `dspy-run-01/programs/gepa.json`; reading in `REPORT-SECTION.md` 9.4 |
 
@@ -238,6 +247,51 @@ cited under clause 2 (REF-17, a critic item). Use `run-03/playbook.json` for the
    non-payable or waiting-period clauses, which the pipeline already gets right. A measurable
    before/after needs dev cases where the clause choice decides the money.
 4. `agents/clauses.py` still has four `TODO` clause ids; lessons quote them verbatim.
+
+## 7. The playbook in a normal claim run, and live edits → lessons (T46, brief step 9; ADR-0013)
+
+Until 13 Nov 2026 only the two experiment scripts ever passed a playbook to the team. Now:
+
+```bash
+# a normal claim run that reads the frozen playbook (real model; stub mode is refused by run_one)
+python scripts/run_one.py CLM-0004 --playbook docs/experiments/reflexion/run-03/playbook.json
+#   prints:  Playbook: 4f53cda18c2b, 0 approved lessons     (or "Playbook: none" without the flag)
+#   and, after the coverage step, lessons_used: [...]        (the lesson ids the analyst read)
+
+# an adjudicator edits a line at the console; the run appends the edit to a JSON-lines file
+python scripts/run_one.py CLM-0004 --reviewer console --edits-out runs/edits.jsonl
+#   at the pause type: edit  ->  line id, the clause that should govern it, why
+
+# offline: edits -> triage -> one PROPOSED lesson each (nothing is approved here)
+python -m claimsense.reflexion.review_cli propose-from-edits runs/live-playbook.json --edits runs/edits.jsonl
+# the human gate, then a new freeze = a new hash = a new deploy
+python -m claimsense.reflexion.review_cli review runs/live-playbook.json --reviewer "<your name>"
+```
+
+Rules, all enforced in code: `Playbook.load_frozen` refuses a playbook that is not frozen or whose
+approved lessons changed after freezing; `propose-from-edits` refuses a frozen playbook; the graph
+never writes a lesson (`memory_update` records claim history only); PROPOSED, REJECTED and WITHDRAWN
+lessons are never retrieved. The edit record holds ids, clauses, the line category and the reason the
+adjudicator typed, nothing from the documents.
+
+## 8. Two questions the team asked
+
+**How is Reflexion evaluated?** By code, twice over. On the dev claims: settlement error is the
+first worksheet shown to the adjudicator minus the gold, in `Decimal`, with a Rs 1 rounding
+tolerance; edit rate comes from a simulated adjudicator who knows the gold; each approved lesson is
+removed in turn and the set rerun (a lesson is harmful if removing it lowers error or edits); the
+after pass runs twice. On the held-out claims (E3): the Evaluation owner runs the 60 claims once,
+without and with the frozen playbook, three repeats, with the spread and the lesson-generation cost
+(`eval/experiments/e3.py`). The eval harness itself never loads a playbook: lessons learned on dev
+claims would inflate the dev score. Clause-level accuracy is measured separately in section 2b.
+
+**How is the playbook used in deployment?** As a versioned file, like a prompt. A frozen
+`playbook.json` is loaded once at start (`Playbook.load_frozen`) and handed to `Team(playbook=...)`;
+the coverage analyst reads at most three approved lessons that share a clause or wording with the
+claim and records their ids in `lessons_used`. New lessons come only from the offline review of
+adjudicator edits (section 7). Approving a lesson changes the hash, so a new playbook is a new
+release. Nothing in the loop changes an amount: the calculator decides the rupees and a person
+approves the settlement.
 
 ## Contribution-log rows
 

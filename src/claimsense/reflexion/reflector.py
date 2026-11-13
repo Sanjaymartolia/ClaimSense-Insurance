@@ -54,12 +54,27 @@ def too_specific(text: str) -> bool:
     return bool(_SPECIFIC.search(text))
 
 
-def reflect(m: Mistake, clause_text: str = "") -> LessonDraft | None:
+def _checked(draft: LessonDraft, known_clause_ids: set[str] | None) -> LessonDraft | None:
+    """The same gate for the stub and the real reflector: no amounts or ids in the text, and no
+    clause id the agents do not know (REF-08). A draft left with no known clause is dropped."""
+    if too_specific(draft.lesson) or too_specific(draft.applies_when):
+        return None
+    if known_clause_ids is not None:
+        kept = [c for c in draft.clause_ids if c in known_clause_ids]
+        if draft.clause_ids and not kept:
+            return None
+        draft = draft.model_copy(update={"clause_ids": kept})
+    return draft
+
+
+def reflect(
+    m: Mistake, clause_text: str = "", known_clause_ids: set[str] | None = None
+) -> LessonDraft | None:
     llm = get_llm("reflector")
     if llm is None:  # stub: a template lesson so the loop is testable offline
         if not m.expected_clause:
             return None
-        return LessonDraft(
+        draft = LessonDraft(
             mistake=f"{m.category} line was governed by {m.got_clause}",
             lesson=(
                 f"For {m.category} lines, check clause {m.expected_clause} before {m.got_clause}."
@@ -67,6 +82,7 @@ def reflect(m: Mistake, clause_text: str = "") -> LessonDraft | None:
             applies_when=f"{m.category} line on the bill",
             clause_ids=[c for c in (m.expected_clause, m.got_clause) if c],
         )
+        return _checked(draft, known_clause_ids)
     draft = llm.with_structured_output(LessonDraft).invoke(
         PROMPT.format(
             source=m.source,
@@ -77,6 +93,4 @@ def reflect(m: Mistake, clause_text: str = "") -> LessonDraft | None:
             clause_text=clause_text[:1500] or "(not retrieved)",
         )
     )
-    if too_specific(draft.lesson) or too_specific(draft.applies_when):
-        return None
-    return draft
+    return _checked(draft, known_clause_ids)

@@ -136,6 +136,12 @@ def mistakes_from_run(
                 detail=e.get("reason", ""),
             )
         )
+    # the clause each proposed line was deducted under: triage needs it for critic issues
+    cited = (
+        {ln.line_id: ln.deductions[0].clause_id for ln in proposed.lines if ln.deductions}
+        if proposed is not None
+        else {}
+    )
     for rep in final_state.get("critic_history", []):
         for i in rep.issues:
             out.append(
@@ -144,6 +150,7 @@ def mistakes_from_run(
                     source="critic_rejection",
                     line_id=i.line_id,
                     category=cat.get(i.line_id or ""),
+                    got_clause=cited.get(i.line_id or ""),
                     detail=f"{i.kind}: {i.message}",
                 )
             )

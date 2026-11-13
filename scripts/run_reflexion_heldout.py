@@ -94,11 +94,10 @@ def main(argv=None) -> None:
         if _inside_repo(out):
             sys.exit("refusing: held-out results must be written outside the repository")
 
-    pb = Playbook.load(args.playbook)
-    if not pb.frozen:
-        sys.exit(f"refusing: {args.playbook} is not frozen; finish the day-4 experiment first")
-    if pb.content_hash() != pb.frozen_hash:
-        sys.exit("refusing: the playbook changed after it was frozen")
+    try:  # the same loader a normal claim run uses (T46): frozen and unchanged, or refused
+        pb = Playbook.load_frozen(args.playbook)
+    except ValueError as err:
+        sys.exit(f"refusing: {err}")
 
     dev = load_cases(args.dev, split="dev")
     held = load_cases(heldout_dir, split="heldout")

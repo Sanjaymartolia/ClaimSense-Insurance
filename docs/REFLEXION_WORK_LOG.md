@@ -4,7 +4,7 @@
 **Scope:** `src/claimsense/reflexion/`, `scripts/run_reflexion_experiment.py`,
 `scripts/run_reflexion_heldout.py`, `tests/orchestration/test_cases.py`,
 `tests/orchestration/test_reflexion.py`, `docs/experiments/reflexion/`.
-**Written:** 8 November 2026, from the files on `main` at commit `86cf567`. **Updated:** 12 November 2026 (DSPy / GEPA comparison, real run `dspy-run-01`, `run-03` on the final gold, REF-13 to REF-17).
+**Written:** 8 November 2026, from the files on `main` at commit `86cf567`. **Updated:** 12 November 2026 (DSPy / GEPA comparison, real run `dspy-run-01`, `run-03` on the final gold, REF-13 to REF-17); 13 November 2026 (T46 frozen loader in `run_one`, edits → proposed lessons, triage, ADR-0013, REF-18 to REF-21).
 **Style:** ASD-STE100 (Simplified Technical English). Short sentences. One instruction per
 sentence. Active voice. The same word for the same thing.
 
@@ -60,7 +60,11 @@ cites. The calculator computes every amount. A person approves every settlement.
 | `reflexion/playbook.py` | Stores lessons. Status: PROPOSED, APPROVED, REJECTED, WITHDRAWN. Returns at most 3 approved lessons for a claim. Freezes with SHA-256. | `test_reflexion.py` |
 | `reflexion/loop.py` | Runs baseline, learn, ablate, withdraw, after, freeze. Refuses the held-out set in `learn()`. | `test_reflexion.py`, `test_cases.py` |
 | `reflexion/metrics.py` | Settlement error, exact-match rate, edit rate, critic-rejection rate. | `test_reflexion.py` |
-| `reflexion/review_cli.py` | The human gate at the terminal. | `test_cases.py` (script end to end) |
+| `reflexion/review_cli.py` | The human gate at the terminal. `propose-from-edits` files a claim run's adjudicator edits as PROPOSED lessons. It approves nothing. | `test_cases.py` (script end to end), `test_playbook_in_graph.py` |
+| `reflexion/triage.py` | Decides before reflection if a mistake is a clause choice. Sends the rest to a backlog with a reason. Holds the clause-id registry the reflector may cite. | `test_reflexion_triage.py` |
+| `reflexion/from_edits.py` | Reads `edit_log` records from a run. Triage, reflect, PROPOSED. The graph never writes a lesson. | `test_playbook_in_graph.py` |
+| `reflexion/playbook.py` (13 Nov) | `load_frozen`: refuses an unfrozen or edited playbook. `duplicate_of`: a refused lesson is not proposed again. | `test_playbook_in_graph.py`, `test_reflexion_triage.py` |
+| `scripts/run_one.py` (13 Nov) | `--playbook` loads a frozen playbook into a normal claim run (T46). `--edits-out` writes the run's edits. The console reviewer accepts `edit`. | manual; needs a real key |
 | `reflexion/reporting.py` | Writes `report.md` and `report.json`. | `test_cases.py` |
 | `scripts/run_reflexion_experiment.py` | Commands `baseline`, `experiment`, `status`. | `test_cases.py` |
 | `scripts/run_reflexion_heldout.py` | Held-out run with a frozen playbook. Refuses an unfrozen, changed or leaky playbook. Refuses a path inside the repository. | `test_cases.py` |
@@ -80,6 +84,13 @@ and `test_cases.py` are new.
 | `tests/orchestration/test_cases.py` | 11 | Loading, contract validity, gold reconciliation, reason-code mapping, the 4 Nov gold relabels, unknown codes raise, stub run of all 20 claims, the tolerance, both scripts end to end with every refusal. |
 | `tests/orchestration/test_reflexion.py` | 5 | Learn, approve, improve, ablate, freeze on synthetic cases. Held-out refuses an unfrozen or leaky playbook. |
 | `tests/orchestration/test_dspy_coverage.py` | 13 | Examples leak no eval-only field. Metric scores reachable lines and names the expected clause. Stub LM equals the stub analyst through the whole pipeline. Oracle coach bootstraps demos; program saves and loads. GEPA runs offline. The `chooser` seam is validated like the model. Winner rule. The script end to end. Skipped when `dspy` is not installed (CI). |
+| `tests/orchestration/test_playbook_in_graph.py` | 8 | T46: `load_frozen` refuses an unfrozen or edited playbook. A frozen lesson is used in a normal run. No playbook, no lessons. PROPOSED and REJECTED lessons never reach a run. An edit becomes one PROPOSED lesson only through the offline step. The CLI refuses a frozen playbook. |
+| `tests/orchestration/test_reflexion_triage.py` | 6 | Triage rules. The clause-id registry. The reflector drops invented ids. A refused lesson is not proposed again. `learn()` writes the backlog. |
+
+Status on 13 November 2026: the first run of `pytest tests/orchestration -q` on the new code
+passed every new test. The only failures were the 24 tests that load the dev gold, all with one
+cause: the CLM-0021 gold total no longer reconciled (REF-21). Resolved the same night by reverting
+the gold commit on `main` with the author's agreement.
 
 Recorded status on 7 November 2026: all tests in `tests/orchestration/` pass (51 tests, this
 includes Spandan's tests). `ruff check` on the Reflexion files reports 0 problems.
@@ -186,9 +197,40 @@ python scripts/run_reflexion_heldout.py \
     --out ../claimsense-heldout-results/run-02 --repeat 3 --tolerance-rs 1
 ```
 
-Use the same `--tolerance-rs` as run-02. The script refuses to run when the playbook is not frozen,
-when the playbook changed after the freeze, when a lesson came from a held-out case, when a held-out
-id is also in the dev set, or when a path is inside the repository.
+Use the same `--tolerance-rs` as the experiment run. Use the latest frozen playbook (`run-03` today;
+`run-04` after the rerun). The script refuses to run when the playbook is not frozen, when the
+playbook changed after the freeze, when a lesson came from a held-out case, when a held-out id is
+also in the dev set, or when a path is inside the repository.
+
+### 4.4 The playbook in a normal claim run, and edits → lessons (13 Nov 2026, T46, ADR-0013)
+
+```bash
+# read the frozen playbook in a normal run (real key needed; run_one refuses stub mode)
+python scripts/run_one.py CLM-0004 --playbook docs/experiments/reflexion/run-03/playbook.json
+# the console reviewer can now type `edit`; the run writes its edits to a file
+python scripts/run_one.py CLM-0004 --reviewer console --edits-out runs/edits.jsonl
+# offline: edits -> PROPOSED lessons; then the human gate
+python -m claimsense.reflexion.review_cli propose-from-edits runs/live-playbook.json --edits runs/edits.jsonl
+python -m claimsense.reflexion.review_cli review runs/live-playbook.json --reviewer "<your name>"
+```
+
+1. `Playbook: <hash>, N approved lessons` is printed next to `Tools:`. Without `--playbook` it
+   prints `Playbook: none`.
+2. An unfrozen or edited playbook stops the run with `--playbook refused: ...`.
+3. `lessons_used` is printed in the FINAL block. It can be `[]` when no approved lesson matches.
+4. `propose-from-edits` approves nothing and refuses a frozen playbook. Start a new file.
+
+### 4.5 run-04 (14 Nov 2026): what happened
+
+1. `pytest tests/orchestration -q`: 147 passed (133 before the 13 Nov files, 14 new).
+2. `ruff format` reformatted two files; `ruff check --fix` sorted one import block.
+3. Stub harness check: ran, backlog section present, frozen.
+4. Real run, console approval: baseline Rs 39,904.80, exact 0.909, edit 0.091, critic 0.182.
+   8 exact, 12 within Rs 1, 2 real misses (CLM-0021, CLM-0022: cataract sub-limit). 1 lesson
+   proposed (clause 4.3 on every procedure line), rejected. 9 mistakes triaged: 8 REF-17 critic
+   items, 1 duplicate. After pass twice: identical. Frozen hash `4f53cda1…`.
+5. `run_one.py CLM-0004 --playbook .../run-04/playbook.json`: `Playbook: 4f53cda18c2b, 0
+   approved lessons`, `lessons_used: []`, settled Rs 67,067.10.
 
 ---
 
@@ -434,6 +476,58 @@ useless lesson proposals (8 of the 16 in run-03). The settlement is unchanged.
 code. Owner of `agents/critic.py`.
 **Status:** Open. Reported 12 Nov 2026. Not a Reflexion bug.
 
+### REF-18: No normal claim run could read the playbook
+
+**Where:** `scripts/run_one.py`, `graph/demo.py`, `eval/agentic/pipeline.py`: every `Team(...)`
+without a playbook.
+**Symptom:** Only the two experiment scripts passed a playbook. The team asked how the playbook is
+used in deployment and the code had no answer. The T46 handoff (Shashank → Spandan) was not done.
+**Fix:** `Playbook.load_frozen` and `run_one.py --playbook` (13 Nov 2026). The held-out script uses
+the same loader. ADR-0013 records the rule: only a frozen, unchanged playbook reaches a run.
+**Status:** Done 13 Nov 2026. Tests in `test_playbook_in_graph.py`.
+
+### REF-19: A live adjudicator edit never became a candidate lesson
+
+**Where:** `graph/nodes.py::apply_edits` leaves the edits in `edit_log`; nothing outside
+`reflexion/evaluator.py` read them.
+**Symptom:** Brief step 9 ("adjudicator corrections become candidate lessons, used only after
+review") was met only by the offline simulated adjudicator.
+**Fix:** `run_one.py --edits-out` writes the records; `review_cli propose-from-edits` files
+PROPOSED lessons offline (`reflexion/from_edits.py`). The graph is unchanged: it never writes a
+lesson (ADR-0005).
+**Status:** Done 13 Nov 2026.
+
+### REF-20: The reflector proposed mistakes that no lesson can fix
+
+**Where:** `reflexion/loop.py::learn`, `reflexion/reflector.py`, `reflexion/playbook.py::propose`.
+**Symptom:** In `run-03`, 14 of 16 proposals were not clause choices: 8 from the critic refusing
+the clause-2 duplicate-line deduction (REF-17), 6 from a waiting-period repudiation (6.2, the
+admissibility gate). The same lesson was proposed twice for four cases. In `run-01`/`run-02`,
+8 of 33 proposals cited an invented clause id (REF-08). Each cost the reviewer a decision and a
+written reason.
+**Fix:** `triage.is_clause_choice` sends non-clause mistakes to a backlog printed in `report.md`;
+`Playbook.duplicate_of` stops a refused lesson from coming back; `reflector._checked` drops ids
+not in `agents/clauses.py` and runs the amounts-and-ids block on the stub path too.
+**Status:** Done 13 Nov 2026. Tests in `test_reflexion_triage.py`. The measured effect is the
+`run-04` rerun.
+
+### REF-21: The CLM-0021 gold total stopped reconciling
+
+**Where:** `eval/golden_dev/gold_worksheets.jsonl`, record CLM-0021 (Domain & Product file).
+**Symptom:** Commit `78114a5` (13 Nov, "CLM 0022 removed due to incorrect gold set") set
+CLM-0021's `expected_settlement_inr` to 59850 while its line items still gave 40,000 allowed minus
+2,000 co-pay, which is 38,000, the value since ADR-0007 (GOLD-05) and the value `run-03` and the
+12 Nov eval run were scored against. 59,850 is the pre-ADR-0007 total. It also removed CLM-0022,
+which at least 8 tests and the red-team set (CLM-9022) still count on. `gold_from_fixture` refused
+the record, so the 24 tests that load the dev set and both Reflexion scripts failed with
+`total_payable 59850 != computed 38000`.
+**Fix:** With the author's agreement, the commit was reverted on `main` (`9b82c5f`, 14 Nov 2026,
+01:58 IST): CLM-0021 back to 38000, CLM-0022 restored, 22 dev claims. Nothing else reads a copy
+of the number. The cataract sub-limit question behind the change is logged as an open gold item for
+the Domain lead to rule on after submission (if 59,850 is intended, the line items, GOLD-05 and the
+harness pins must change together).
+**Status:** Resolved by revert. Gold ruling open.
+
 ---
 
 ## 7. Gold versus calculator: the five disagreements
@@ -464,6 +558,9 @@ code. Owner of `agents/critic.py`.
 | 9 | ~~Rerun the Reflexion experiment on the final gold (`run-03`, REF-13).~~ Done 12 Nov 2026, frozen `4f53cda1…`. | Dhruvi Ramani | — |
 | 12 | Teach the critic the DEC-04 duplicate-line deduction (REF-17). | Agents & Orchestration (critic owner) | Clean critic rate |
 | 10 | Make nursing and cataract clauses retrievable in the stub search (REF-14). | Agents & Orchestration | Ceiling |
+| 13 | ~~Rerun the experiment as `run-04` (real model, console approval, tolerance Rs 1). Freeze.~~ Done 14 Nov 2026: Rs 39,904.80 / exact 0.909 / edit 0.091 before and after; 1 proposed, 0 approved, 9 triaged; hash `4f53cda1…` (same as run-03, no approved lesson). REPORT-SECTION 10.4. The E3 config stays on `run-03`: same hash. | Dhruvi Ramani | — |
+| 14 | Run the held-out set with the frozen `run-04` playbook (same hash as `run-03`; replaces action 6). | Eval & Red-Team | Final report |
+| 15 | Rule on the cataract sub-limit for CLM-0021/0022 (REF-21); if 59,850 is intended, change the line items, GOLD-05 and the harness pins together. | Domain & Product | Gold freeze |
 
 ---
 

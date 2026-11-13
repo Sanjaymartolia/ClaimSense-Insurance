@@ -48,21 +48,28 @@ class Playbook:
         if self.frozen_hash:
             raise FrozenPlaybookError("playbook is frozen for the held-out run")
 
-    def propose(
-        self, text: str, applies_when: str, clause_ids: list[str], source_case_id: str
-    ) -> Lesson | None:
-        """Returns None for a near-duplicate of an existing lesson (L12: memory piles up)."""
-        self._check_open()
+    def duplicate_of(self, text: str, applies_when: str, clause_ids: list[str]) -> Lesson | None:
+        """The existing lesson this one near-duplicates (same clauses, >0.6 word overlap), in any
+        status. A match on a REJECTED or WITHDRAWN lesson means a reviewer already refused this
+        idea: it must not come back to the gate (run-03 showed the same lesson proposed twice)."""
         new = _tokens(text + " " + applies_when)
         for les in self.lessons.values():
-            if les.status in (LessonStatus.REJECTED, LessonStatus.WITHDRAWN):
-                continue
             old = _tokens(les.text + " " + les.applies_when)
             if (
                 set(clause_ids) == set(les.clause_ids)
                 and len(new & old) / max(len(new | old), 1) > 0.6
             ):
-                return None
+                return les
+        return None
+
+    def propose(
+        self, text: str, applies_when: str, clause_ids: list[str], source_case_id: str
+    ) -> Lesson | None:
+        """Returns None for a near-duplicate of an existing lesson (L12: memory piles up),
+        whatever its status: a refused lesson stays refused."""
+        self._check_open()
+        if self.duplicate_of(text, applies_when, clause_ids) is not None:
+            return None
         lesson = Lesson(
             lesson_id="LSN-" + uuid.uuid4().hex[:8],
             text=text.strip(),
@@ -159,3 +166,18 @@ class Playbook:
             return cls(path=p)
         d = json.loads(p.read_text())
         return cls([Lesson.model_validate(x) for x in d["lessons"]], d.get("frozen_hash"), path=p)
+
+    @classmethod
+    def load_frozen(cls, path: str | Path) -> Playbook:
+        """The only loader a normal claim run may use (T46). Refuses a playbook that was never
+        frozen, and one whose approved lessons changed after freezing: the hash in the file must
+        equal the hash of its content, so a run can always say which playbook it read."""
+        p = Path(path)
+        if not p.exists():
+            raise ValueError(f"playbook not found: {p}")
+        pb = cls.load(p)
+        if not pb.frozen:
+            raise ValueError(f"{p} is not frozen; finish the Reflexion experiment first")
+        if pb.content_hash() != pb.frozen_hash:
+            raise ValueError(f"{p} changed after it was frozen (hash mismatch)")
+        return pb
