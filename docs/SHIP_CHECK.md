@@ -28,14 +28,31 @@ python -X utf8 -m eval.ship --label X-stub --stub
 
 ### The ship decision (real models, costs money, roughly 40 minutes: an estimate)
 
+The key must be in the terminal's environment. Having it in `.env` is not enough: no tool here
+reads `.env` on its own, so a run never spends money by accident. If you see
+`OPENROUTER_API_KEY is not set`, load it into this terminal first:
+
 ```powershell
-Remove-Item Env:CLAIMSENSE_LLM -ErrorAction SilentlyContinue    # stub mode off
-# OPENROUTER_API_KEY must be set (VS Code loads it from .env). Never print or share it.
+# 1. Load .env into this terminal (prints nothing; repeat in every new terminal)
+Get-Content .env | ForEach-Object { if ($_ -match '^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)$') { Set-Item "env:$($Matches[1])" $Matches[2].Trim().Trim('"').Trim("'") } }
+
+# 2. Stub mode off, then check (prints only "key loaded", never the key)
+Remove-Item Env:CLAIMSENSE_LLM -ErrorAction SilentlyContinue
+python -c "import os; print('key loaded' if os.getenv('OPENROUTER_API_KEY') else 'key NOT loaded')"
+
+# 3. Run
 python -X utf8 -m eval.ship --label X-real
 ```
 
-Replace `X` with your initials and the date, for example `ss-1113`. Use a new label every time:
-a label that exists is refused.
+If step 2 prints `key NOT loaded`, check that the line in `.env` reads exactly
+`OPENROUTER_API_KEY=...`. Never print, paste or share the key.
+
+Replace `X` with your initials and the date, for example `ss-1113`. Do not type a literal `X`.
+Use a new label every time: a label that exists is refused.
+
+While lint and format still fail on `main`, a real run ends in `DO NOT SHIP`. To see the
+real-model results of the other stages first, add `--skip lint,format`. The verdict is then
+`NOT VERIFIED`, never `SHIP`, because a skipped blocking stage does not count as passed.
 
 ## 3. What it runs
 
