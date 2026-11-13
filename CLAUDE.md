@@ -291,6 +291,7 @@ never edit the generated PDF/DOCX/HTML by hand.
   product calculator (`--adapter claimsense-real-calc`, threshold from `scorecard.yaml`),
   `eval.full --stub`, `eval.agentic.run`, and the eval package tests. Job `eval-real` runs the
   release gate with real models on manual dispatch only (secret `OPENROUTER_API_KEY`).
+  Guide: `docs/CI_CD_PIPELINE.md`.
 - Approvals are signed for a purpose (`approvals.SETTLE` / `REPUDIATE`), and a claim gets one
   final decision (`ClaimsDatabase._refuse_second_decision`); approvals are spent only after the
   write commits. Product tests: `tests/mcp_servers/test_settlement_safety.py`.

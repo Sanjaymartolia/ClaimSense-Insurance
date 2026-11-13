@@ -81,6 +81,8 @@ More in [eval/README.md](eval/README.md). The one-command ship check, step by st
   fixed and what is still open
 - **[Ship check](docs/SHIP_CHECK.md)**: every evaluation in one command and one verdict, with the
   last stub and real results
+- **[CI/CD pipeline](docs/CI_CD_PIPELINE.md)**: what runs on every push (lint, tests, the keyless
+  eval gate), the manual real-model gate, thresholds, how to read a red build, what CD still lacks
 - **[Tool-use evaluation report](eval/agentic/REPORT.md)**: how the agents call tools, tool and
   hook correctness, final database state, attack coverage, open defects AGENTIC-nn
 - **[Experiments E1-E4](eval/experiments/README.md)**: each experiment as config files, one
