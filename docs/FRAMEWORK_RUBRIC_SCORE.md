@@ -214,6 +214,18 @@ database and the Chroma retriever, so level 2 is stronger. Level 3 is still not 
 only `/health` (`api/main.py:14-16`), and no code is an MCP client. The servers have FastMCP entry
 points over stdio, but the agents import them as Python modules. Score unchanged.
 
+Note of 13 November 2026 (Phase 2a): the API now serves claims. `src/claimsense/api/` starts a
+claim, streams the run, and takes the reviewer's decision. The hooks are on, the approver identity
+comes from a token, and `CLAIMSENSE_TOOLS=real` selects `real_services()`. Level 3 also needs the
+agents to call the MCP servers over the protocol (Phase 2b). Score unchanged.
+
+Note of 14 November 2026 (Phase 2b): with `CLAIMSENSE_TOOLS=mcp` the agents call the four MCP
+servers over the protocol (`agents/mcp_services.py`, ADR-0012). The servers run as their own
+processes over stdio, `langchain-mcp-adapters` loads their tools, and the client pins each server's
+advertised tools. A new server, `adjudication-calc`, serves the calculator. Tests compare the
+results with the in-process tools. Both parts of level 3 are now in the code. This note does not
+change the score; the next scoring decides.
+
 ### 5.3 D3 Compliance and audit — score 2, weight 15%
 
 **Matched: "Structured logs".**

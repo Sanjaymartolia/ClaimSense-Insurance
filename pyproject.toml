@@ -21,9 +21,12 @@ agents = [
     "langgraph>=0.2",
     "langgraph-checkpoint-sqlite>=2.0",
     "langchain-openai>=0.2",
-    "langchain-mcp-adapters>=0.1",
+    # 0.3.2 declares mcp<2. 0.3.1 does not, but imports mcp.server.fastmcp, which MCP SDK 2 removed.
+    "langchain-mcp-adapters>=0.3.2",
 ]
-mcp = ["fastmcp>=2.0"]
+# fastmcp 4 needs MCP SDK 2, which langchain-mcp-adapters does not support yet. Lift the cap when it
+# does, then run tests/orchestration/test_mcp_services.py and the pin check (ADR-0012).
+mcp = ["fastmcp>=2.0,<4"]
 retrieval = [
     "chromadb>=0.5",
     "rank-bm25>=0.2.2",

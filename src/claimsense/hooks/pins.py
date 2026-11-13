@@ -5,11 +5,16 @@ can carry an instruction no person reads (MCPTox: 36.5% of agents followed one).
 definition of every tool is fingerprinted into `config/tool_pins.json`, and a tool whose
 definition has changed since review does not load (`real_services()` calls `check_pins`).
 
+Over MCP (`agents/mcp_services.py`) the client pins what each running server advertises: the
+tool's name, description and input schema, keyed `<server>/<tool>` in the same file. A server
+whose tools differ is refused at connect, whatever its source code says (`check_mcp_pins`).
+
 After a deliberate, reviewed change to a tool, record the new pins:
 
     python -m claimsense.hooks.pins --update
 
-Plain Python only (inspect, hashlib, json), so CI can run the check with `.[dev]`.
+The in-process check is plain Python (inspect, hashlib, json). Listing the MCP servers' tools
+needs the `mcp` extra; without it the CLI checks the in-process tools only, and says so.
 """
 
 from __future__ import annotations
@@ -20,7 +25,7 @@ import inspect
 import json
 import os
 import sys
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 from pathlib import Path
 from typing import Any
 
@@ -84,6 +89,68 @@ def check_pins(registry: dict[str, Callable[..., Any]], pins: dict[str, str] | N
         )
 
 
+def _untitled(schema: Any) -> Any:
+    """A JSON schema without its `title` keys, which carry no meaning for a caller."""
+    if isinstance(schema, dict):
+        return {k: _untitled(v) for k, v in schema.items() if k != "title"}
+    if isinstance(schema, list):
+        return [_untitled(v) for v in schema]
+    return schema
+
+
+def mcp_key(server: str, tool: str) -> str:
+    return f"{server}/{tool}"
+
+
+def mcp_fingerprint(server: str, tool: Any) -> str:
+    """Fingerprint of what an MCP server advertises of a tool: name, description, arguments."""
+    schema = _untitled(tool.inputSchema or {})
+    definition = {
+        "server": server,
+        "name": tool.name,
+        "doc": tool.description or "",
+        "params": schema.get("properties", {}),
+        "required": sorted(schema.get("required", [])),
+    }
+    text = json.dumps(definition, sort_keys=True)
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()[:16]
+
+
+def check_mcp_pins(server: str, tools: Iterable[Any], pins: dict[str, str] | None = None) -> None:
+    """Raise ToolPinError if a tool the server advertises is unpinned or differs from its review."""
+    pins = load_pins() if pins is None else pins
+    changed = sorted(
+        mcp_key(server, t.name)
+        for t in tools
+        if pins.get(mcp_key(server, t.name)) != mcp_fingerprint(server, t)
+    )
+    if changed:
+        raise ToolPinError(
+            f"MCP tool definitions changed or never reviewed: {', '.join(changed)}. Review the "
+            "change, then run `python -m claimsense.hooks.pins --update`."
+        )
+
+
+def advertised() -> dict[str, list[Any]]:
+    """Each MCP server's tools as a client sees them, listed in memory: no subprocess, no data
+    opened. Needs the `mcp` extra (ImportError without it)."""
+    import asyncio
+    import importlib
+
+    from fastmcp import Client
+
+    from claimsense.mcp_servers import SERVERS
+
+    async def listing() -> dict[str, list[Any]]:
+        found = {}
+        for name, module in SERVERS.items():
+            async with Client(importlib.import_module(module).server()) as client:
+                found[name] = await client.list_tools()
+        return found
+
+    return asyncio.run(listing())
+
+
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(prog="python -m claimsense.hooks.pins", description=__doc__)
     p.add_argument("--update", action="store_true", help="record the current definitions")
@@ -91,18 +158,32 @@ def main(argv: list[str] | None = None) -> int:
     from claimsense.agents.services import real_services
 
     registry = real_services(check=False).registry()
+    try:
+        servers = advertised()
+    except ImportError:
+        servers = None
+        print("MCP server tools not listed: needs the mcp extra", file=sys.stderr)
     if args.update:
         pins = {n: fingerprint(n, fn) for n, fn in sorted(registry.items())}
+        if servers is None:  # keep the reviewed MCP pins rather than drop them
+            pins |= {k: v for k, v in load_pins().items() if "/" in k}
+        else:
+            pins |= {
+                mcp_key(s, t.name): mcp_fingerprint(s, t) for s, ts in servers.items() for t in ts
+            }
         target = pins_file()
-        target.write_text(json.dumps(pins, indent=1) + "\n", encoding="utf-8")
+        target.write_text(json.dumps(dict(sorted(pins.items())), indent=1) + "\n", encoding="utf-8")
         print(f"pinned {len(pins)} tools in {target}")
         return 0
     try:
         check_pins(registry)
+        for server, tools in (servers or {}).items():
+            check_mcp_pins(server, tools)
     except ToolPinError as e:
         print(e, file=sys.stderr)
         return 1
-    print(f"all {len(registry)} tools match their pins")
+    over_mcp = f", and all {sum(map(len, servers.values()))} MCP server tools" if servers else ""
+    print(f"all {len(registry)} tools match their pins{over_mcp}")
     return 0
 
 

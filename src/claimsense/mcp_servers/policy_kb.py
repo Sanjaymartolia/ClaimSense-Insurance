@@ -391,19 +391,23 @@ def _tool_get_clause(clause_id: str):
     return clause
 
 
-def main() -> None:
-    """Start the policy-kb MCP server over stdio. FastMCP is imported here, never at module load."""
+def server():
+    """The policy-kb MCP app, built without opening the retriever (tool listing, pins, tests)."""
     from fastmcp import FastMCP  # optional dependency: pip install -e ".[mcp]"
-
-    try:
-        warm_up()  # pay the ~30 s open once at start-up; a stale index is reported per call below
-    except Exception as exc:
-        logger.warning("policy-kb starting with an unusable retriever; tools will error: %s", exc)
 
     mcp = FastMCP("policy-kb")
     mcp.tool(name="policy_search")(_tool_policy_search)
     mcp.tool(name="get_clause")(_tool_get_clause)
-    mcp.run()
+    return mcp
+
+
+def main() -> None:
+    """Start the policy-kb MCP server over stdio. FastMCP is imported here, never at module load."""
+    try:
+        warm_up()  # pay the ~30 s open once at start-up; a stale index is reported per call below
+    except Exception as exc:
+        logger.warning("policy-kb starting with an unusable retriever; tools will error: %s", exc)
+    server().run(show_banner=False)
 
 
 if __name__ == "__main__":

@@ -1,10 +1,18 @@
 {
+ "adjudication-calc/calculate": "9a7f0c9d824496e0",
  "calculate": "9df9a6c80ed2afea",
  "claim_history": "9bfc4be8e55c1d97",
+ "claims-db/claim_history": "ddd13e6761ca5963",
+ "claims-db/get_policy": "82d390509b22379a",
+ "claims-db/record_repudiation": "cb29a18ed8a0a87e",
+ "claims-db/settle_claim": "94d13323ed163396",
  "get_clause": "e2265ee6dc08ffc0",
  "get_policy": "58fd1acc55be9127",
+ "policy-kb/get_clause": "a925fa96fe56f15c",
+ "policy-kb/policy_search": "d539f6fe3395331d",
  "policy_search": "c13ab29ecd59eea2",
  "record_repudiation": "fa9f29ec00cd0fe6",
  "settle_claim": "180ba77023693aaf",
+ "tariff/tariff_lookup": "a7e55161ef5519a8",
  "tariff_range": "3f1f6df6610d7008"
 }

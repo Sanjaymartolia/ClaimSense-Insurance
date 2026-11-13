@@ -12,6 +12,8 @@ pip install -e ".[dev]"
 pytest
 uvicorn claimsense.api.main:app --reload   # http://localhost:8000/health
 ```
+Case API (start a claim, stream the agents' work, approve, edit or reject; needs `.[agents]` and
+`CLAIMSENSE_REVIEWERS`): [src/claimsense/api/README.md](src/claimsense/api/README.md).
 Full stack (needs Docker): `cp .env.example .env` then `docker compose up`.
 Grafana: http://localhost:3000 · Prometheus: http://localhost:9090
 

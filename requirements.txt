@@ -4,7 +4,7 @@
 #   pip install -r requirements.txt
 #
 # Source of truth is pyproject.toml. This file mirrors its [project] dependencies and every
-# optional extra with the same version ranges (as of 2026-11-12). If you change a dependency, change
+# optional extra with the same version ranges (as of 2026-11-14). If you change a dependency, change
 # pyproject.toml first, then this file. To install only what your area needs, use the extras
 # instead, e.g. pip install -e ".[dev,agents]".
 
@@ -28,10 +28,10 @@ pypdf>=5.0,<7.0              # ingestion tests; also satisfies retrieval's pypdf
 langgraph>=0.2
 langgraph-checkpoint-sqlite>=2.0
 langchain-openai>=0.2        # OpenRouter client; also needed by the eval judge
-langchain-mcp-adapters>=0.1
+langchain-mcp-adapters>=0.3.2  # declares mcp<2; 0.3.1 does not, and breaks on MCP SDK 2
 
 # --- mcp: tool servers ---
-fastmcp>=2.0
+fastmcp>=2.0,<4              # fastmcp 4 needs MCP SDK 2, which the adapters above do not support
 
 # --- retrieval: hybrid search (then build the index: python -m claimsense.retrieval.index) ---
 chromadb>=0.5

@@ -294,11 +294,16 @@ def main() -> None:
     free. The Services-facing ``tariff_range`` is exposed to agents through Role 3's registry, not
     through this server, so the MCP tool keeps its own descriptive name (``tariff_lookup``).
     """
+    server().run(show_banner=False)
+
+
+def server():
+    """The tariff MCP app, built without loading the table (tool listing, pins, tests)."""
     from fastmcp import FastMCP  # lazy: optional dependency (pip install -e ".[mcp]")
 
     mcp = FastMCP("tariff")
     mcp.tool(name="tariff_lookup")(_tool_tariff_lookup)
-    mcp.run()
+    return mcp
 
 
 if __name__ == "__main__":

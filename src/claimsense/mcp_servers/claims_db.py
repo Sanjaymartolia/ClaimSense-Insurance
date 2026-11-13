@@ -457,6 +457,7 @@ def _db_error(exc: sqlite3.Error) -> ToolError:
 
 
 def _tool_get_policy(policy_number: str):
+    """[read] The policy record for a policy number, or a ``ToolError``."""
     try:
         policy = get_policy(policy_number)
     except sqlite3.Error as exc:
@@ -467,6 +468,7 @@ def _tool_get_policy(policy_number: str):
 
 
 def _tool_claim_history(policy_number: str):
+    """[read] Earlier claims on a policy (duplicate and sub-limit checks), or a ``ToolError``."""
     try:
         claims = [past.model_dump(mode="json") for past in claim_history(policy_number)]
     except sqlite3.Error as exc:
@@ -475,6 +477,7 @@ def _tool_claim_history(policy_number: str):
 
 
 def _tool_settle_claim(claim_id: str, worksheet: dict, approvals: list[dict], needs_senior: bool):
+    """[write] Pay a claim. Needs signed approvals for this exact worksheet; paid once only."""
     try:
         return settle_claim(claim_id, worksheet, approvals, needs_senior)
     except PermissionError as exc:
@@ -488,6 +491,7 @@ def _tool_settle_claim(claim_id: str, worksheet: dict, approvals: list[dict], ne
 
 
 def _tool_record_repudiation(claim_id: str, reasons: list[str], approvals: list[dict]):
+    """[write] Record a repudiation. Needs a signed repudiation approval; one final decision."""
     try:
         return record_repudiation(claim_id, reasons, approvals)
     except PermissionError as exc:
@@ -500,16 +504,21 @@ def _tool_record_repudiation(claim_id: str, reasons: list[str], approvals: list[
         return _db_error(exc)
 
 
-def main() -> None:
+def server():
+    """The claims-db MCP app, built without opening the database (tool listing, pins, tests)."""
     from fastmcp import FastMCP
 
-    get_db()
     mcp = FastMCP("claims-db")
     mcp.tool(name="get_policy")(_tool_get_policy)
     mcp.tool(name="claim_history")(_tool_claim_history)
     mcp.tool(name="settle_claim")(_tool_settle_claim)
     mcp.tool(name="record_repudiation")(_tool_record_repudiation)
-    mcp.run()
+    return mcp
+
+
+def main() -> None:
+    get_db()
+    server().run(show_banner=False)
 
 
 if __name__ == "__main__":

@@ -409,7 +409,7 @@ In stub mode (`CLAIMSENSE_LLM=stub`, or no `OPENROUTER_API_KEY`), `get_llm` retu
 | Input and output guardrails package | **Partial**, on `main`, not wired | `src/claimsense/guardrails/guardrails.py` has input and output checks, but no tests and no callers. Not run for this document. `hooks/` holds only a docstring |
 
 ## 11. APIs, schemas, functions and file responsibilities
-**HTTP:** `src/claimsense/api/main.py` serves only `/health` and `/metrics`. No search endpoint exists. Case endpoints are planned in T37.
+**HTTP:** `src/claimsense/api/` serves `/health`, `/metrics/` and the case routes (start a claim, stream the run, decide its review; `src/claimsense/api/README.md`). No search endpoint exists.
 
 ### Python API
 ```text

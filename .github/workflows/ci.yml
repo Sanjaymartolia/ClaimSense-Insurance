@@ -5,16 +5,24 @@ on:
   workflow_dispatch: # manual run; also the only trigger for the paid `eval-real` job
 
 jobs:
+  # `agents` and `mcp` too, so the case API, LangGraph wiring, tool-hook and MCP tests (servers
+  # over stdio) run here instead of being skipped. Stub mode: no key, no model calls.
   test:
     runs-on: ubuntu-latest
+    env:
+      CLAIMSENSE_LLM: stub
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-python@v6
         with: { python-version: "3.12" }
-      - run: pip install -e ".[dev]"
+      - run: pip install -e ".[dev,agents,mcp]"
       - run: ruff check .
       - run: ruff format --check .
       - run: pytest
+      - name: Case API under LangGraph's strict checkpoint loading (its announced future default)
+        run: pytest tests/api
+        env:
+          LANGGRAPH_STRICT_MSGPACK: "true"
 
   # T48: the eval gate. Free and deterministic: the agents run in stub mode (no key, no model
   # calls), so a red build means the code changed behaviour, never that a model was unlucky.
@@ -33,7 +41,7 @@ jobs:
       - uses: actions/checkout@v5
       - uses: actions/setup-python@v6
         with: { python-version: "3.12" }
-      - run: pip install -e ".[dev,agents,docs]"
+      - run: pip install -e ".[dev,agents,mcp,docs]" # mcp: the pin check lists the servers' tools
       - name: Tool definitions unchanged since review
         run: python -m claimsense.hooks.pins
       - name: Harness self-check (gold replay, floor, every gate on its injected fault)

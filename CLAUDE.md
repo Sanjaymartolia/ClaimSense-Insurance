@@ -52,7 +52,8 @@ this to run offline and free. `scripts/run_one.py` refuses to run in stub mode.
   dependency-free `graph/local.py::LocalRunner` that unit tests and the eval `claimsense` adapter use.
 - **Agents** (`agents/`, bundled as `agents.Team`) pick clauses and write rationales; rupee amounts
   come from `calc/adjudication.py`. Agents reach tools via `agents/services.py`: stubs by default,
-  `real_services()` for the MCP servers (policy-kb, claims-db, tariff) in `mcp_servers/`.
+  `real_services()` imports the server modules in `mcp_servers/` in process, and
+  `agents/mcp_services.py` calls the four servers over the MCP protocol (ADR-0012).
 - **Approval**: the review gate signs an `ApprovalToken` into the claims-db approval store that
   `settle_claim` verifies (needs `CLAIMSENSE_APPROVAL_SECRET`; see `production_review_kwargs()`).
   `hooks/` adds per-claim tool ACL, budget and audit when `tool_hooks=True`.
@@ -121,6 +122,44 @@ pytest course/tests                                          # kit contract test
 python scripts/evaluate_dev.py --label X [--redteam]         # dev eval + plots in runs/
 python scripts/evaluate_dev.py --retrieval-only --label X    # search recall, free
 ```
+
+### Case API (`src/claimsense/api/`, Deploy & Ops)
+```bash
+CLAIMSENSE_LLM=stub CLAIMSENSE_REVIEWERS="local-alice=alice:adjudicator,local-bob=bob:senior" \
+  uvicorn claimsense.api.main:app       # needs .[agents]; one process (no --workers)
+pytest tests/api                         # CI also runs it with LANGGRAPH_STRICT_MSGPACK=true
+```
+- Routes, stream events, settings and the demo steps: `src/claimsense/api/README.md`.
+  `CaseService` runs one graph per request (fresh `Team`, hooks, audit log) on one shared SQLite
+  checkpointer; the thread id is the case id.
+- Approver id and level come from the bearer token, never from the body. The review gate
+  authenticates approvals only, so the level and four-eyes checks in `cases.decide` are what stop
+  a wrong-level edit or reject. Keep them.
+- Rule 4: only `runner.py` (`events`, `summarize`) builds responses, and never from the packet or
+  the extracted claim; `tests/api` checks that no diagnosis or bill description gets out.
+- Read checkpoints through a compiled graph (`CaseService.snapshot`), never the bare checkpointer:
+  in strict mode only a compiled graph knows the `ClaimState` types.
+- `api/metrics.py` uses the `eval/monitoring` metric names, so its alert rules apply to live traffic
+  (`tests/api/test_metrics.py` checks); labels never hold claim ids, approver ids or claim text.
+
+### Tools over MCP (`agents/mcp_services.py`, ADR-0012)
+- `CLAIMSENSE_TOOLS=mcp`: the four servers (`mcp_servers.SERVERS`, `adjudication-calc` included) run
+  as their own processes over stdio. `McpTools` keeps one session each on a background loop;
+  `mcp_services(tools)` gives the agents the usual `Services` (one per claim run).
+- The client refuses a server whose advertised tools differ from `config/tool_pins.json`
+  (`<server>/<tool>` keys). After a reviewed change to a server tool's name, docstring or
+  arguments: `python -m claimsense.hooks.pins --update` (needs `.[mcp]`; check the pin diff).
+- `.[mcp]` caps `fastmcp<4` and `.[agents]` needs `langchain-mcp-adapters>=0.3.2`: fastmcp 4 brings
+  MCP SDK 2, which the adapters do not support yet (0.3.1 installs but fails on import). Lift the
+  cap only with the MCP tests and the pin check passing (ADR-0012).
+- A server sees only the settings listed for it in `SERVER_ENV` (plus `SHARED_ENV`): add a
+  variable there when a server starts reading one, or that server will not get it.
+- Each server module has `server()` (builds the app, opens no data) and `main()` (stdio). Tests
+  list or call tools in memory with `fastmcp.Client(module.server())`.
+- Approvals (review gate) and claim history (memory node) are written by the graph process into
+  the claims DB file the claims-db server reads: one machine, or one shared volume.
+- `CLAIMSENSE_MCP_E2E=1 pytest tests/orchestration/test_mcp_services.py`: all four servers,
+  compared with in-process (policy-kb opens the index first: about 2 min).
 
 ### Everything at once (`eval/ship/`, Eval & Red-Team)
 ```bash
@@ -284,10 +323,11 @@ never edit the generated PDF/DOCX/HTML by hand.
   clears addopts must pass it again), and `eval/deepeval_suite/conftest.py` sets
   `DEEPEVAL_DISABLE_DOTENV=1` before the import. The `deepeval` CLI imports DeepEval before
   pytest starts, so export `DEEPEVAL_DISABLE_DOTENV=1` and `DEEPEVAL_TELEMETRY_OPT_OUT=1` first.
-- CI (`.github/workflows/ci.yml`) is Python 3.12. Job `test`, `.[dev]` only: `ruff check`,
-  `ruff format --check`, `pytest`. A test that needs another extra (langgraph, chromadb, ragas,
-  docx…) must start with `pytest.importorskip`, or CI breaks. Job `eval-gate`, `.[dev,agents,docs]`,
-  stub mode (keyless, deterministic): tool pins, `eval.harness.suite`, the harness gate on the
+- CI (`.github/workflows/ci.yml`) is Python 3.12. Job `test`, `.[dev,agents,mcp]`, stub mode:
+  `ruff check`, `ruff format --check`, `pytest`, then `pytest tests/api` with
+  `LANGGRAPH_STRICT_MSGPACK=true`. A test that needs another extra (chromadb, ragas, docx, dspy…)
+  must start with `pytest.importorskip`, or CI breaks. Job `eval-gate`, `.[dev,agents,mcp,docs]`,
+  stub mode (keyless, deterministic): tool pins (in process and MCP), `eval.harness.suite`, the harness gate on the
   product calculator (`--adapter claimsense-real-calc`, threshold from `scorecard.yaml`),
   `eval.full --stub`, `eval.agentic.run`, and the eval package tests. Job `eval-real` runs the
   release gate with real models on manual dispatch only (secret `OPENROUTER_API_KEY`).
