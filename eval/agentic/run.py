@@ -18,7 +18,7 @@ from typing import Any
 
 from eval.harness.loader import REPO_ROOT
 
-from . import hook_eval, llm_eval, tool_eval, trajectory_eval
+from . import db_state, hook_eval, llm_eval, tool_eval, trajectory_eval
 from .cases import DEFECT_FIXED, FAIL, PASS
 from .pipeline import Run
 
@@ -43,6 +43,8 @@ DEFECTS = {
     "AGENTIC-11": "check_consistency reads 'Patient discharged' as a patient id.",
     "AGENTIC-12": "A not-admissible claim skips the fraud screen, so an in-bill duplicate is not "
     "shown at repudiation review (RT-003, CLM-9026). An override re-runs the screen (B7).",
+    "AGENTIC-14": "claims.status stays 'recorded' after a settlement or repudiation: the write "
+    "updates the claims row before record_history has inserted it.",
     "AGENTIC-13": "A room/ICU line without `days` is capped for 1 day: the contract's default "
     "quantity of 1 is read as days, so the stay length (Claim.nights) is ignored.",
 }
@@ -71,6 +73,7 @@ def _trace(run: Run) -> dict[str, Any]:
 
 def build_report(splits: tuple[str, ...]) -> tuple[dict[str, Any], list[Run]]:
     runs = trajectory_eval.dataset_runs(splits)
+    db_table = db_state.summarize(db_state.dataset_runs(splits))
     trajectory = trajectory_eval.summarize(runs)
     groups = {
         "tool": tool_eval.run_all(),
@@ -85,6 +88,7 @@ def build_report(splits: tuple[str, ...]) -> tuple[dict[str, Any], list[Run]]:
             for r in results
             if r["status"] == "known_defect"
         }
+        | {row["defect"] for row in db_table.values() if row["defect"] and row["failures"]}
     )
     report = {
         "scope": SCOPE,
@@ -97,6 +101,7 @@ def build_report(splits: tuple[str, ...]) -> tuple[dict[str, Any], list[Run]]:
             for name, results in groups.items()
         },
         "attacks": hook_eval.attack_table(),
+        "db_state": db_table,
         "open_defects": {d: DEFECTS[d] for d in open_defects},
         "fixed_defects": FIXED,
     }
@@ -108,6 +113,11 @@ def is_clean(report: dict[str, Any]) -> bool:
         return False
     if any(row["failures"] for row in report["trajectory"].values()):
         return False
+    for row in report["db_state"].values():
+        unexpected = row["failures"] and not row["defect"]
+        stale = row["defect"] and row["applicable"] and row["passed"] == row["applicable"]
+        if unexpected or stale:
+            return False
     bad = (FAIL, DEFECT_FIXED)
     return not any(
         r["status"] in bad for group in report["cases"].values() for r in group["results"]
@@ -140,10 +150,15 @@ def plot(report: dict[str, Any], path: Path) -> None:
         for name, g in report["cases"].items()
     ]
     attacks = [(r["attack_id"], r["live"], r["n"]) for r in report["attacks"] if "n" in r]
+    db_rows = [(f"db: {k}", v["passed"], v["applicable"]) for k, v in report["db_state"].items()]
 
-    fig, axes = plt.subplots(1, 2, figsize=(11, 5.2), constrained_layout=True)
-    _bars(axes[0], metrics + groups, "Tool-use checks passed (known defects count as not passed)")
-    _bars(axes[1], attacks, "Red-team attacks noticed by a control that is live today")
+    fig, axes = plt.subplots(1, 2, figsize=(11, 7.4), constrained_layout=True)
+    _bars(
+        axes[0],
+        metrics + db_rows + groups,
+        "Tool-use checks passed (known defects count as not passed)",
+    )
+    _bars(axes[1], attacks, "Attacks noticed by a live control")
     fig.savefig(path, dpi=150, facecolor="white")
     plt.close(fig)
 
@@ -167,6 +182,9 @@ def main() -> int:
 
     for name, row in report["trajectory"].items():
         print(f"{name:20} {row['passed']}/{row['applicable']}")
+    for name, row in report["db_state"].items():
+        tag = f"  ({row['defect']})" if row["defect"] else ""
+        print(f"db: {name:16} {row['passed']}/{row['applicable']}{tag}")
     for name, group in report["cases"].items():
         print(f"{name:20} {group['totals']}")
     print(f"open defects: {len(report['open_defects'])}")

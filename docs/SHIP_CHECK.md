@@ -64,7 +64,8 @@ real-model results of the other stages first, add `--skip lint,format`. The verd
 | 4 | `tool-pins` | Tool definitions unchanged since review | Yes | free |
 | 5 | `release-gate` | `eval.full`: harness self-check, all 22 dev + 30 red-team claims, harness scorecard and its 6 safety gates, agent suite and `gate.yaml`, combined gate | Yes | about $0.07 |
 | 6 | `tool-use` | `eval.agentic`: tool order, calling agent, arguments, hooks, guardrails, tool correctness (always offline) | Yes | free |
-| 7 | `deepeval` | DeepEval trajectory tests; in real mode also the paid payload judge | Yes | about $0.06 |
+| 7 | `deepeval` | DeepEval trajectory tests (code checks; no judge) | Yes | about $0.04 |
+| 7b | `deepeval-judge` | DeepEval payload judge, GEval + faithfulness (real mode only) | No, report only: uncalibrated | about $0.02 |
 | 8 | `security` | Security scoreboard: each defence against the attacks, honest claims alongside | No, report only | real agents |
 | 9 | `retrieval` | Policy-search recall on 47 queries | No, report only | free (local model) |
 | 10 | `ragas` | RAGAS rationale groundedness on 5 dev claims (real mode only) | No, report only: uncalibrated, weight 0.00 | small |
@@ -105,7 +106,23 @@ python -m eval.ship --label X --workers 4 --judge-limit 5   # parallel claims; R
 A skipped blocking stage is not "passed". With `--skip` on a blocking stage, the verdict can only
 be `NOT VERIFIED` or `DO NOT SHIP`.
 
-## 6. Last result
+## 6. Last results
+
+`X-real` (real models, 13 November 2026, commit `18e0d31`): **DO NOT SHIP**.
+
+| Stage | Result |
+|---|---|
+| tests, tool-pins, tool-use | passed |
+| lint, format | **failed** (as below) |
+| release-gate | passed in real mode: composite 0.984, every gate held |
+| deepeval | **failed**, but only the paid GEval "review payload checklist" judge: 18 claims scored 0.0. Every code-checked trajectory test passed |
+| security, retrieval, ragas | ran (report only) |
+
+The DeepEval judge was blocking in that run. It is uncalibrated, like RAGAS, so it has since moved
+to its own report-only stage, `deepeval-judge`. Its 0.0 scores still need a look: either the
+review payload lacks what the checklist asks for, or the judge is not shown it. Calibrate it
+(`eval/calibration`) before it may block again.
+
 
 `ss-1113-stub` (stub mode, 13 November 2026, commit `366faf4`): **DO NOT SHIP**.
 

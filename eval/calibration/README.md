@@ -18,7 +18,28 @@ Two raters who both answer "grounded" for 95% of items agree about 90% of the ti
 alone. Kappa subtracts that chance agreement, so it measures real agreement. The implementation is
 nine lines in `judge_calibration.py`; the project does not take a scikit-learn dependency for it.
 
-## Steps
+## Quick path (`collect.py`)
+
+```powershell
+# real agents (key loaded, CLAIMSENSE_LLM unset): writes 24 unlabelled items to calibration_set.jsonl
+python -X utf8 -m eval.calibration.collect collect            # add --real-retrieval to match the RAGAS stage
+python -X utf8 -m eval.calibration.collect sheets             # sheet_rater_a.csv, sheet_rater_b.csv (Excel)
+# each rater fills label_1_or_0 in their own sheet, independently (1 supported, 0 not)
+python -X utf8 -m eval.calibration.collect import --a eval/calibration/sheet_rater_a.csv --b eval/calibration/sheet_rater_b.csv
+python -X utf8 -m eval.calibration.collect score              # human kappa first; judge only if people agree
+```
+
+`calibration_claude_draft.jsonl` holds pilot labels written by Claude. They are **not human labels**:
+never copy them into `rater_a` or `rater_b`, and raters should not open the file until both have
+finished, so they are not anchored by it. Use it afterwards as a sanity check.
+
+`collect` takes each item's context exactly as the judge gets it: the clause wording the agent
+was shown plus the claim's facts. It picks lines round-robin across claims and refuses stub mode
+(stub agents give no model reasons) and an existing file (it may hold labels). `score` stops
+before any paid judge call if the raters' kappa is below 0.7, and writes `judge_scores.json`.
+Tests: `pytest eval/calibration/tests` (kept out of `eval/tests`, whose count is pinned).
+
+## Steps (by hand)
 
 1. Copy the template and label it. Two raters, independently, no discussion first.
 

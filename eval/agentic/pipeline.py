@@ -109,9 +109,21 @@ def run_packet(
     fail_on: str | None = None,
     hook_options: dict | None = None,
     configure: Callable[[Team], None] | None = None,
+    db: Any = None,
 ) -> Run:
+    """`db`, a `claims_db.ClaimsDatabase`, swaps the stub database tools and approval store for
+    the real ones on that database (used by `db_state.py`). Search and tariff stay stubs."""
     services = make_stub_services(policies={policy.policy_number: policy})
     services.calculate = real_calculate
+    approval_store: Any = InMemoryApprovalStore()
+    if db is not None:
+        db.upsert_policy(policy)
+        services.get_policy = db.get_policy
+        services.claim_history = db.claim_history
+        services.settle_claim = db.settle_claim
+        services.record_repudiation = db.record_repudiation
+        services.record_history = db.record_history
+        approval_store = db.approval_store
     recorder = Recorder(fail_on=fail_on)
     recorder.install(services)
     team = Team(services)
@@ -123,7 +135,7 @@ def run_packet(
     runner = LocalRunner(
         team,
         identity_provider=DemoIdentityProvider(),
-        approval_store=InMemoryApprovalStore(),
+        approval_store=approval_store,
         tool_hooks=True,
         hook_options={**(hook_options or {}), "audit": audit},
     )

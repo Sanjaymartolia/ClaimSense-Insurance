@@ -24,7 +24,7 @@ def _result(status: str, blocking: bool = True) -> R.Result:
 def test_every_eval_family_is_a_stage():
     names = {s.name for s in _all()}
     assert {"tests", "lint", "release-gate", "tool-use", "deepeval", "security"} <= names
-    assert {"retrieval", "ragas", "attacker"} <= names
+    assert {"retrieval", "ragas", "deepeval-judge", "attacker"} <= names
 
 
 def test_only_ci_and_release_checks_block():
@@ -58,8 +58,11 @@ def test_stub_flag_reaches_paid_stages():
     assert "--stub" in by["release-gate"].cmd and "--stub" in by["security"].cmd
     real = {s.name: s for s in _all(stub=False)}
     assert "--stub" not in real["release-gate"].cmd
-    assert ("CLAIMSENSE_DEEPEVAL_JUDGE", "1") in real["deepeval"].env
-    assert ("CLAIMSENSE_DEEPEVAL_JUDGE", "1") not in by["deepeval"].env
+    # An uncalibrated judge never blocks: the paid DeepEval judge is its own report-only stage.
+    assert ("CLAIMSENSE_DEEPEVAL_JUDGE", "1") not in real["deepeval"].env
+    judge = real["deepeval-judge"]
+    assert ("CLAIMSENSE_DEEPEVAL_JUDGE", "1") in judge.env
+    assert not judge.blocking and judge.real_only
 
 
 def test_child_env_forces_stub_and_utf8(monkeypatch):

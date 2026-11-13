@@ -9,7 +9,9 @@
 The pipeline still uses its tools correctly after the team's latest changes. Across 260 claim runs,
 every call came in the right order, from the right agent, with the right arguments, and every hook
 fired. Two of the twelve defects from the last report are fixed, one new defect was found, and
-live controls now notice **29 of the 30** red-team claims, up from 6.
+live controls now notice **29 of the 30** red-team claims, up from 6. Final database state is now
+checked after full pipeline runs on the real claims database: payments and repudiations are written
+correctly, but the claim's status column is never updated (AGENTIC-14, new).
 
 | Layer | What it checks | Result |
 |---|---|---|
@@ -17,10 +19,11 @@ live controls now notice **29 of the 30** red-team claims, up from 6.
 | Tool cases | Real database, approvals, tariff, calculator; policy search on a fake retriever | 55 of 62 pass, 7 known defects |
 | Hook cases | Permissions, budgets, audit, output guard, guardrails | 34 of 36 pass, 2 known defects |
 | Control cases | Forced breaches mid-run, each tool failing in turn | 11 of 13 pass, 2 known defects |
+| Database state | Rows left in the real claims database after 208 full runs | 6 of 7 checks pass on every run; `claims.status` fails on all 140 writes |
 | Model decisions | Scripted bad clause, critic failure, injected text | 4 of 4 pass |
 
-No case failed unexpectedly. The test suite gives 121 passed and 8 expected failures.
-**11 defects are open.**
+No case failed unexpectedly. The test suite gives 132 passed and 9 expected failures.
+**12 defects are open.**
 
 **Most urgent fixes**
 
@@ -125,7 +128,7 @@ tag gets updated.
 
 ## 5. Results
 
-![Tool-use pass rates and live attack detection](../../runs/agentic/agentic-dev-366faf4.png)
+![Tool-use pass rates and live attack detection](../../runs/agentic/agentic-dev-dbstate.png)
 
 ### 5.1 Trajectory metrics
 
@@ -178,7 +181,26 @@ unit checks and are now marked `wired: true`.
 
 These test how code handles a model's answer, not how good a real model's answers are.
 
-## 6. Product defects (11 open)
+### 5.6 Final database state (208 runs)
+
+`db_state.py` runs each of the 52 claims under four reviewer modes (approve, reject, edit, senior
+reject) with the real `ClaimsDatabase` (in memory) and its signed SQLite approval store, then reads
+the tables back. Expected rows are written in the eval, from the run's branch decisions.
+
+| Check | Rule | Passed |
+|---|---|---|
+| `one_write_or_none` | A final approval leaves exactly one `settlements` row; a rejection leaves none | 208/208 |
+| `write_kind` | `settled` for an admissible claim, `repudiated` for a not-admissible one | 140/140 |
+| `amount_matches` | Stored amount = the approved worksheet's total; a repudiation stores 0 | 140/140 |
+| `hash_matches` | Stored hash = the approved worksheet's hash | 89/89 |
+| `amount_within_claimed` | 0 ≤ amount ≤ total claimed | 89/89 |
+| `history_recorded` | The claim row and one fingerprint per bill line exist only after a write | 208/208 |
+| `claim_status_updated` | `claims.status` says settled or repudiated after the write | **0/140** (AGENTIC-14) |
+
+Tests in `tests/test_db_state.py` corrupt a snapshot (extra row, wrong status, amount or hash, amount
+above the claim, missing history, a write on a rejected claim) and confirm the matching check fails.
+
+## 6. Product defects (12 open)
 
 Severity is this evaluation's own judgement. Every defect below was reproduced by a test case.
 
@@ -193,6 +215,7 @@ Severity is this evaluation's own judgement. Every defect below was reproduced b
 | AGENTIC-08 | Medium | `record_history` bypasses the belt | A write with no permission check, budget or audit row | Agents & Orchestration |
 | AGENTIC-09 | Medium | Tool budget is too small for long bills | A valid 40-line claim stopped with `ToolBudgetExceeded` | Tools & Security, Agents & Orchestration |
 | AGENTIC-13 | Medium (new) | Room/ICU line without `days` is capped for 1 day | Rs 21,000 room over a 3-night stay, Rs 2,00,000 cover: Rs 4,000 paid, Rs 12,000 expected | Tools & Security, Domain lead |
+| AGENTIC-14 | Low (new) | `claims.status` is never updated | Every settled or repudiated claim stays `recorded`: `settle_claim` runs `UPDATE claims` before `record_history` has inserted the row | Tools & Security, Agents & Orchestration |
 | AGENTIC-11 | Low | Patient regex matches ordinary prose | "Patient discharged on..." reported as `patient_mismatch` | Tools & Security |
 | AGENTIC-12 | Low | Not-admissible path skips the fraud screen | CLM-9026's in-bill duplicate not shown at repudiation review | Agents & Orchestration |
 
@@ -223,6 +246,7 @@ stops once N + D exceeds 31, and sooner after a revision or edit.
 | 11 | Require an ID-shaped value after "patient" | [guardrails.py:564](../../src/claimsense/guardrails/guardrails.py#L564) |
 | 12 | Run `in_bill_duplicates` on the not-admissible branch too, next to the carried extraction flags | [nodes.py:161](../../src/claimsense/graph/nodes.py#L161) |
 | 13 | Drop the `quantity` step, or only use it when the source marks quantity as days | [adjudication.py:134](../../src/claimsense/calc/adjudication.py#L134) |
+| 14 | Insert the claim row before the settle/repudiate update, or set the status in `record_history` | [claims_db.py:230](../../src/claimsense/mcp_servers/claims_db.py#L230) |
 
 ## 7. Attack coverage
 
@@ -277,8 +301,9 @@ mismatch.
 
 ## 9. Limitations
 
-- **Stub tools in pipeline runs.** Real database, approval and tariff code is tested only through
-  direct calls. No end-to-end run used `real_services()`.
+- **Stub search and tariff in pipeline runs.** Pipeline runs use the real claims database and
+  approval store (section 5.6), but search and tariff stay stubs. No end-to-end run used
+  `real_services()`.
 - **Real retrieval is not tested.** Policy-search wrappers use a fake retriever.
 - **No real model was called.** Scripted replies test the handling of model output, not its quality.
 - **The revision path is thinly covered.** The critic never failed in the dataset runs, so only the
@@ -295,7 +320,7 @@ mismatch.
 |---|---|
 | Check trajectories and tool use | Done here |
 | Code checks of tool calls and forbidden actions | Done here |
-| Final database state | Partly: direct tool cases only |
+| Final database state | Done here: 208 full runs on the real claims database (section 5.6) |
 | Keep traces for every run | Done for this evaluation, with health data masked |
 | 30+ attacks, including through the data path | 30 attacked claims; 29 detected live |
 | Attack success with defences off and on, false-block rate | Not done |
@@ -306,16 +331,17 @@ mismatch.
 
 ```bash
 pip install -r requirements.txt
-python -m eval.agentic.run --label agentic-dev-366faf4
+python -m eval.agentic.run --label agentic-dev-dbstate
 pytest eval/agentic/tests
 ```
 
 Outputs go to `runs/agentic/`: `<label>.json`, `<label>.traces.jsonl` and `<label>.png`. The
-`cfad026` results are kept as `agentic-dev.*` for comparison.
+`cfad026` results are kept as `agentic-dev.*`, and the run before the database checks as
+`agentic-dev-366faf4.*`.
 
 | Check | Result |
 |---|---|
-| `pytest eval/agentic/tests` | 121 passed, 8 expected failures |
+| `pytest eval/agentic/tests` | 132 passed, 9 expected failures |
 | Two consecutive runs | Byte-identical JSON reports |
 | `ruff check` and `ruff format --check` on `eval/agentic` | Clean |
 | Changes in the repository | Only `eval/agentic/` and `runs/agentic/` |
@@ -327,7 +353,8 @@ Outputs go to `runs/agentic/`: `<label>.json`, `<label>.traces.jsonl` and `<labe
 2. **Tools & Security:** catch `sqlite3.Error` in the claims-db wrappers (AGENTIC-06, -07), and
    consume the approval only when the write commits (AGENTIC-05).
 3. **Agents & Orchestration:** bring `record_history` under the belt (AGENTIC-08), and flag in-bill
-   duplicates on the not-admissible branch (AGENTIC-12).
+   duplicates on the not-admissible branch (AGENTIC-12). Fix the claim status write with Tools &
+   Security (AGENTIC-14).
 4. **Eval & Red-Team:** write new attack wordings that the team has not seen, and measure defences
    off and on with a false-block rate on clean dev claims.
 5. **Eval & Red-Team:** run one end-to-end pass on `real_services()` through LangGraph with the

@@ -71,8 +71,6 @@ class Result:
 def stages(label: str, stub: bool, workers: int, judge_limit: int, variant: str) -> list[Stage]:
     stub_flag = ("--stub",) if stub else ()
     deepeval_env = (("DEEPEVAL_DISABLE_DOTENV", "1"), ("DEEPEVAL_TELEMETRY_OPT_OUT", "1"))
-    if not stub:
-        deepeval_env += (("CLAIMSENSE_DEEPEVAL_JUDGE", "1"),)
     return [
         Stage("tests", "Product tests (CI)", True, (PY, "-m", "pytest", "-q"), offline=True),
         Stage("lint", "ruff check (CI)", True, (PY, "-m", "ruff", "check", "."), needs=("ruff",)),
@@ -122,12 +120,32 @@ def stages(label: str, stub: bool, workers: int, judge_limit: int, variant: str)
         ),
         Stage(
             "deepeval",
-            "DeepEval trajectory tests" + ("" if stub else " + paid payload judge"),
+            "DeepEval trajectory tests (code checks, no judge)",
             True,
             (PY, "-X", "utf8", "-m", "pytest", "eval/deepeval_suite", "-q", "-p", "no:warnings"),
             needs=("deepeval",),
             env=deepeval_env,
             error_codes=(2, 3, 4),  # pytest: interrupted, internal error, usage error
+        ),
+        Stage(
+            "deepeval-judge",
+            "DeepEval payload judge, GEval + faithfulness (report only; uncalibrated)",
+            False,
+            (
+                PY,
+                "-X",
+                "utf8",
+                "-m",
+                "pytest",
+                "eval/deepeval_suite/test_payload_quality.py",
+                "-q",
+                "-p",
+                "no:warnings",
+            ),
+            needs=("deepeval",),
+            env=(*deepeval_env, ("CLAIMSENSE_DEEPEVAL_JUDGE", "1")),
+            real_only=True,
+            error_codes=(2, 3, 4),
         ),
         Stage(
             "security",
@@ -311,7 +329,7 @@ def main(argv: list[str] | None = None) -> int:
     )
     if args.list:
         for s in planned:
-            print(f"{s.name:<13}{'blocks' if s.blocking else 'report':<8}{s.what}")
+            print(f"{s.name:<16}{'blocks' if s.blocking else 'report':<8}{s.what}")
         return 0
     problem = mode_problem(args.stub)
     if problem:
@@ -330,7 +348,7 @@ def main(argv: list[str] | None = None) -> int:
     results: list[Result] = []
     for i, stage in enumerate(planned, 1):
         tag = "blocks" if stage.blocking else "report"
-        print(f"[{i}/{len(planned)}] {stage.name:<13}{tag:<8}{stage.what} ...", flush=True)
+        print(f"[{i}/{len(planned)}] {stage.name:<16}{tag:<8}{stage.what} ...", flush=True)
         res = run_stage(stage, args.stub, out / "logs")
         results.append(res)
         extra = f" ({res.note})" if res.note else ""

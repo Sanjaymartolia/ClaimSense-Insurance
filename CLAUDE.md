@@ -181,6 +181,11 @@ pytest eval/agentic/tests              # NOT in eval/tests, so docs/EVAL_HARNESS
 - Product bugs are strict-xfail cases tagged `AGENTIC-nn` (descriptions in `run.py::DEFECTS`).
   When a bug is fixed its case starts failing as XPASS: change the tag to `fixed` and move the ID
   to `FIXED`. Results and open defects are in `eval/agentic/REPORT.md`.
+- `db_state.py` reruns every claim on a real in-memory `ClaimsDatabase` (`run_packet(db=...)`) and
+  checks the rows left behind; it sets a throwaway `CLAIMSENSE_APPROVAL_SECRET` only if none is set.
+- Judge calibration: `python -m eval.calibration.collect collect` (real model) writes unlabelled
+  items; after two people label them, `... collect score` prints Cohen's kappa. Tests:
+  `pytest eval/calibration/tests`. Model rationales are never saved by any other run (rule 4).
 
 ### Agent suite, combined run, live monitoring (`eval/`, Eval & Red-Team)
 ```bash
