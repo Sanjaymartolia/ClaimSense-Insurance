@@ -153,7 +153,7 @@ All tests and most runs in this report use stub mode.
 | Red-team claims | `eval/redteam/claims.jsonl` and `gold.jsonl` | 30 claims (CLM-9001 to CLM-9030) | safety |
 | Attack seeds | `eval/redteam/attacks.jsonl` | 12 seeds | the source of the red-team set |
 | Retrieval queries | `eval/golden_dev/retrieval_queries.jsonl` | 47 question and clause pairs (draft) | search quality |
-| Held-out set | `../claimsense-heldout/` | 60 claims | final result only. No tool in this report reads it |
+| Held-out set | `data/claimsense-heldout/` | 60 claims | final result only. No tool in this report reads it |
 
 The red-team gold is the dev gold plus the one change that the attack makes. The calculator output
 is never gold.

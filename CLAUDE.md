@@ -26,8 +26,9 @@ freely, but no edits by default.
    `.env.*` and `.ipynb_checkpoints/`) holds course notebooks with real OpenRouter keys: never print,
    commit or copy them out.
 5. **Held-out eval cases are off-limits.** Do not read, generate or modify held-out cases. They live
-   outside this repo in `../claimsense-heldout/`; only a person from Eval & Red-Team runs and scores
-   them, once, with everything frozen. Do not put gold answers into prompts or tools.
+   in `data/claimsense-heldout/` (moved there 2026-11-14 after the ADR-0013 review); only a person
+   from Eval & Red-Team runs and scores them, once, with everything frozen. Do not put gold answers
+   into prompts or tools. The held-out runner needs `--allow-inside-repo` for this path.
 
 ## Stack
 Python 3.11+ · Pydantic v2 · LangGraph (+ SQLite checkpointer, store) · FastMCP + langchain-mcp-adapters
@@ -313,7 +314,8 @@ never edit the generated PDF/DOCX/HTML by hand.
 ## Tooling that acts on its own
 - `.claude/settings.json` runs `ruff format .` and `ruff check --fix .` over the **whole repo**
   after every Edit/Write, so a diff can contain files you did not touch; check `git status` before
-  committing. It also denies reading `.env` and `../claimsense-heldout/`. The hook calls the
+  committing. It also denies reading `.env` and the held-out set (`data/claimsense-heldout/`, and the old
+  `../claimsense-heldout/`). The hook calls the
   system `python`; where that has no ruff it silently does nothing, so run
   `.venv/Scripts/python -m ruff check <files>` and `... ruff format <files>` yourself.
 - On Windows the console is cp1252: run Python that prints Unicode with `-X utf8`.

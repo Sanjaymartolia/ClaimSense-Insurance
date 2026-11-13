@@ -183,8 +183,9 @@ flagging it for whoever owns `reflexion/` and `agents/clauses.py` next). CLM-001
   `data/README.md`, which isn't authoritative yet. Re-check it by hand before scoring against it.
   Use these for prompt/tool iteration only. Never feed gold into prompts, tools or the retrieval
   corpus.
-- Held-out set (60): stored **outside this repo** in `../claimsense-heldout/`, which Claude Code is
-  denied access to (`.claude/settings.json`). The person tuning agents never writes these.
+- Held-out set (60): stored in `data/claimsense-heldout/` (ADR-0013, review log in
+  `docs/HELDOUT_GOLD_REVIEW.md`), which Claude Code is denied access to (`.claude/settings.json`).
+  The person tuning agents never writes these.
 - `golden_dev/retrieval_queries.jsonl` — 47 query → clause pairs for search recall, as full
   questions (`question`) and short bill-line terms (`bill_line_dev`). `bill_line_other` terms are
   never used to write the query-rewrite glossary, so overfitting shows there. Where a

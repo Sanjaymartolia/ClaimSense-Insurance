@@ -1,9 +1,9 @@
 """Score a traces file against a gold file — for the held-out run (Eval & Red-Team only).
 
-    python scripts/run_batch.py   --in ../../../claimsense-heldout/claims.jsonl --out heldout.jsonl
+    python scripts/run_batch.py --in ../../data/claimsense-heldout/claims.jsonl --out heldout.jsonl
     python scripts/score_traces.py --traces heldout.jsonl \
-        --gold ../../../claimsense-heldout/gold_worksheets.jsonl \
-        --claims ../../../claimsense-heldout/claims.jsonl --label heldout_v1
+        --gold ../../data/claimsense-heldout/gold_worksheets.jsonl \
+        --claims ../../data/claimsense-heldout/claims.jsonl --label heldout_v1
 
 A person runs this, once, with everything frozen. Never paste its rows into a prompt.
 """

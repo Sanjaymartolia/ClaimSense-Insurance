@@ -8,9 +8,9 @@ agent cannot read the answer:
     (`ANSWER_HINT_FIELDS`, REC-04): they pre-label the decision the agent must make.
   - Gold is loaded into a separate object the adapter never receives.
 
-The held-out set is deliberately not reachable from here. It lives outside the repository in
-`../claimsense-heldout/` and only a person from Eval & Red-Team runs it, once. `assert_not_heldout`
-refuses any path that looks like it.
+The held-out set is deliberately not reachable from here. It lives in `data/claimsense-heldout/`
+(ADR-0013) and only a person from Eval & Red-Team runs it, once. `assert_not_heldout` refuses any
+path that looks like it.
 """
 
 from __future__ import annotations

@@ -396,6 +396,16 @@ def _renamed_copy(src: str, dst: Path, old: str, new: str) -> None:
         (dst / name).write_text(text.replace(old, new), encoding="utf-8")
 
 
+def test_day5_heldout_script_accepts_only_the_in_repo_heldout_folder(tmp_path):
+    """ADR-0013: the held-out set lives in data/claimsense-heldout/. That one in-repo folder is
+    accepted; every other in-repo folder is still refused. Paths only, no held-out file is read."""
+    ho = _script("run_reflexion_heldout")
+    assert ho._heldout_dir_allowed(ho.REPO_ROOT / "data" / "claimsense-heldout")
+    assert ho._heldout_dir_allowed(tmp_path)  # outside the repo, as before
+    assert not ho._heldout_dir_allowed(Path(DEV))
+    assert not ho._heldout_dir_allowed(ho.REPO_ROOT / "data")
+
+
 def test_day5_heldout_script_guards_and_runs(tmp_path, monkeypatch):
     """Uses a renamed copy of the dev set as a stand-in for the held-out format. The real held-out
     set lives outside the repo and is never read here."""

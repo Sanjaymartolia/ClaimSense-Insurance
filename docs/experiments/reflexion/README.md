@@ -179,7 +179,7 @@ per compiled program (instruction + demos: the notebook's "the improvement is a 
 ```bash
 python scripts/run_reflexion_heldout.py \
     --playbook docs/experiments/reflexion/run-02/playbook.json \
-    --heldout ../claimsense-heldout \
+    --heldout data/claimsense-heldout \
     --out ../claimsense-heldout-results/run-02 --repeat 3 --tolerance-rs 1
 ```
 

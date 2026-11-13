@@ -71,7 +71,7 @@ written by the same team that wrote the defences, so new wordings are still need
 # 1. learn on the dev claims; a person approves each lesson at the terminal
 python -X utf8 -m eval.experiments.e3 learn --reviewer "<name>" --out docs/experiments/reflexion/run-04
 # 2. held-out, before and after the frozen playbook, 3 repeats (Eval & Red-Team only)
-python -X utf8 -m eval.experiments.e3 heldout --heldout ../claimsense-heldout --out ../claimsense-heldout-results/run-03
+python -X utf8 -m eval.experiments.e3 heldout --heldout data/claimsense-heldout --out ../claimsense-heldout-results/run-03
 ```
 
 `learn` meters every `reflexion.loop.reflect` call (the only place lessons are generated) and

@@ -446,7 +446,7 @@ These are improvements, not defects.
 
 | ID | Priority | Recommendation | Where | Depends on |
 |---|---|---|---|---|
-| REC-01 | Medium | Eval & Red-Team should check the held-out gold for GOLD-01 to GOLD-07. It came from the same starter pack (ADR-0002). | `../claimsense-heldout/` | Eval only |
+| REC-01 | Medium | ~~Eval & Red-Team should check the held-out gold for GOLD-01 to GOLD-07. It came from the same starter pack (ADR-0002).~~ **Done 2026-11-14** by the Domain lead ([ADR-0013](adr/0013-heldout-gold-review-with-ai-assist.md), [`HELDOUT_GOLD_REVIEW.md`](HELDOUT_GOLD_REVIEW.md)); the set is now in `data/claimsense-heldout/`. | `../claimsense-heldout/` | Eval only |
 | REC-02 | Medium | Turn the checks in "What passed" into tests. `tests/test_dataset_integrity.py` checks only claim IDs, count and `synthetic`. Add reason-versus-flag and clause-existence checks. | `tests/test_dataset_integrity.py` | T41 |
 | REC-03 | Medium | Rebuild red-team gold after any dev relabel, because 19 of 30 cases sit on a claim with a disputed amount. | `eval/redteam/build_cases.py` | GOLD-01 to GOLD-04 |
 | REC-04 | Medium | Don't pass `potentially_payable` or `room_linked` to agents, because they give away answers. The product loader already omits them, but `HIDDEN` in `course/claimsense_hw/tools.py` strips only `scenario_label` and `fixture_notes`. | `course/claimsense_hw/tools.py` | Eval review |

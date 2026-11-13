@@ -147,7 +147,7 @@ To change a score, edit sections 3 and 5 of `docs/FRAMEWORK_RUBRIC_SCORE.md`.
 ## Rules
 
 - Never print, paste or commit `OPENROUTER_API_KEY`, and never open `.env` on a shared screen.
-- Use synthetic claims only. Never run the held-out set (`../claimsense-heldout/`) unless you are
+- Use synthetic claims only. Never run the held-out set (`data/claimsense-heldout/`) unless you are
   Eval & Red-Team and everything is frozen.
 - Do not use `tee` in PowerShell (it writes UTF-16). Every tool saves its own results.
 - Add `-X utf8` to any command that prints a table.

@@ -12,7 +12,8 @@ insurance decisions or medical pricing. Placement decisions: [ADR-0002](../docs/
 | `knowledge_base/` | Retrieval corpus built from the policy wording ([ADR-0003](../docs/adr/0003-policy-corpus-scope.md)) + its manifest |
 
 Dev claims, gold worksheets and red-team cases live in [`eval/`](../eval/README.md). The 60
-held-out claims live **outside this repo** in `../claimsense-heldout/`.
+held-out claims live in `claimsense-heldout/` (moved here 2026-11-14, ADR-0013; review log in
+`docs/HELDOUT_GOLD_REVIEW.md`). Only Eval & Red-Team runs them, once (CLAUDE.md rule 5).
 
 ## Policy documents
 The proposal form shows UIN `NIAHLIP25044V022425`. Treat it as an observed identifier, not proof

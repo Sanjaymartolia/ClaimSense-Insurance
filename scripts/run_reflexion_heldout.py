@@ -2,7 +2,7 @@
 
     python scripts/run_reflexion_heldout.py \
         --playbook docs/experiments/reflexion/run-01/playbook.json \
-        --heldout ../claimsense-heldout \
+        --heldout data/claimsense-heldout \
         --out ../claimsense-heldout-results/run-01
 
 Runs the 60 held-out claims twice, once with no playbook and once with the frozen playbook, and
@@ -10,9 +10,9 @@ writes the before/after table. No reflection, no proposals, nothing learned.
 
 `claimsense.reflexion.run_heldout` refuses to run if the playbook is not frozen, if it changed
 since freezing, if any lesson came from a held-out case, or if a held-out id also appears in the
-development set. This script adds two more refusals: the held-out directory must not be inside the
-repository, and the output directory must not be inside the repository either, so held-out ids and
-amounts never land in git by accident.
+development set. This script adds two more refusals: the held-out directory must be
+`data/claimsense-heldout/` (ADR-0013) or outside the repository, and the output directory must not
+be inside the repository, so held-out results never land in git by accident.
 
 The held-out files are expected in the same format as `eval/golden_dev/` (`claims.jsonl` +
 `gold_worksheets.jsonl`). Only the Evaluation owner runs this, once, with code, model, prompts and
@@ -42,12 +42,20 @@ from claimsense.reflexion.reporting import (
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
 
+#: The one in-repo folder the held-out set may live in (ADR-0013, moved there 2026-11-14).
+HELDOUT_DIR = REPO_ROOT / "data" / "claimsense-heldout"
+
+
 def _inside_repo(p: Path) -> bool:
     try:
         p.resolve().relative_to(REPO_ROOT)
         return True
     except ValueError:
         return False
+
+
+def _heldout_dir_allowed(p: Path) -> bool:
+    return p.resolve() == HELDOUT_DIR.resolve() or not _inside_repo(p)
 
 
 def main(argv=None) -> None:
@@ -78,8 +86,11 @@ def main(argv=None) -> None:
 
     heldout_dir, out = Path(args.heldout), Path(args.out)
     if not args.allow_inside_repo:
-        if _inside_repo(heldout_dir):
-            sys.exit("refusing: the held-out set must live outside the repository")
+        if not _heldout_dir_allowed(heldout_dir):
+            sys.exit(
+                "refusing: the held-out set must be data/claimsense-heldout/ "
+                "or outside the repository"
+            )
         if _inside_repo(out):
             sys.exit("refusing: held-out results must be written outside the repository")
 

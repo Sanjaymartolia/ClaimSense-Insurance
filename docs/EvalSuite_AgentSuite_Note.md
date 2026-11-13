@@ -369,7 +369,7 @@ Exit codes for all three commands: **0** = passed, **1** = failed the gate, **2*
 
 ## 10. Rules that apply to both
 
-- **Never read, generate or run the held-out set** (`../claimsense-heldout/`). Only Eval &
+- **Never read, generate or run the held-out set** (`data/claimsense-heldout/`). Only Eval &
   Red-Team runs it, once, with everything frozen.
 - **Don't loosen a threshold to get a pass.** Fix the cause, or record the decision in `docs/adr/`.
 - **The gold is partly wrong** (open items in `docs/CLAIMS_AND_GOLD_SET_FIXES.md`). A score means

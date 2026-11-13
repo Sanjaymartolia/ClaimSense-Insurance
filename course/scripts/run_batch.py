@@ -1,9 +1,9 @@
 """Run many claims and write traces, with no gold anywhere near (Eval & Red-Team only).
 
-    # from exercises/<you>/ ; the held-out folder sits next to the repo
-    python scripts/run_batch.py --in ../../../claimsense-heldout/claims.jsonl --out heldout.jsonl
+    # from exercises/<you>/ ; the held-out folder is data/claimsense-heldout/ (ADR-0013)
+    python scripts/run_batch.py --in ../../data/claimsense-heldout/claims.jsonl --out heldout.jsonl
     python scripts/score_traces.py --traces heldout.jsonl \
-        --gold ../../../claimsense-heldout/gold_worksheets.jsonl
+        --gold ../../data/claimsense-heldout/gold_worksheets.jsonl
 
 Freeze code, model, prompts and index before a held-out run (eval/README.md).
 """

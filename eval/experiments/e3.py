@@ -4,7 +4,7 @@
     python -X utf8 -m eval.experiments.e3 learn --reviewer "<name>" \
         --out docs/experiments/reflexion/run-04
     # 2. held-out, before and after the frozen playbook, 3 repeats (Eval & Red-Team only)
-    python -X utf8 -m eval.experiments.e3 heldout --heldout ../claimsense-heldout \
+    python -X utf8 -m eval.experiments.e3 heldout --heldout data/claimsense-heldout \
         --out ../claimsense-heldout-results/run-03
 
 Settings come from `configs/E3_reflexion.yaml`, so both steps use the same tolerance, executor and
@@ -16,9 +16,10 @@ calculator. What this adds to the scripts:
 - **Lessons that made results worse.** The script's ablation (leave one lesson out at a time)
   already finds them; `learn` copies them from `<out>/report.json` into `lesson_cost.json`.
 
-The held-out step only passes arguments through: the script refuses a held-out or output folder
-inside the repository, an unfrozen or changed playbook, and any overlap with the dev set. This
-wrapper never reads held-out files.
+The held-out step only passes arguments through: the script refuses a held-out folder other than
+`data/claimsense-heldout/` or one outside the repository, an output folder inside the repository,
+an unfrozen or changed playbook, and any overlap with the dev set. This wrapper never reads
+held-out files.
 """
 
 from __future__ import annotations
@@ -173,7 +174,7 @@ def main(argv: list[str] | None = None) -> int:
         help="auto is a harness check only, never a result",
     )
     ho = sub.add_parser("heldout", help="held-out before/after (Eval & Red-Team only)")
-    ho.add_argument("--heldout", required=True, help="held-out folder, OUTSIDE the repository")
+    ho.add_argument("--heldout", required=True, help="held-out folder: data/claimsense-heldout")
     ho.add_argument("--out", required=True, help="results folder, OUTSIDE the repository")
     args = p.parse_args(argv)
     cfg = load_e3(Path(args.config))

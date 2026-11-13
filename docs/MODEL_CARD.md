@@ -124,7 +124,7 @@ What the system learns from instead:
 | Retrieval queries (`eval/golden_dev/retrieval_queries.jsonl`) | 49 question → clause pairs | Draft, written by the team; not yet verified by the Domain lead | Retrieval evaluation |
 | Guardrail seeds (`eval/redteam/guardrail_seeds.jsonl`) | 14 | Hand-written, synthetic | Guardrail evaluation |
 | Reflexion playbook lessons | From dev cases | Approved by a person before use | Optional; off in the default pipeline |
-| Held-out set (`../claimsense-heldout/`) | Not stated here | Kept outside the repository | **Not run yet.** Run once, by Eval & Red-Team, with everything frozen |
+| Held-out set (`data/claimsense-heldout/`) | Not stated here | Gold reviewed by the Domain lead (ADR-0013) | **Not run yet.** Run once, by Eval & Red-Team, with everything frozen |
 
 **Known biases and gaps in this data:**
 

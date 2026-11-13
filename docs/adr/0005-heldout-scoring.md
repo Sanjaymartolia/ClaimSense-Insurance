@@ -6,7 +6,9 @@
 
 ## Context
 The production-grade number comes from the 60-claim held-out set in `../claimsense-heldout/`,
-run once with everything frozen (CLAUDE.md rule 5). The dev and red-team scores come from the
+run once with everything frozen (CLAUDE.md rule 5). **Update 2026-11-14:** the Domain lead has
+verified the held-out gold (step 1 below; ADR-0013, `docs/HELDOUT_GOLD_REVIEW.md`), and the set now
+lives in `data/claimsense-heldout/`. The dev and red-team scores come from the
 evaluation harness (`eval/harness/`): a weighted composite plus six catastrophic gates, policy in
 `eval/harness/scorecard.yaml`.
 

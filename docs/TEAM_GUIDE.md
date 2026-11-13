@@ -103,7 +103,7 @@ Model IDs come only from `config/models.yaml`. Never type a model ID into code. 
 | Retrieval set | `eval/golden_dev/retrieval_queries.jsonl` | 47 questions | yes (draft) | everyone | `--retrieval-only` recall@k |
 | Red-team set | `eval/redteam/claims.jsonl` + `gold.jsonl` | 30 attacked claims | yes | everyone; agent sees claims only | safety eval, `--redteam` |
 | Attack seeds | `eval/redteam/attacks.jsonl` | 12 seeds | — | everyone | source of the red-team set |
-| Held-out test set | `../claimsense-heldout/` (outside the repo) | 60 claims | yes | Eval & Red-Team only, once | final, frozen result |
+| Held-out test set | `data/claimsense-heldout/` | 60 claims | yes | Eval & Red-Team only, once | final, frozen result |
 | Contract tests | `course/tests/`, `exercises/<you>/tests/` | 68 tests | — | everyone | kit stays correct; no LLM |
 | Product tests | `tests/` | 21 tests | — | everyone | `src/claimsense/` stays correct |
 
@@ -138,13 +138,13 @@ Each injection seed goes in through all three doors: the discharge summary, a bi
 
 ### 6.4 Held-out test set (60 claims)
 
-Lives in `../claimsense-heldout/`, next to the repo, never inside it. Claude Code is denied access to it. Only Eval & Red-Team runs it, once, after freezing code, model, prompts, policy version and index:
+Lives in `data/claimsense-heldout/` (moved into the repo on 2026-11-14 after the Domain lead's gold review, ADR-0013; change log in `docs/HELDOUT_GOLD_REVIEW.md`). Claude Code is denied access to it. Only Eval & Red-Team runs it, once, after freezing code, model, prompts, policy version and index:
 
     # from exercises/<name>/ (or a frozen copy of the product)
-    python scripts/run_batch.py --in ../../../claimsense-heldout/claims.jsonl --out heldout.jsonl
+    python scripts/run_batch.py --in ../../data/claimsense-heldout/claims.jsonl --out heldout.jsonl
     python scripts/score_traces.py --traces heldout.jsonl \
-        --gold ../../../claimsense-heldout/gold_worksheets.jsonl \
-        --claims ../../../claimsense-heldout/claims.jsonl --label heldout_v1
+        --gold ../../data/claimsense-heldout/gold_worksheets.jsonl \
+        --claims ../../data/claimsense-heldout/claims.jsonl --label heldout_v1
 
 Nobody tunes prompts or code on the held-out result. Gold answers never go into prompts, tools or the retrieval corpus.
 
