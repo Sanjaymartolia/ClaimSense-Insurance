@@ -81,5 +81,7 @@ deepeval>=4.3,<4.4
 dspy>=3.4,<4
 
 # --- docs and course kit: charts and DOCX builds ---
+# matplotlib also draws the eval/agentic charts. eval/ship (one-command ship check) needs no
+# extra package: it runs the tools above.
 matplotlib>=3.8
 python-docx>=1.1

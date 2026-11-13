@@ -55,6 +55,9 @@ this to run offline and free. `scripts/run_one.py` refuses to run in stub mode.
 - **Approval**: the review gate signs an `ApprovalToken` into the claims-db approval store that
   `settle_claim` verifies (needs `CLAIMSENSE_APPROVAL_SECRET`; see `production_review_kwargs()`).
   `hooks/` adds per-claim tool ACL, budget and audit when `tool_hooks=True`.
+- Tool calls beyond the obvious ones: settlement reads `get_policy` before `settle_claim` (payment
+  ceiling); an edit re-runs the fraud screen (B7); a not-admissible claim still calls `calculate`
+  once for its Rs 0 worksheet (ADR-0010) and skips the fraud node.
 - **Reflexion** (`reflexion/`) is a separate improvement loop over dev cases (`scripts/run_reflexion_*.py`);
   `reflexion/cases.py::CLAIM_REASONS` maps gold reason codes to clauses and raises on unmapped codes.
 
@@ -94,6 +97,7 @@ claim JSON does not match `contracts.claim.Claim` (ADR-0002).
 ## Commands
 ```bash
 python -m venv .venv && source .venv/Scripts/activate   # Windows Git Bash
+.\.venv\Scripts\Activate.ps1       # PowerShell; then pip install -r requirements.txt
 pip install -e ".[dev]"            # add ,agents,mcp,retrieval,course,docs,eval as your area needs
                                    # (requirements.txt = everything; it mirrors pyproject.toml, which is the source)
 pytest                             # product tests only: testpaths = ["tests"] (CI runs these + ruff)
@@ -116,6 +120,16 @@ pytest course/tests                                          # kit contract test
 python scripts/evaluate_dev.py --label X [--redteam]         # dev eval + plots in runs/
 python scripts/evaluate_dev.py --retrieval-only --label X    # search recall, free
 ```
+
+### Everything at once (`eval/ship/`, Eval & Red-Team)
+```bash
+python -X utf8 -m eval.ship --label X --stub   # every eval stage, one verdict; drop --stub for the real ship decision (paid)
+pytest eval/ship/tests                         # runner tests; kept out of eval/tests (its count is pinned)
+```
+- It only orchestrates: each stage is an existing CLI run as a subprocess, logs in
+  `runs/ship/<label>/logs/`. Blocking: product tests, ruff, tool pins, `eval.full`, `eval.agentic`,
+  DeepEval. Report only: security scoreboard, retrieval, RAGAS, adaptive attacker (`--attack`).
+  Exit 0 SHIP / REHEARSAL PASSED (stub), 1 DO NOT SHIP, 2 NOT VERIFIED. Guide: `docs/SHIP_CHECK.md`.
 
 ### Eval harness (`eval/`, Eval & Red-Team)
 ```bash
@@ -150,6 +164,23 @@ python -m eval.tools.rubric_score [--plan] [--insurance] [--json]              #
   swap the engine must call `_cached_hits.cache_clear()`.
 - Adding an eval test changes the count stated in `docs/EVAL_HARNESS_REPORT.md` (318 today);
   `eval/tests/test_report_doc.py` fails until you update it and rebuild that DOCX.
+- `pytest eval/tests` rewrites the tracked file `runs/suite-test.json` (`test_suite.py`); run
+  `git checkout -- runs/suite-test.json` afterwards unless you mean to update it.
+- `test_report_doc.py` compares the *collected* test count with the report. Twelve eval test files
+  use `importorskip`, so a `.venv` without all the extras collects fewer tests (297 vs 318) and
+  the check fails. Install `requirements.txt` before treating that as a real mismatch.
+
+### Tool-use evaluation (`eval/agentic/`, Eval & Red-Team)
+```bash
+python -m eval.agentic.run --label X   # offline, no key -> runs/agentic/X.{json,traces.jsonl,png}
+pytest eval/agentic/tests              # NOT in eval/tests, so docs/EVAL_HARNESS_REPORT.md's count is unaffected
+```
+- No model chooses tools: tool order is fixed in Python, so `expected_path.py` writes out the one
+  correct call sequence for a run's branch decisions. When the graph changes on purpose, update
+  that file and cite the ADR or task ID there.
+- Product bugs are strict-xfail cases tagged `AGENTIC-nn` (descriptions in `run.py::DEFECTS`).
+  When a bug is fixed its case starts failing as XPASS: change the tag to `fixed` and move the ID
+  to `FIXED`. Results and open defects are in `eval/agentic/REPORT.md`.
 
 ### Agent suite, combined run, live monitoring (`eval/`, Eval & Red-Team)
 ```bash

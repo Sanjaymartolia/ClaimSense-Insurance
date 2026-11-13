@@ -1,0 +1,19 @@
+C:\Users\HP\OneDrive\Desktop\ClaimSense-Insurance\.venv\Lib\site-packages\pytest_asyncio\plugin.py:306: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to "function" scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session". Set it to "fixture-scope" to keep the current behavior.
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+sss..................................................................... [ 22%]
+........................................................................ [ 44%]
+........................................................................ [ 66%]
+........................................................................ [ 89%]
+...................................                                      [100%]
+============================== warnings summary ===============================
+.venv\Lib\site-packages\langsmith\_internal\_beta_decorator.py:92: 13 warnings
+  C:\Users\HP\OneDrive\Desktop\ClaimSense-Insurance\.venv\Lib\site-packages\langsmith\_internal\_beta_decorator.py:92: DeprecationWarning: 'asyncio.iscoroutinefunction' is deprecated and slated for removal in Python 3.16; use inspect.iscoroutinefunction() instead
+    if asyncio.iscoroutinefunction(func):
+
+.venv\Lib\site-packages\_pytest\cacheprovider.py:487
+  C:\Users\HP\OneDrive\Desktop\ClaimSense-Insurance\.venv\Lib\site-packages\_pytest\cacheprovider.py:487: PytestCacheWarning: could not create cache path C:\Users\HP\OneDrive\Desktop\ClaimSense-Insurance\.pytest_cache\v\cache\nodeids: [WinError 5] Access is denied: 'C:\\Users\\HP\\OneDrive\\Desktop\\ClaimSense-Insurance\\pytest-cache-files-5x75kwgh' -> 'C:\\Users\\HP\\OneDrive\\Desktop\\ClaimSense-Insurance\\.pytest_cache'
+    config.cache.set("cache/nodeids", sorted(str(n) for n in self.cached_nodeids))
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html

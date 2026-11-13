@@ -1,0 +1,14 @@
+tool_order           260/260
+call_counts          260/260
+correct_agent        260/260
+forbidden_calls      260/260
+args_consistent      260/260
+tool_result_used     175/175
+hook_fired           260/260
+edit_invalidates     35/35
+tool                 {'known_defect': 7, 'pass': 55}
+hook                 {'known_defect': 2, 'pass': 34}
+control              {'known_defect': 2, 'pass': 11}
+llm                  {'pass': 4}
+open defects: 11
+report: C:\Users\HP\OneDrive\Desktop\ClaimSense-Insurance\runs\agentic\ss-1113-stub-agentic.json

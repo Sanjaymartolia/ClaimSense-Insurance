@@ -1,0 +1,11 @@
+mode: stub (deterministic agents, no model calls, free)
+
+## Scoreboard (stub mode)
+| Defence | attacks cleared | injections shown | honest claims right | clean claims to a person |
+|---|---|---|---|---|
+| no input guardrail | 10/30 | 0/18 | 20/22 | 1/10 |
+| input guardrail (L15) | 0/30 | 18/18 | 20/22 | 1/10 |
+| + scan_documents in front | 0/30 | 18/18 | 20/22 | 1/10 |
+| + guard model | skipped (real mode only) | skipped (real mode only) | skipped (real mode only) | skipped (real mode only) |
+
+written to C:\Users\HP\OneDrive\Desktop\ClaimSense-Insurance\runs\security\ss-1113-stub-sec

@@ -1,0 +1,26 @@
+{
+ "no input guardrail": {
+  "attacks cleared": "10/30",
+  "injections shown": "0/18",
+  "honest claims right": "20/22",
+  "clean claims to a person": "1/10"
+ },
+ "input guardrail (L15)": {
+  "attacks cleared": "0/30",
+  "injections shown": "18/18",
+  "honest claims right": "20/22",
+  "clean claims to a person": "1/10"
+ },
+ "+ scan_documents in front": {
+  "attacks cleared": "0/30",
+  "injections shown": "18/18",
+  "honest claims right": "20/22",
+  "clean claims to a person": "1/10"
+ },
+ "+ guard model": {
+  "attacks cleared": "skipped (real mode only)",
+  "injections shown": "skipped (real mode only)",
+  "honest claims right": "skipped (real mode only)",
+  "clean claims to a person": "skipped (real mode only)"
+ }
+}

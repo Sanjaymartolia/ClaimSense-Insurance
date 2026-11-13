@@ -1,0 +1,674 @@
+unformatted: File would be reformatted
+   --> docs\GUARDRAILS_BEFORE_AFTER.md:40:91
+    |
+39  | collapsed = re.sub(
+    -     r"(?<![a-z])([a-z](?:(?:\s*\.\s*|\s+)[a-z]){3,}\.?)(?![a-z])", _collapse_letters, norm)
+40  +     r"(?<![a-z])([a-z](?:(?:\s*\.\s*|\s+)[a-z]){3,}\.?)(?![a-z])", _collapse_letters, norm
+41  + )
+42  | ```
+--------------------------------------------------------------------------------
+51  | # 4a. A word spelt with dots between its letters: 'a.u.t.o.m.a.t.e.d' -> 'automated'.
+    - norm = re.sub(r"(?<![a-z.])[a-z](?:\.[a-z]){3,}\.?(?![a-z])",
+    -               lambda m: m.group(0).replace(".", ""), norm)
+52  + norm = re.sub(
+53  +     r"(?<![a-z.])[a-z](?:\.[a-z]){3,}\.?(?![a-z])", lambda m: m.group(0).replace(".", ""), norm
+54  + )
+55  | # 4b. A word spelt with single spaces between its letters: 'i g n o r e' -> 'ignore'.
+    - return re.sub(r"(?<![a-z])[a-z](?: [a-z]){3,}(?![a-z])",
+    -               lambda m: m.group(0).replace(" ", ""), norm)
+56  + return re.sub(
+57  +     r"(?<![a-z])[a-z](?: [a-z]){3,}(?![a-z])", lambda m: m.group(0).replace(" ", ""), norm
+58  + )
+59  | ```
+--------------------------------------------------------------------------------
+80  | from datetime import date
+81  +
+82  +
+83  | class ExtractedBillData(BaseModel):
+84  |     date: date = Field(description="Bill or discharge date (YYYY-MM-DD)")
+85  |     ...
+86  +
+87  |     class Config:
+--------------------------------------------------------------------------------
+97  | import datetime as dt
+98  +
+99  +
+100 | class ExtractedBillData(BaseModel):
+--------------------------------------------------------------------------------
+228 |     letter = self.draft_letter(claim, worksheet)
+    -     self.output_guard(claim, worksheet, letter)          # name, policy, total only
+229 +     self.output_guard(claim, worksheet, letter)  # name, policy, total only
+230 |     receipt = self.belt.call("settle_claim", ...)
+231 |
+232 +
+233 | @staticmethod
+234 | def output_guard(claim, ws, letter) -> None:
+    -     if claim.claim_id != ws.claim_id: raise OutputGuardError(...)
+235 +     if claim.claim_id != ws.claim_id:
+236 +         raise OutputGuardError(...)
+237 |     ...
+--------------------------------------------------------------------------------
+243 | def settle(self, claim, worksheet, approvals, needs_senior):
+    -     self.payment_guard(claim, worksheet)                                   # section 7
+244 +     self.payment_guard(claim, worksheet)  # section 7
+245 |     letter = self.output_guard(claim, worksheet, self.draft_letter(claim, worksheet))
+246 |     receipt = self.belt.call("settle_claim", ...)
+247 |
+248 +
+249 | @staticmethod
+    |
+
+unformatted: File would be reformatted
+   --> src\claimsense\calc\adjudication.py:6:1
+    |
+5   | """
+6   +
+7   | from __future__ import annotations
+--------------------------------------------------------------------------------
+14  | from claimsense.contracts import (
+    -     Claim, Deduction, DeductionReason, LineCategory, Worksheet, WorksheetLine,
+15  +     Claim,
+16  +     Deduction,
+17  +     DeductionReason,
+18  +     LineCategory,
+19  +     Worksheet,
+20  +     WorksheetLine,
+21  | )
+22  |
+23  | __all__ = [
+    -     "PolicyRules", "PAISE", "to_rupees", "room_rent_limit_per_day",
+    -     "icu_limit_per_day", "proportional_cut_ratio", "co_pay", "adjudicate",
+    -     "CATARACT_SUB_LIMIT", "INFORMATIONAL_SUB_LIMITS",
+24  +     "PolicyRules",
+25  +     "PAISE",
+26  +     "to_rupees",
+27  +     "room_rent_limit_per_day",
+28  +     "icu_limit_per_day",
+29  +     "proportional_cut_ratio",
+30  +     "co_pay",
+31  +     "adjudicate",
+32  +     "CATARACT_SUB_LIMIT",
+33  +     "INFORMATIONAL_SUB_LIMITS",
+34  | ]
+--------------------------------------------------------------------------------
+43  |     """Numeric policy parameters; verify them against the insured policy schedule."""
+44  +
+45  |     room_rent_pct: Decimal = Decimal("0.02")
+--------------------------------------------------------------------------------
+55  | # Nursing is part of the all-inclusive ward cap, not a Note 4.1.1(b) linked category.
+    - LINKED_CATEGORIES: frozenset[LineCategory] = frozenset({
+    -     LineCategory.DOCTOR_FEES, LineCategory.OT, LineCategory.INVESTIGATIONS,
+    -     LineCategory.PROCEDURE, LineCategory.OTHER,
+    - })
+56  + LINKED_CATEGORIES: frozenset[LineCategory] = frozenset(
+57  +     {
+58  +         LineCategory.DOCTOR_FEES,
+59  +         LineCategory.OT,
+60  +         LineCategory.INVESTIGATIONS,
+61  +         LineCategory.PROCEDURE,
+62  +         LineCategory.OTHER,
+63  +     }
+64  + )
+65  | FULLY_DEDUCTED: dict[str, DeductionReason] = {
+--------------------------------------------------------------------------------
+110 | def _validate_rules(rules: PolicyRules) -> None:
+    -     for name in ("room_rent_pct", "room_rent_max_per_day", "icu_pct", "icu_max_per_day",
+    -                  "cataract_pct", "cataract_max_per_eye", "co_pay_rate"):
+111 +     for name in (
+112 +         "room_rent_pct",
+113 +         "room_rent_max_per_day",
+114 +         "icu_pct",
+115 +         "icu_max_per_day",
+116 +         "cataract_pct",
+117 +         "cataract_max_per_eye",
+118 +         "co_pay_rate",
+119 +     ):
+120 |         _validate_decimal(f"rules.{name}", getattr(rules, name))
+    -     if rules.co_pay_rate > ONE or any(getattr(rules, n) > ONE for n in
+    -                                       ("room_rent_pct", "icu_pct", "cataract_pct")):
+121 +     if rules.co_pay_rate > ONE or any(
+122 +         getattr(rules, n) > ONE for n in ("room_rent_pct", "icu_pct", "cataract_pct")
+123 +     ):
+124 |         raise ValueError("policy percentage rates must not exceed 1")
+--------------------------------------------------------------------------------
+150 |             if line.quantity <= ZERO or line.quantity != line.quantity.to_integral_value():
+    -                 raise ValueError(f"line {line.line_id}: room/ICU quantity must be positive whole days")
+151 +                 raise ValueError(
+152 +                     f"line {line.line_id}: room/ICU quantity must be positive whole days"
+153 +                 )
+154 |
+--------------------------------------------------------------------------------
+179 |     """Return all-inclusive ward ratio and total ward days (DEC-01)."""
+    -     ward_days = sum((_daily_units(claim, line) for line in claim.bill_lines
+    -                      if line.category == LineCategory.ROOM and line.line_id not in excluded), ZERO)
+    -     ward_total = sum((line.amount for line in claim.bill_lines
+    -                       if line.category in (LineCategory.ROOM, LineCategory.NURSING)
+    -                       and line.line_id not in excluded), ZERO)
+180 +     ward_days = sum(
+181 +         (
+182 +             _daily_units(claim, line)
+183 +             for line in claim.bill_lines
+184 +             if line.category == LineCategory.ROOM and line.line_id not in excluded
+185 +         ),
+186 +         ZERO,
+187 +     )
+188 +     ward_total = sum(
+189 +         (
+190 +             line.amount
+191 +             for line in claim.bill_lines
+192 +             if line.category in (LineCategory.ROOM, LineCategory.NURSING)
+193 +             and line.line_id not in excluded
+194 +         ),
+195 +         ZERO,
+196 +     )
+197 |     if ward_days <= ZERO:
+--------------------------------------------------------------------------------
+202 |
+    - def _make_deduction(reason: DeductionReason, amount: Decimal, clause_id: str,
+    -                     explanation: str) -> Deduction:
+    -     return Deduction(reason=reason, amount=to_rupees(amount), clause_id=clause_id,
+    -                      explanation=explanation)
+203 + def _make_deduction(
+204 +     reason: DeductionReason, amount: Decimal, clause_id: str, explanation: str
+205 + ) -> Deduction:
+206 +     return Deduction(
+207 +         reason=reason, amount=to_rupees(amount), clause_id=clause_id, explanation=explanation
+208 +     )
+209 |
+210 |
+    - def adjudicate(claim: Claim, clause_choices: dict[str, str], rules: PolicyRules | None = None,
+    -                *, version: int = 1, fraud_flags: list[str] | None = None,
+    -                sub_limits_used: dict[str, Decimal] | None = None) -> Worksheet:
+211 + def adjudicate(
+212 +     claim: Claim,
+213 +     clause_choices: dict[str, str],
+214 +     rules: PolicyRules | None = None,
+215 +     *,
+216 +     version: int = 1,
+217 +     fraud_flags: list[str] | None = None,
+218 +     sub_limits_used: dict[str, Decimal] | None = None,
+219 + ) -> Worksheet:
+220 |     """Calculate a reconciled worksheet using ADR-0009 ordering and ratios."""
+--------------------------------------------------------------------------------
+253 |         deductions: list[Deduction] = []
+    -         daily_units = (_daily_units(claim, line) if line.category in
+    -                        (LineCategory.ROOM, LineCategory.ICU) else
+    -                        Decimal(line.days if line.days is not None and line.days > 0
+    -                                else (claim.nights or 1)))
+254 +         daily_units = (
+255 +             _daily_units(claim, line)
+256 +             if line.category in (LineCategory.ROOM, LineCategory.ICU)
+257 +             else Decimal(
+258 +                 line.days if line.days is not None and line.days > 0 else (claim.nights or 1)
+259 +             )
+260 +         )
+261 |
+262 |         # ADR-0009 precedence: duplicate first, even before exclusions or sub-limits.
+263 |         if line.line_id in repeats:
+264 |             first_id = repeats[line.line_id]
+    -             deductions.append(_make_deduction(
+    -                 DeductionReason.OTHER, line.amount, C.OPERATIVE,
+    -                 f"Repeats {first_id} in the same bill; clause 2 indemnifies only expenses incurred.",
+    -             ))
+265 +             deductions.append(
+266 +                 _make_deduction(
+267 +                     DeductionReason.OTHER,
+268 +                     line.amount,
+269 +                     C.OPERATIVE,
+270 +                     f"Repeats {first_id} in the same bill; clause 2 indemnifies only expenses incurred.",
+271 +                 )
+272 +             )
+273 |         elif chosen in FULLY_DEDUCTED:
+    -             deductions.append(_make_deduction(FULLY_DEDUCTED[chosen], line.amount, chosen,
+    -                                               "Not payable under the selected clause."))
+274 +             deductions.append(
+275 +                 _make_deduction(
+276 +                     FULLY_DEDUCTED[chosen],
+277 +                     line.amount,
+278 +                     chosen,
+279 +                     "Not payable under the selected clause.",
+280 +                 )
+281 +             )
+282 |         elif chosen in rules.sub_limits and chosen not in INFORMATIONAL_SUB_LIMITS:
+--------------------------------------------------------------------------------
+287 |             if shortfall > ZERO:
+    -                 deductions.append(_make_deduction(
+    -                     DeductionReason.SUB_LIMIT, shortfall, chosen,
+    -                     f"Sub-limit under {chosen}: Rs {to_rupees(remaining)} remaining from "
+    -                     f"Rs {to_rupees(limit)} after prior use of Rs {to_rupees(used)}.",
+    -                 ))
+288 +                 deductions.append(
+289 +                     _make_deduction(
+290 +                         DeductionReason.SUB_LIMIT,
+291 +                         shortfall,
+292 +                         chosen,
+293 +                         f"Sub-limit under {chosen}: Rs {to_rupees(remaining)} remaining from "
+294 +                         f"Rs {to_rupees(limit)} after prior use of Rs {to_rupees(used)}.",
+295 +                     )
+296 +                 )
+297 |         elif line.category in (LineCategory.ROOM, LineCategory.NURSING) and room_ratio < ONE:
+    -             deductions.append(_make_deduction(
+    -                 DeductionReason.ROOM_RENT_CAP, line.amount * (ONE - room_ratio),
+    -                 C.ROOM_RENT_LIMIT,
+    -                 f"Room, boarding and nursing share Rs {to_rupees(room_cap)}/day x "
+    -                 f"{ward_days} ward day(s); factor {room_ratio:.6f}.",
+    -             ))
+298 +             deductions.append(
+299 +                 _make_deduction(
+300 +                     DeductionReason.ROOM_RENT_CAP,
+301 +                     line.amount * (ONE - room_ratio),
+302 +                     C.ROOM_RENT_LIMIT,
+303 +                     f"Room, boarding and nursing share Rs {to_rupees(room_cap)}/day x "
+304 +                     f"{ward_days} ward day(s); factor {room_ratio:.6f}.",
+305 +                 )
+306 +             )
+307 |         elif line.category == LineCategory.ICU and line.amount > icu_cap * daily_units:
+    -             deductions.append(_make_deduction(
+    -                 DeductionReason.ICU_CAP, line.amount - icu_cap * daily_units, C.ICU_LIMIT,
+    -                 f"ICU capped at Rs {to_rupees(icu_cap)}/day x {daily_units} day(s).",
+    -             ))
+308 +             deductions.append(
+309 +                 _make_deduction(
+310 +                     DeductionReason.ICU_CAP,
+311 +                     line.amount - icu_cap * daily_units,
+312 +                     C.ICU_LIMIT,
+313 +                     f"ICU capped at Rs {to_rupees(icu_cap)}/day x {daily_units} day(s).",
+314 +                 )
+315 +             )
+316 |         elif line.category in LINKED_CATEGORIES and overall_ratio < ONE:
+    -             deductions.append(_make_deduction(
+    -                 DeductionReason.PROPORTIONAL_CUT, line.amount * (ONE - overall_ratio),
+    -                 C.OTHER_EXPENSES,
+    -                 f"Proportional cut after room/ICU breach, factor {overall_ratio:.6f}.",
+    -             ))
+317 +             deductions.append(
+318 +                 _make_deduction(
+319 +                     DeductionReason.PROPORTIONAL_CUT,
+320 +                     line.amount * (ONE - overall_ratio),
+321 +                     C.OTHER_EXPENSES,
+322 +                     f"Proportional cut after room/ICU breach, factor {overall_ratio:.6f}.",
+323 +                 )
+324 +             )
+325 |         # Medicines intentionally never receive the Note 4.1.1(b) proportional cut.
+--------------------------------------------------------------------------------
+330 |             raise ArithmeticError(f"line {line.line_id}: deductions exceed claimed amount")
+    -         worksheet_lines.append(WorksheetLine(line_id=line.line_id, claimed=line.amount,
+    -                                              deductions=deductions, payable=payable))
+331 +         worksheet_lines.append(
+332 +             WorksheetLine(
+333 +                 line_id=line.line_id, claimed=line.amount, deductions=deductions, payable=payable
+334 +             )
+335 +         )
+336 |
+337 |     gross = sum((line.payable for line in worksheet_lines), ZERO)
+338 |     copay_amount = co_pay(gross, rules)
+    -     copay_deduction = (_make_deduction(DeductionReason.CO_PAY, copay_amount, C.CO_PAY,
+    -                                        f"{rules.co_pay_rate * 100:.0f}% co-pay on admissible amount.")
+    -                        if copay_amount > ZERO else None)
+339 +     copay_deduction = (
+340 +         _make_deduction(
+341 +             DeductionReason.CO_PAY,
+342 +             copay_amount,
+343 +             C.CO_PAY,
+344 +             f"{rules.co_pay_rate * 100:.0f}% co-pay on admissible amount.",
+345 +         )
+346 +         if copay_amount > ZERO
+347 +         else None
+348 +     )
+349 |     total_claimed = sum((line.claimed for line in worksheet_lines), ZERO)
+350 |     total_payable = gross - copay_amount
+351 |     if total_payable < ZERO:
+352 |         raise ArithmeticError("co-payment exceeds admissible amount")
+    -     return Worksheet(claim_id=claim.claim_id, version=version, lines=worksheet_lines,
+    -                      co_pay=copay_deduction, total_claimed=total_claimed,
+    -                      total_payable=total_payable, fraud_flags=list(fraud_flags or []))
+353 +     return Worksheet(
+354 +         claim_id=claim.claim_id,
+355 +         version=version,
+356 +         lines=worksheet_lines,
+357 +         co_pay=copay_deduction,
+358 +         total_claimed=total_claimed,
+359 +         total_payable=total_payable,
+360 +         fraud_flags=list(fraud_flags or []),
+361 +     )
+    |
+
+unformatted: File would be reformatted
+   --> src\claimsense\mcp_servers\claims_db.py:7:1
+    |
+6   | """
+7   +
+8   | from __future__ import annotations
+--------------------------------------------------------------------------------
+24  |         import claimsense  # noqa: F401
+25  +
+26  |         return
+--------------------------------------------------------------------------------
+31  |     candidates = [Path(env)] if env else []
+    -     candidates += [here.parent.parent / "ClaimSense-Insurance" / "src",
+    -                    here.parent / "ClaimSense-Insurance" / "src"]
+32  +     candidates += [
+33  +         here.parent.parent / "ClaimSense-Insurance" / "src",
+34  +         here.parent / "ClaimSense-Insurance" / "src",
+35  +     ]
+36  |     for candidate in candidates:
+--------------------------------------------------------------------------------
+115 |                 declared_peds=excluded.declared_peds, city_tier=excluded.city_tier""",
+    -                 (policy.policy_number, policy.period_start.isoformat(), policy.period_end.isoformat(),
+    -                  policy.first_inception.isoformat(), str(policy.sum_insured), policy.insured_pseudonym,
+    -                  json.dumps(list(policy.declared_peds)), policy.city_tier),
+116 +                 (
+117 +                     policy.policy_number,
+118 +                     policy.period_start.isoformat(),
+119 +                     policy.period_end.isoformat(),
+120 +                     policy.first_inception.isoformat(),
+121 +                     str(policy.sum_insured),
+122 +                     policy.insured_pseudonym,
+123 +                     json.dumps(list(policy.declared_peds)),
+124 +                     policy.city_tier,
+125 +                 ),
+126 |             )
+127 |
+    -     def record_history(self, claim: Claim, worksheet: Worksheet | None = None, *,
+    -                        sub_limit_usage: dict[str, Decimal] | None = None) -> None:
+128 +     def record_history(
+129 +         self,
+130 +         claim: Claim,
+131 +         worksheet: Worksheet | None = None,
+132 +         *,
+133 +         sub_limit_usage: dict[str, Decimal] | None = None,
+134 +     ) -> None:
+135 |         with self._lock, self._conn:
+136 |             cur = self._conn.execute(
+137 |                 "INSERT OR IGNORE INTO claims (claim_id,policy_number,admission_date,status,created_at) VALUES (?,?,?,?,?)",
+    -                 (claim.claim_id, claim.policy_number, claim.admission_date.isoformat(),
+    -                  "recorded", datetime.now(UTC).isoformat()),
+138 +                 (
+139 +                     claim.claim_id,
+140 +                     claim.policy_number,
+141 +                     claim.admission_date.isoformat(),
+142 +                     "recorded",
+143 +                     datetime.now(UTC).isoformat(),
+144 +                 ),
+145 |             )
+--------------------------------------------------------------------------------
+149 |                 "INSERT INTO bill_fingerprints (fingerprint,claim_id,policy_number,line_id) VALUES (?,?,?,?)",
+    -                 [(line_fingerprint(claim, line.description, line.amount), claim.claim_id,
+    -                   claim.policy_number, line.line_id) for line in claim.bill_lines],
+150 +                 [
+151 +                     (
+152 +                         line_fingerprint(claim, line.description, line.amount),
+153 +                         claim.claim_id,
+154 +                         claim.policy_number,
+155 +                         line.line_id,
+156 +                     )
+157 +                     for line in claim.bill_lines
+158 +                 ],
+159 |             )
+160 |             consumed: dict[str, Decimal] = {}
+161 |             if worksheet is not None:
+162 |                 for wl in worksheet.lines:
+    -                     for clause_id in {d.clause_id for d in wl.deductions
+    -                                       if d.reason == DeductionReason.SUB_LIMIT}:
+163 +                     for clause_id in {
+164 +                         d.clause_id for d in wl.deductions if d.reason == DeductionReason.SUB_LIMIT
+165 +                     }:
+166 |                         consumed[clause_id] = consumed.get(clause_id, Decimal("0")) + wl.payable
+--------------------------------------------------------------------------------
+174 |                     consumed[clause_id] = value
+    -             rows = [(claim.policy_number, claim.claim_id, key, str(value))
+    -                     for key, value in consumed.items() if value > 0]
+175 +             rows = [
+176 +                 (claim.policy_number, claim.claim_id, key, str(value))
+177 +                 for key, value in consumed.items()
+178 +                 if value > 0
+179 +             ]
+180 |             if rows:
+181 |                 self._conn.executemany(
+    -                     "INSERT INTO sub_limit_usage (policy_number,claim_id,sub_limit_name,amount) VALUES (?,?,?,?)", rows)
+182 +                     "INSERT INTO sub_limit_usage (policy_number,claim_id,sub_limit_name,amount) VALUES (?,?,?,?)",
+183 +                     rows,
+184 +                 )
+185 |
+--------------------------------------------------------------------------------
+195 |         with self._lock:
+    -             row = self._conn.execute("SELECT * FROM policies WHERE policy_number=?", (policy_number,)).fetchone()
+196 +             row = self._conn.execute(
+197 +                 "SELECT * FROM policies WHERE policy_number=?", (policy_number,)
+198 +             ).fetchone()
+199 |         if row is None:
+200 |             return None
+    -         return PolicyInfo(policy_number=row["policy_number"], period_start=date.fromisoformat(row["period_start"]),
+    -                           period_end=date.fromisoformat(row["period_end"]),
+    -                           first_inception=date.fromisoformat(row["first_inception"]),
+    -                           sum_insured=Decimal(row["sum_insured"]), insured_pseudonym=row["insured_pseudonym"],
+    -                           declared_peds=json.loads(row["declared_peds"] or "[]"), city_tier=row["city_tier"])
+201 +         return PolicyInfo(
+202 +             policy_number=row["policy_number"],
+203 +             period_start=date.fromisoformat(row["period_start"]),
+204 +             period_end=date.fromisoformat(row["period_end"]),
+205 +             first_inception=date.fromisoformat(row["first_inception"]),
+206 +             sum_insured=Decimal(row["sum_insured"]),
+207 +             insured_pseudonym=row["insured_pseudonym"],
+208 +             declared_peds=json.loads(row["declared_peds"] or "[]"),
+209 +             city_tier=row["city_tier"],
+210 +         )
+211 |
+212 |     def all_policy_numbers(self) -> list[str]:
+213 |         with self._lock:
+    -             rows = self._conn.execute("SELECT policy_number FROM policies ORDER BY policy_number").fetchall()
+214 +             rows = self._conn.execute(
+215 +                 "SELECT policy_number FROM policies ORDER BY policy_number"
+216 +             ).fetchall()
+217 |         return [row["policy_number"] for row in rows]
+--------------------------------------------------------------------------------
+221 |             claims = self._conn.execute(
+    -                 "SELECT claim_id,admission_date FROM claims WHERE policy_number=? ORDER BY created_at", (policy_number,)).fetchall()
+    -             fps = self._conn.execute("SELECT claim_id,fingerprint FROM bill_fingerprints WHERE policy_number=?", (policy_number,)).fetchall()
+    -             subs = self._conn.execute("SELECT claim_id,sub_limit_name,amount FROM sub_limit_usage WHERE policy_number=?", (policy_number,)).fetchall()
+222 +                 "SELECT claim_id,admission_date FROM claims WHERE policy_number=? ORDER BY created_at",
+223 +                 (policy_number,),
+224 +             ).fetchall()
+225 +             fps = self._conn.execute(
+226 +                 "SELECT claim_id,fingerprint FROM bill_fingerprints WHERE policy_number=?",
+227 +                 (policy_number,),
+228 +             ).fetchall()
+229 +             subs = self._conn.execute(
+230 +                 "SELECT claim_id,sub_limit_name,amount FROM sub_limit_usage WHERE policy_number=?",
+231 +                 (policy_number,),
+232 +             ).fetchall()
+233 |         by_claim: dict[str, list[str]] = {}
+--------------------------------------------------------------------------------
+240 |             bucket[key] = bucket.get(key, Decimal("0")) + Decimal(row["amount"])
+    -         return [PastClaim(claim_id=row["claim_id"], policy_number=policy_number,
+    -                           bill_fingerprints=by_claim.get(row["claim_id"], []),
+    -                           sub_limits_used=usage.get(row["claim_id"], {}),
+    -                           admission_date=date.fromisoformat(row["admission_date"])) for row in claims]
+241 +         return [
+242 +             PastClaim(
+243 +                 claim_id=row["claim_id"],
+244 +                 policy_number=policy_number,
+245 +                 bill_fingerprints=by_claim.get(row["claim_id"], []),
+246 +                 sub_limits_used=usage.get(row["claim_id"], {}),
+247 +                 admission_date=date.fromisoformat(row["admission_date"]),
+248 +             )
+249 +             for row in claims
+250 +         ]
+251 |
+252 |     def find_duplicate_bills(self, policy_number: str, claim: Claim) -> list[str]:
+253 |         seen = {fp for past in self.claim_history(policy_number) for fp in past.bill_fingerprints}
+    -         return [line.line_id for line in claim.bill_lines
+    -                 if line_fingerprint(claim, line.description, line.amount) in seen]
+254 +         return [
+255 +             line.line_id
+256 +             for line in claim.bill_lines
+257 +             if line_fingerprint(claim, line.description, line.amount) in seen
+258 +         ]
+259 |
+    -     def settle_claim(self, claim_id: str, worksheet: Worksheet | dict,
+    -                      approvals: list[ApprovalToken | dict], needs_senior: bool, *,
+    -                      store: appr.ApprovalStore | None = None,
+    -                      require_signed: bool | None = None) -> dict:
+260 +     def settle_claim(
+261 +         self,
+262 +         claim_id: str,
+263 +         worksheet: Worksheet | dict,
+264 +         approvals: list[ApprovalToken | dict],
+265 +         needs_senior: bool,
+266 +         *,
+267 +         store: appr.ApprovalStore | None = None,
+268 +         require_signed: bool | None = None,
+269 +     ) -> dict:
+270 |         """Settle only with signed approvals for this exact worksheet.
+--------------------------------------------------------------------------------
+276 |         ws = worksheet if isinstance(worksheet, Worksheet) else Worksheet.model_validate(worksheet)
+    -         tokens = [t if isinstance(t, ApprovalToken) else ApprovalToken.model_validate(t)
+    -                   for t in (approvals or [])]
+277 +         tokens = [
+278 +             t if isinstance(t, ApprovalToken) else ApprovalToken.model_validate(t)
+279 +             for t in (approvals or [])
+280 +         ]
+281 |         if claim_id != ws.claim_id:
+--------------------------------------------------------------------------------
+285 |             already = self._conn.execute(
+    -                 "SELECT status FROM settlements WHERE claim_id=? AND worksheet_hash=?", (claim_id, ws_hash)).fetchone()
+286 +                 "SELECT status FROM settlements WHERE claim_id=? AND worksheet_hash=?",
+287 +                 (claim_id, ws_hash),
+288 +             ).fetchone()
+289 |         if already is not None:
+--------------------------------------------------------------------------------
+293 |         effective_needs_senior = bool(needs_senior) or appr.needs_senior(ws, ws.fraud_flags)
+    -         appr.assert_can_settle(ws, tokens, effective_needs_senior,
+    -                                store=resolved_store, require_signed=require_signed)
+294 +         appr.assert_can_settle(
+295 +             ws, tokens, effective_needs_senior, store=resolved_store, require_signed=require_signed
+296 +         )
+297 |         with self._lock, self._conn:
+298 |             self._conn.execute(
+299 |                 "INSERT INTO settlements (claim_id,worksheet_hash,amount,status,settled_at) VALUES (?,?,?,?,?)",
+    -                 (claim_id, ws_hash, str(ws.total_payable), "settled", datetime.now(UTC).isoformat()))
+300 +                 (
+301 +                     claim_id,
+302 +                     ws_hash,
+303 +                     str(ws.total_payable),
+304 +                     "settled",
+305 +                     datetime.now(UTC).isoformat(),
+306 +                 ),
+307 +             )
+308 |             self._conn.execute("UPDATE claims SET status='settled' WHERE claim_id=?", (claim_id,))
+    -         return {"status": "settled", "claim_id": claim_id,
+    -                 "amount": str(ws.total_payable), "worksheet_hash": ws_hash}
+309 +         return {
+310 +             "status": "settled",
+311 +             "claim_id": claim_id,
+312 +             "amount": str(ws.total_payable),
+313 +             "worksheet_hash": ws_hash,
+314 +         }
+315 |
+    -     def record_repudiation(self, claim_id: str, reasons: list[str],
+    -                            approvals: list[ApprovalToken | dict], *,
+    -                            store: appr.ApprovalStore | None = None,
+    -                            require_signed: bool | None = None) -> dict:
+    -         tokens = [t if isinstance(t, ApprovalToken) else ApprovalToken.model_validate(t)
+    -                   for t in (approvals or [])]
+316 +     def record_repudiation(
+317 +         self,
+318 +         claim_id: str,
+319 +         reasons: list[str],
+320 +         approvals: list[ApprovalToken | dict],
+321 +         *,
+322 +         store: appr.ApprovalStore | None = None,
+323 +         require_signed: bool | None = None,
+324 +     ) -> dict:
+325 +         tokens = [
+326 +             t if isinstance(t, ApprovalToken) else ApprovalToken.model_validate(t)
+327 +             for t in (approvals or [])
+328 +         ]
+329 |         if not tokens:
+330 |             raise PermissionError("repudiation needs an adjudicator decision")
+331 |         resolved_store = store if store is not None else self.approval_store
+    -         appr.assert_can_repudiate(claim_id, tokens, store=resolved_store, require_signed=require_signed)
+332 +         appr.assert_can_repudiate(
+333 +             claim_id, tokens, store=resolved_store, require_signed=require_signed
+334 +         )
+335 |         with self._lock, self._conn:
+336 |             self._conn.execute(
+337 |                 "INSERT OR REPLACE INTO settlements (claim_id,worksheet_hash,amount,status,settled_at) VALUES (?,?,?,?,?)",
+    -                 (claim_id, "repudiation", "0", "repudiated", datetime.now(UTC).isoformat()))
+    -             self._conn.execute("UPDATE claims SET status='repudiated' WHERE claim_id=?", (claim_id,))
+338 +                 (claim_id, "repudiation", "0", "repudiated", datetime.now(UTC).isoformat()),
+339 +             )
+340 +             self._conn.execute(
+341 +                 "UPDATE claims SET status='repudiated' WHERE claim_id=?", (claim_id,)
+342 +             )
+343 |         return {"status": "repudiated", "claim_id": claim_id, "reasons": list(reasons)}
+--------------------------------------------------------------------------------
+371 |
+    - def settle_claim(claim_id: str, worksheet: Worksheet | dict,
+    -                  approvals: list[ApprovalToken | dict], needs_senior: bool) -> dict:
+372 + def settle_claim(
+373 +     claim_id: str,
+374 +     worksheet: Worksheet | dict,
+375 +     approvals: list[ApprovalToken | dict],
+376 +     needs_senior: bool,
+377 + ) -> dict:
+378 |     return get_db().settle_claim(claim_id, worksheet, approvals, needs_senior)
+379 |
+380 |
+    - def record_repudiation(claim_id: str, reasons: list[str],
+    -                         approvals: list[ApprovalToken | dict]) -> dict:
+381 + def record_repudiation(
+382 +     claim_id: str, reasons: list[str], approvals: list[ApprovalToken | dict]
+383 + ) -> dict:
+384 |     return get_db().record_repudiation(claim_id, reasons, approvals)
+385 |
+386 |
+    - def record_history(claim: Claim, worksheet: Worksheet | None = None, *,
+    -                    sub_limit_usage: dict[str, Decimal] | None = None) -> None:
+387 + def record_history(
+388 +     claim: Claim,
+389 +     worksheet: Worksheet | None = None,
+390 +     *,
+391 +     sub_limit_usage: dict[str, Decimal] | None = None,
+392 + ) -> None:
+393 |     get_db().record_history(claim, worksheet, sub_limit_usage=sub_limit_usage)
+--------------------------------------------------------------------------------
+400 | def seed_demo_policy(db: ClaimsDatabase | None = None) -> PolicyInfo:
+    -     policy = PolicyInfo(policy_number="POL-001", period_start=date(2026, 1, 1),
+    -                         period_end=date(2026, 12, 31), first_inception=date(2024, 1, 1),
+    -                         sum_insured=Decimal("200000"), insured_pseudonym="PT-7731",
+    -                         declared_peds=[], city_tier="tier_1")
+401 +     policy = PolicyInfo(
+402 +         policy_number="POL-001",
+403 +         period_start=date(2026, 1, 1),
+404 +         period_end=date(2026, 12, 31),
+405 +         first_inception=date(2024, 1, 1),
+406 +         sum_insured=Decimal("200000"),
+407 +         insured_pseudonym="PT-7731",
+408 +         declared_peds=[],
+409 +         city_tier="tier_1",
+410 +     )
+411 |     (db or get_db()).upsert_policy(policy)
+--------------------------------------------------------------------------------
+417 |     policy = get_policy(policy_number)
+    -     return policy if policy is not None else ToolError(error="policy not found", code="unknown_policy")
+418 +     return (
+419 +         policy if policy is not None else ToolError(error="policy not found", code="unknown_policy")
+420 +     )
+421 |
+422 |
+423 | def _tool_claim_history(policy_number: str):
+    -     return {"policy_number": policy_number,
+    -             "claims": [past.model_dump(mode="json") for past in claim_history(policy_number)]}
+424 +     return {
+425 +         "policy_number": policy_number,
+426 +         "claims": [past.model_dump(mode="json") for past in claim_history(policy_number)],
+427 +     }
+428 |
+--------------------------------------------------------------------------------
+453 |     from fastmcp import FastMCP
+454 +
+455 |     get_db()
+    |
+
+3 files would be reformatted, 294 files already formatted

@@ -1,0 +1,67 @@
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+Loading weights:   0%|          | 0/199 [00:00<?, ?it/s]Loading weights: 100%|██████████| 199/199 [00:00<00:00, 2898.65it/s]
+Loading weights:   0%|          | 0/105 [00:00<?, ?it/s]Loading weights: 100%|██████████| 105/105 [00:00<00:00, 2673.77it/s]
+query  kind                        Dense            BM25             RRF  RRF + rerankerRRF + reranker + rewrite  ... + category  term
+R01    question                        2               2               2               1               1               1  What is the daily limit for room rent?
+R02    question                        1               2               1               1               1               1  How much ICU charge per day does the policy pay?
+R03    question                        1               1               1               1               1               1  The patient took a room costlier than the limit.
+R04    question                        1               1               1               1               1               1  What co-payment is deducted from every claim?
+R05    question                        2               1               2               1               1               1  Is an illness in the first month after the polic
+R06    question                        1               3               2               2               2               2  When does cover start for a pre-existing disease
+R07    question                        1               1               1               1               1               1  What is the limit for cataract surgery per eye?
+R08    question                        1               1               1               1               1               1  Is robotic surgery covered, and up to how much?
+R09    question                        1               1               1               1               1               1  Are toiletries, gloves or a delivery kit payable
+R10    question                        1               4               2               1               1               1  What does policy period mean?
+R11    question                        1               2               2               1               1               1  Is Ayurveda or homeopathy inpatient treatment co
+R12    question                        1               1               1               1               1               1  What is the maximum paid for a road ambulance?
+R13    question                        1               1               1               1               1               1  What is the waiting period for joint replacement
+R14    question                        1               7               1               1               1               1  How long must a patient wait before hernia treat
+R15    question                        1               3               1               1               1               1  Is cataract surgery subject to a waiting period?
+R16    question                        1               1               1               1               1               1  Is gout covered straight away or only after a wa
+R17    question                        3               1               1               1               1               1  Are admission or registration charges payable se
+R18    question                        2               2               1               1               1               1  Is a patient identification band charged separat
+R19    question                        1               1               1               1               1               1  Are a surgical drill and eye kit paid on top of 
+R20    question                        1               5               1               1               1               1  Is stapedotomy a day-care treatment?
+R21    question                        4               2               3               1               1               1  When can the insurer no longer contest a claim f
+R22    bill_line_dev                   2               5               3               2               1               1  General ward / room charges per day
+R23    bill_line_dev                   1               2               1               2               2               2  ICU inpatient day (excluding procedure)
+R24    bill_line_dev                   6               4               2               4               1               1  Nursing and routine monitoring
+R25    bill_line_dev                   -               2              18               5               2               2  Diagnostics and laboratory
+R26    bill_line_dev                  28               3               7               7               3               3  Medicines and consumables
+R27    bill_line_dev                   1               2               1               1               1               1  Personal comfort kit / non-medical consumables
+R28    bill_line_dev                   -               -               -               -               -               1  Appendectomy
+R29    bill_line_dev                   2               1               1               1               1               3  Caesarean section
+R30    bill_line_dev                  35               -               -               -               -               1  Coronary angioplasty (single stent)
+R31    bill_line_dev                   1               1               1               1               1               1  Fracture fixation (long bone)
+R32    bill_line_dev                   1               1               1               1               1               1  Hysterectomy
+R33    bill_line_dev                   3               -               3              12              12               1  Laparoscopic cholecystectomy
+R34    bill_line_dev                  38              15              11               3               2               1  Pneumonia inpatient episode (non-ICU)
+R35    bill_line_dev                   1               1               1               1               1               1  Ureteroscopy with stone removal
+R36    bill_line_dev                  18               9               9               8               2               2  OT charges
+R37    bill_line_dev                  36               -               -               -               1               1  RMO visit
+R38    bill_line_dev                  27               -               -               -               4               4  Pharmacy
+R39    bill_line_other                 2               2               1               1               1               1  Anaesthetist fee
+R40    bill_line_other                 4               1               1               1               1               1  Surgeon fee
+R41    bill_line_other                 -               -               -               -               -               1  X-ray chest
+R42    bill_line_other                18               4               7               2               2               2  Oxygen charges
+R43    bill_line_other                14               7               8               3               3               3  Blood bank charges
+R44    bill_line_other                13               1               1               1               1               1  Road ambulance
+R45    bill_line_other                14              12               5               1               1               1  Surgical gloves and masks
+R46    bill_line_other                 1               1               1               2               2               2  Cataract surgery right eye
+R47    bill_line_other                 2              10               2               2               2               2  Medicines after discharge
+R48    bill_line_dev                   2               3               1               7               2               1  Phacoemulsification with foldable IOL (right eye
+R49    bill_line_dev                   1               3               1               7               2               1  Secondary IOL implantation (left eye)
+
+Top-1    all                       0.469           0.367           0.551           0.592           0.653           0.776
+Recall@5 all                       0.714           0.755           0.776           0.796           0.918           1.000
+MRR      all                       0.588           0.530           0.661           0.689           0.776           0.872
+Top-1    question                  0.762           0.524           0.714           0.952           0.952           0.952
+Recall@5 question                  1.000           0.952           1.000           1.000           1.000           1.000
+MRR      question                  0.861           0.703           0.849           0.976           0.976           0.976
+Top-1    bill_line_dev             0.316           0.211           0.421           0.263           0.421           0.684
+Recall@5 bill_line_dev             0.526           0.632           0.579           0.526           0.842           1.000
+MRR      bill_line_dev             0.432           0.375           0.504           0.391           0.614           0.811
+Top-1    bill_line_other           0.111           0.333           0.444           0.444           0.444           0.556
+Recall@5 bill_line_other           0.444           0.556           0.667           0.889           0.889           1.000
+MRR      bill_line_other           0.281           0.453           0.552           0.648           0.648           0.759
+Chart: runs/retrieval_ss-1113-stub.png
