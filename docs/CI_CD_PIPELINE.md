@@ -41,7 +41,8 @@ flowchart LR
 | Pull request (any branch) | `test`, then `eval-gate` |
 | Actions > ci > Run workflow | `test`, then `eval-gate`, then `eval-real` |
 
-A job runs only if the job before it passed. All jobs use Python 3.12 on `ubuntu-latest`.
+A job runs only if the job before it passed. All jobs use Python 3.12 on `ubuntu-latest`. A green
+run takes about a minute and a half (run #100: `test` 32 s, `eval-gate` 41 s).
 
 ---
 
@@ -205,7 +206,7 @@ Proposed jobs (**not in `ci.yml` yet, not yet run**; owner Deploy & Ops, after t
     needs: test
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - run: touch .env      # until env_file is made optional
       - run: docker compose up -d --build
       - run: |
@@ -225,12 +226,15 @@ registry on a version tag.
 
 The guide asks for "one failed CI run with an explanation" (L16).
 
-| Commit | Result | Explanation |
-|---|---|---|
-| Pushes before `4e46e8d`, for example `36e3aef` | **Failed** in job `test`, step `ruff check .` | Lint errors had built up in product code: 88 on 12 November, 113 and 3 unformatted files by `36e3aef` (`docs/RUFF_CHECK_REPORT.md`). Lint was the step that failed; the product tests passed in the same day's ship checks |
-| `4e46e8d` (Phase 1) | Expected green | Lint fixed with no change in behaviour; the eval gate added |
+| Run | Commit | Result | Explanation |
+|---|---|---|---|
+| [#98](https://github.com/Sanjaymartolia/ClaimSense-Insurance/actions/runs/43400256601) | `36e3aef` | **Failed** in job `test` at step `ruff check .`; the format check and `pytest` never ran | Lint errors had built up in product code: 88 on 12 November, 113 and 3 unformatted files by `36e3aef` (`docs/RUFF_CHECK_REPORT.md`). Runs #93 to #97 (12-13 November) failed too. The product tests passed in the same day's ship checks |
+| [#99](https://github.com/Sanjaymartolia/ClaimSense-Insurance/actions/runs/43420530915) | `4e46e8d` (Phase 1) | **Passed**: `test` 27 s, `eval-gate` 45 s; `eval-real` skipped (manual only) | The first green run: lint fixed with no change in behaviour, and the first run of the eval gate on GitHub |
+| [#100](https://github.com/Sanjaymartolia/ClaimSense-Insurance/actions/runs/43421673947) | `032dfd5` | **Passed**: `test` 32 s, `eval-gate` 41 s, 1 min 18 s in all, 1 artifact | The CI/CD guide itself |
 
-Paste the links of the last red run and the first green run (Actions page) into this table.
+GitHub reports two warnings on these runs: `checkout@v4`, `setup-python@v5` and `upload-artifact@v4`
+are built for Node.js 20, which GitHub has deprecated. They now use `checkout@v5`,
+`setup-python@v6` and `upload-artifact@v6`, the first versions built for Node.js 24.
 
 Checks done before the Phase 1 push, on 13 November 2026, in a fresh virtual environment (Windows,
 Python 3.14, same commands as CI): job `test` passed (ruff clean; 276 tests passed, 7 skipped,

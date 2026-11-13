@@ -8,8 +8,8 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
         with: { python-version: "3.12" }
       - run: pip install -e ".[dev]"
       - run: ruff check .
@@ -30,8 +30,8 @@ jobs:
       CLAIMSENSE_LLM: stub
       PYTHONUTF8: "1"
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
         with: { python-version: "3.12" }
       - run: pip install -e ".[dev,agents,docs]"
       - name: Tool definitions unchanged since review
@@ -48,7 +48,7 @@ jobs:
         run: pytest eval/agentic/tests eval/ship/tests eval/experiments/tests eval/calibration/tests
       - name: Keep the scorecards
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: eval-gate-${{ github.run_id }}
           path: |
@@ -79,15 +79,15 @@ jobs:
     steps:
       - name: Refuse to run without a key (it would silently fall back to stub mode)
         run: test -n "$OPENROUTER_API_KEY" || { echo "::error::OPENROUTER_API_KEY secret is not set"; exit 1; }
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
         with: { python-version: "3.12" }
       - run: pip install -e ".[dev,agents,docs]"
       - name: Release gate with real models
         run: python -m eval.full --label ci-real --splits dev,redteam --workers 4 --quiet
       - name: Keep the result
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: eval-real-${{ github.run_id }}
           path: runs/full/ci-real/
