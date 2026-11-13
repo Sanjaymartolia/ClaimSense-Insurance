@@ -4,7 +4,7 @@
 **Scope:** `src/claimsense/reflexion/`, `scripts/run_reflexion_experiment.py`,
 `scripts/run_reflexion_heldout.py`, `tests/orchestration/test_cases.py`,
 `tests/orchestration/test_reflexion.py`, `docs/experiments/reflexion/`.
-**Written:** 8 November 2026, from the files on `main` at commit `86cf567`. **Updated:** 12 November 2026 (DSPy / GEPA comparison, real run `dspy-run-01`, `run-03` on the final gold, REF-13 to REF-17); 13 November 2026 (T46 frozen loader in `run_one`, edits → proposed lessons, triage, ADR-0013, REF-18 to REF-21).
+**Written:** 8 November 2026, from the files on `main` at commit `86cf567`. **Updated:** 12 November 2026 (DSPy / GEPA comparison, real run `dspy-run-01`, `run-03` on the final gold, REF-13 to REF-17); 13 November 2026 (T46 frozen loader in `run_one`, edits → proposed lessons, triage, ADR-0014, REF-18 to REF-21).
 **Style:** ASD-STE100 (Simplified Technical English). Short sentences. One instruction per
 sentence. Active voice. The same word for the same thing.
 
@@ -26,7 +26,7 @@ It does not replace the report. The report is `docs/experiments/reflexion/REPORT
 | stub mode | The run without a model. The code picks clauses with fixed rules. It proves that the loop runs. |
 | real mode | The run with a model through OpenRouter. This gives the reported result. |
 | tolerance | A line within Rs 1 of the gold counts as correct. Switch: `--tolerance-rs 1`. |
-| held-out set | 60 claims outside the repository. Only Eval & Red-Team runs them, once. |
+| held-out set | 60 claims in `data/claimsense-heldout/`, a folder the agents are denied (ADR-0013). Only Eval & Red-Team runs them, once. |
 
 ---
 
@@ -192,9 +192,9 @@ The first printed line is the banner. It must say `REAL MODEL`. The script write
 
 ```bash
 python scripts/run_reflexion_heldout.py \
-    --playbook docs/experiments/reflexion/run-02/playbook.json \
-    --heldout ../claimsense-heldout \
-    --out ../claimsense-heldout-results/run-02 --repeat 3 --tolerance-rs 1
+    --playbook docs/experiments/reflexion/run-04/playbook.json \
+    --heldout data/claimsense-heldout \
+    --out ../claimsense-heldout-results/run-04 --repeat 3 --tolerance-rs 1
 ```
 
 Use the same `--tolerance-rs` as the experiment run. Use the latest frozen playbook (`run-03` today;
@@ -202,7 +202,7 @@ Use the same `--tolerance-rs` as the experiment run. Use the latest frozen playb
 playbook changed after the freeze, when a lesson came from a held-out case, when a held-out id is
 also in the dev set, or when a path is inside the repository.
 
-### 4.4 The playbook in a normal claim run, and edits → lessons (13 Nov 2026, T46, ADR-0013)
+### 4.4 The playbook in a normal claim run, and edits → lessons (13 Nov 2026, T46, ADR-0014)
 
 ```bash
 # read the frozen playbook in a normal run (real key needed; run_one refuses stub mode)
@@ -483,7 +483,7 @@ without a playbook.
 **Symptom:** Only the two experiment scripts passed a playbook. The team asked how the playbook is
 used in deployment and the code had no answer. The T46 handoff (Shashank → Spandan) was not done.
 **Fix:** `Playbook.load_frozen` and `run_one.py --playbook` (13 Nov 2026). The held-out script uses
-the same loader. ADR-0013 records the rule: only a frozen, unchanged playbook reaches a run.
+the same loader. ADR-0014 records the rule: only a frozen, unchanged playbook reaches a run.
 **Status:** Done 13 Nov 2026. Tests in `test_playbook_in_graph.py`.
 
 ### REF-19: A live adjudicator edit never became a candidate lesson

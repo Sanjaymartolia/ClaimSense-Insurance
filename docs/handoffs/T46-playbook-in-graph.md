@@ -5,7 +5,7 @@
 
 > **Status (13 Nov 2026): done by Dhruvi Ramani (Reflexion owner).** `Playbook.load_frozen`,
 > `run_one.py --playbook`, the `Playbook:` line, and `tests/orchestration/test_playbook_in_graph.py`
-> (the five tests below, plus the edit → proposed-lesson hand-off). Decision record: ADR-0013.
+> (the five tests below, plus the edit → proposed-lesson hand-off). Decision record: ADR-0014.
 > Also added, beyond this handoff: `run_one.py --edits-out` and
 > `review_cli propose-from-edits` (brief step 9), still with the rule that the graph never writes
 > a lesson.

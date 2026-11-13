@@ -1,4 +1,4 @@
-# ADR-0013: The Reflexion playbook: how a lesson is made, approved, used and frozen
+# ADR-0014: The Reflexion playbook: how a lesson is made, approved, used and frozen
 
 **Status:** accepted
 **Owner / layers:** Dhruvi Ramani (Agents & Orchestration, Reflexion part) — L12; touches L9 (memory

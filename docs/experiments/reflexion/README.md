@@ -16,7 +16,7 @@ words and how it differs from the adjudicator approval in the graph.
 | `langgraph-check/` | the real-model baseline run through the LangGraph executor instead of the local runner, same numbers |
 | `run-02/` | the reviewed run of 7 Nov 2026 on the gold as corrected by the 4 Nov 2026 audit, tolerance Rs 1 |
 | `run-03/` | the reviewed run of 12 Nov 2026 on the final gold (ADR-0006/0007/0009), tolerance Rs 1 |
-| `run-04/` | the reviewed run of 14 Nov 2026 with triage (ADR-0013), tolerance Rs 1: **the current result**; `REPORT-SECTION.md` section 10.4. Its frozen playbook has the same hash as `run-03` (no approved lesson in either) |
+| `run-04/` | the reviewed run of 14 Nov 2026 with triage (ADR-0014), tolerance Rs 1: **the current result**; `REPORT-SECTION.md` section 10.4. Its frozen playbook has the same hash as `run-03` (no approved lesson in either) |
 | `dspy-harness-check-stub/` | the L12 §6-7 comparison (DSPy Predict/ChainOfThought, BootstrapFewShot, BootstrapFewShot + coach, GEPA, the playbook, the retrieval ceiling) run offline with stub LMs on 12 Nov 2026: proves the loop, stamped "HARNESS CHECK ONLY" |
 | `dspy-run-01/` | the same comparison with the real models, 12 Nov 2026: GEPA reaches the retrieval ceiling (1.0) and is the chosen method; `REPORT-SECTION.md` section 9.4 |
 
@@ -31,7 +31,7 @@ words and how it differs from the adjudicator approval in the graph.
 | `src/claimsense/reflexion/loop.py` | baseline → learn → ablate → withdraw → after → freeze; the held-out guards |
 | `src/claimsense/reflexion/metrics.py` | settlement error, exact-match rate, edit rate |
 | `src/claimsense/reflexion/review_cli.py` | the human gate at the terminal (`y`/`n` plus a reason); `propose-from-edits` turns a claim run's adjudicator edits into PROPOSED lessons (never approves) |
-| `src/claimsense/reflexion/triage.py` | before reflection: only a clause-choice mistake becomes a lesson; the rest go to an engineering backlog with a reason; `known_clause_ids()` is the registry the reflector may cite (ADR-0013) |
+| `src/claimsense/reflexion/triage.py` | before reflection: only a clause-choice mistake becomes a lesson; the rest go to an engineering backlog with a reason; `known_clause_ids()` is the registry the reflector may cite (ADR-0014) |
 | `src/claimsense/reflexion/from_edits.py` | brief step 9 offline: `edit_log` records from a run (`run_one.py --edits-out`) → triage → reflect → PROPOSED; the graph never writes a lesson |
 | `src/claimsense/reflexion/reporting.py` | Markdown/JSON rendering shared by both scripts |
 | `scripts/run_reflexion_experiment.py` | Day 4: `baseline`, `experiment`, `status`. Writes `baseline.md/json`, `report.md/json`, `playbook.json` into `--out`. |
@@ -181,17 +181,19 @@ per compiled program (instruction + demos: the notebook's "the improvement is a 
 
 ## 3. Day 5: held-out run (Evaluation owner only)
 
-Use the **latest frozen** playbook: `run-03` today, `run-04` once the rerun after ADR-0013 is
+Use the **latest frozen** playbook: `run-03` today, `run-04` once the rerun after ADR-0014 is
 frozen (its hash goes into `eval/experiments/configs/E3_reflexion.yaml` as well).
 
 ```bash
 python scripts/run_reflexion_heldout.py \
     --playbook docs/experiments/reflexion/run-03/playbook.json \
-    --heldout ../claimsense-heldout \
+    --heldout data/claimsense-heldout \
     --out ../claimsense-heldout-results/run-03 --repeat 3 --tolerance-rs 1
 ```
 
-Use the same `--tolerance-rs` as the day-4 run. It refuses to run if the playbook is not frozen,
+The held-out set lives in `data/claimsense-heldout/` since 14 Nov 2026 (Spandan's ADR-0013, a folder
+the agents and Claude sessions are denied); the script accepts that folder or any path outside the
+repo. Use the same `--tolerance-rs` as the day-4 run. It refuses to run if the playbook is not frozen,
 changed since freezing, contains a lesson learned from a held-out case, if a held-out id also
 appears in the dev set, or if the held-out directory or the output directory is inside the
 repository. Held-out files are expected in the `golden_dev` format. Paste its `heldout_report.md`
@@ -248,7 +250,7 @@ cited under clause 2 (REF-17, a critic item). Use `run-03/playbook.json` for the
    before/after needs dev cases where the clause choice decides the money.
 4. `agents/clauses.py` still has four `TODO` clause ids; lessons quote them verbatim.
 
-## 7. The playbook in a normal claim run, and live edits → lessons (T46, brief step 9; ADR-0013)
+## 7. The playbook in a normal claim run, and live edits → lessons (T46, brief step 9; ADR-0014)
 
 Until 13 Nov 2026 only the two experiment scripts ever passed a playbook to the team. Now:
 
@@ -280,7 +282,7 @@ adjudicator typed, nothing from the documents.
 first worksheet shown to the adjudicator minus the gold, in `Decimal`, with a Rs 1 rounding
 tolerance; edit rate comes from a simulated adjudicator who knows the gold; each approved lesson is
 removed in turn and the set rerun (a lesson is harmful if removing it lowers error or edits); the
-after pass runs twice. On the held-out claims (E3): the Evaluation owner runs the 60 claims once,
+after pass runs twice. On the held-out claims (E3): the Evaluation owner runs the 60 claims in `data/claimsense-heldout/` once,
 without and with the frozen playbook, three repeats, with the spread and the lesson-generation cost
 (`eval/experiments/e3.py`). The eval harness itself never loads a playbook: lessons learned on dev
 claims would inflate the dev score. Clause-level accuracy is measured separately in section 2b.

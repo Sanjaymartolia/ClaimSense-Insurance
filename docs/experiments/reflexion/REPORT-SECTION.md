@@ -26,7 +26,7 @@ In ClaimSense:
 | the notebook | the **playbook** (`reflexion/playbook.py`, data in `run-XX/playbook.json`) | all lessons with their status; only APPROVED ones are ever read by the analyst |
 | crossing out later | **withdrawal** | status WITHDRAWN with a note; found by ablation |
 | locking | **freeze** | SHA-256 of the approved lessons; the held-out script refuses anything else |
-| the exam | the **held-out run** | 60 claims outside the repo, run once by the Evaluation owner |
+| the exam | the **held-out run** | 60 claims in `data/claimsense-heldout/` (a folder the agents are denied; ADR-0013), run once by the Evaluation owner |
 
 The playbook never touches money. A lesson can only change *which clause* the analyst cites, from
 clauses the policy search already returned; every rupee still comes from the calculator and a human
@@ -100,7 +100,8 @@ flowchart LR
 ## 3. Method
 
 - **Development claims only.** `learn()` asserts `split == "dev"`, and the day-4 script refuses any
-  path that mentions the held-out set. The 60 held-out claims live outside the repository and are
+  path that mentions the held-out set. The 60 held-out claims live in `data/claimsense-heldout/`, a folder the agents and
+  Claude sessions are denied (moved there 14 Nov 2026, ADR-0013), and are
   run once by the Evaluation owner with everything frozen.
 - **What is scored.** Settlement error in rupees is `|first worksheet shown to the adjudicator − gold|`.
   The adjudicator's own corrections are not credited to the system. Exact-match rate is the share
@@ -603,7 +604,7 @@ the `chooser` seam makes the swap a one-line change when it is approved.
   so "reached the ceiling" means "learned one rule". A set with several interacting rules would
   separate the methods better and is the same headroom request as REF-09.
 
-## 10. From experiment to product: the playbook in a claim run, and edits that become lessons (13 November 2026, ADR-0013)
+## 10. From experiment to product: the playbook in a claim run, and edits that become lessons (13 November 2026, ADR-0014)
 
 Two questions from the team review had no answer in code: *how does a normal claim run use the
 playbook?* and *how does a live adjudicator edit become a lesson?* Until 13 November only the two
