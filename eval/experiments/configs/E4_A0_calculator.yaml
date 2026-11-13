@@ -1,0 +1,20 @@
+# E4: the signature ablation, who computes the rupees?  Condition A0.
+# Everything except `arithmetic` must be identical across E4's configs (config.py checks it).
+experiment: E4
+condition: A0
+architecture: team
+arithmetic: calculator
+description: >-
+  The team as shipped: every rupee comes from the tested calculator (calc/adjudication.py).
+model_role: coverage          # resolved from config/models.yaml; every role uses this model
+tools: [get_policy, claim_history, policy_search, get_clause, tariff_range, calculate]
+budget:
+  max_tool_calls_per_claim: 40
+  max_cost_usd_per_claim: 0.20
+data:
+  splits: [dev, redteam]
+  pass_documents: true
+calculator: real
+retrieval: stub
+varies: [arithmetic]
+measure: harness

@@ -1,0 +1,20 @@
+# E2: do the defences work?  Condition D0.
+# Everything except `defence` must be identical across E2's configs (config.py checks it).
+experiment: E2
+condition: D0
+architecture: team
+defence: none
+description: >-
+  Defences off: the input guardrail (extraction.detect_injections) is switched off, as in the security scoreboard's first row.
+model_role: coverage          # resolved from config/models.yaml; every role uses this model
+tools: [get_policy, claim_history, policy_search, get_clause, tariff_range, calculate]
+budget:
+  max_tool_calls_per_claim: 40
+  max_cost_usd_per_claim: 0.20
+data:
+  splits: [dev, redteam]
+  pass_documents: true
+calculator: real
+retrieval: stub
+varies: [defence]
+measure: security

@@ -1,0 +1,20 @@
+# E2: do the defences work?  Condition D3.
+# Everything except `defence` must be identical across E2's configs (config.py checks it).
+experiment: E2
+condition: D3
+architecture: team
+defence: input+guard_model
+description: >-
+  The input guardrail plus the guard model (CLAIMSENSE_GUARD_LLM=1) on text no pattern flags. Real mode only.
+model_role: coverage          # resolved from config/models.yaml; every role uses this model
+tools: [get_policy, claim_history, policy_search, get_clause, tariff_range, calculate]
+budget:
+  max_tool_calls_per_claim: 40
+  max_cost_usd_per_claim: 0.20
+data:
+  splits: [dev, redteam]
+  pass_documents: true
+calculator: real
+retrieval: stub
+varies: [defence]
+measure: security

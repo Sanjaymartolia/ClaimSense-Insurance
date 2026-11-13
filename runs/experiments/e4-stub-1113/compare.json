@@ -1,0 +1,73 @@
+{
+  "label": "e4-stub-1113",
+  "mode": "stub",
+  "experiment": "E4",
+  "measure": "harness",
+  "splits": [
+    "dev",
+    "redteam"
+  ],
+  "shared": {
+    "model": "openai/gpt-4o-mini",
+    "tools": "('get_policy', 'claim_history', 'policy_search', 'get_clause', 'tariff_range', 'calculate')",
+    "budget": "Budget(max_tool_calls_per_claim=40, max_cost_usd_per_claim=0.2)",
+    "splits": "('dev', 'redteam')",
+    "pass_documents": "True",
+    "calculator": "real",
+    "retrieval": "stub",
+    "varies": "('arithmetic',)",
+    "measure": "harness",
+    "architecture": "team",
+    "defence": "input"
+  },
+  "conditions": {
+    "A0": "The team as shipped: every rupee comes from the tested calculator (calc/adjudication.py).",
+    "A1": "The same team, but the model computes every rupee from the same clause choices and the policy rules in words. The calculator still runs alongside, only to measure the model's arithmetic error in rupees."
+  },
+  "rows": [
+    {
+      "condition": "A0",
+      "setting": "calculator",
+      "composite": 0.9637,
+      "route": 0.9808,
+      "amounts": 0.9183,
+      "flags": 0.9603,
+      "citations": 1.0,
+      "required_tool_coverage": 1.0,
+      "gates_held": true,
+      "gate_failures": {},
+      "cost_usd_per_claim": 0.0,
+      "tokens_per_claim": 0.0,
+      "p95_seconds": 0.0057,
+      "tool_calls_per_claim": 12.42,
+      "over_budget_claims": 0,
+      "pipeline_errors": 0,
+      "vs": "A0",
+      "quality_per_extra_usd": null
+    },
+    {
+      "condition": "A1",
+      "setting": "llm",
+      "composite": 0.9637,
+      "route": 0.9808,
+      "amounts": 0.9183,
+      "flags": 0.9603,
+      "citations": 1.0,
+      "required_tool_coverage": 1.0,
+      "gates_held": true,
+      "gate_failures": {},
+      "cost_usd_per_claim": 0.0,
+      "tokens_per_claim": 0.0,
+      "p95_seconds": 0.0107,
+      "tool_calls_per_claim": 12.42,
+      "over_budget_claims": 0,
+      "pipeline_errors": 0,
+      "arithmetic_error_rs_mean": 0.0,
+      "arithmetic_error_rs_max": 0.0,
+      "claims_with_error": 0,
+      "worksheets_not_reconciling": 0,
+      "vs": "A0",
+      "quality_per_extra_usd": null
+    }
+  ]
+}

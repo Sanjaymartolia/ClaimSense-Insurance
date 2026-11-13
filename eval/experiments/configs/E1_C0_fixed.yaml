@@ -1,0 +1,21 @@
+# E1: does the agent justify its cost?  Condition C0: fixed workflow, no agent decisions.
+# Everything below `description` must be identical across E1's configs (config.py checks it).
+experiment: E1
+condition: C0
+architecture: fixed
+description: >-
+  Code runs a fixed order: admissibility rules, one policy search per bill line, ONE model call
+  that picks a clause per line, then the calculator. No extraction checks, fraud screen, critic
+  or revision.
+model_role: coverage          # resolved from config/models.yaml; every role uses this model
+tools: [get_policy, claim_history, policy_search, get_clause, tariff_range, calculate]
+budget:
+  max_tool_calls_per_claim: 40
+  max_cost_usd_per_claim: 0.20
+data:
+  splits: [dev, redteam]
+  pass_documents: true
+calculator: real
+retrieval: stub               # stub clause table | real (hybrid retriever, needs the index)
+varies: [architecture]        # the only field E1's conditions may differ in
+measure: harness

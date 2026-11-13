@@ -1,0 +1,16 @@
+# E3: did the lessons help?  Held-out results before and after the playbook, with the cost of
+# generating lessons and every lesson that made results worse.
+# Run by `python -m eval.experiments.e3` (not run.py): it wraps the two Reflexion scripts.
+experiment: E3
+description: >-
+  Learn on the development claims with a person approving each lesson (scripts/
+  run_reflexion_experiment.py), leave one lesson out at a time to find harmful ones, freeze the
+  playbook, then run the held-out claims without and with it, three times
+  (scripts/run_reflexion_heldout.py). Only an Eval & Red-Team person runs the held-out step.
+dev_cases: eval/golden_dev
+playbook: docs/experiments/reflexion/run-03/playbook.json   # frozen; the held-out run uses it
+after_runs: 2            # repeats of the after pass on dev (20 claims are noisy)
+repeat: 3                # repeats of the with-playbook held-out run (brief: 3)
+tolerance_rs: 1          # same value for learning and held-out runs
+executor: local          # local | langgraph
+calculator: reference    # reference | team, as the Reflexion scripts name them

@@ -128,8 +128,24 @@ pytest eval/ship/tests                         # runner tests; kept out of eval/
 ```
 - It only orchestrates: each stage is an existing CLI run as a subprocess, logs in
   `runs/ship/<label>/logs/`. Blocking: product tests, ruff, tool pins, `eval.full`, `eval.agentic`,
-  DeepEval. Report only: security scoreboard, retrieval, RAGAS, adaptive attacker (`--attack`).
+  DeepEval trajectory tests. Report only: the paid DeepEval judge (`deepeval-judge`), security
+  scoreboard, retrieval, RAGAS, adaptive attacker (`--attack`). An uncalibrated judge never blocks.
   Exit 0 SHIP / REHEARSAL PASSED (stub), 1 DO NOT SHIP, 2 NOT VERIFIED. Guide: `docs/SHIP_CHECK.md`.
+
+### Experiments as configs (`eval/experiments/`, Eval & Red-Team)
+```bash
+python -X utf8 -m eval.experiments.run --experiment E1 --label X [--stub]   # also E2, E4
+python -X utf8 -m eval.experiments.e3 learn --reviewer "<name>" --out <dir>  # E3; then e3 heldout
+pytest eval/experiments/tests
+```
+- One YAML per condition in `eval/experiments/configs/`; conditions of one experiment may differ
+  only in the field their `varies` names (E1 `architecture`, E2 `defence`, E4 `arithmetic`).
+  E2 is measured like `eval/security/scoreboard.py`; E4's `LlmArithmetic` replaces the team
+  adapter's `real_calculate` and logs its rupee error against the calculator. Configs name a `model_role` from
+  `config/models.yaml`; `run.py` sets every role in `agents.llm.MODELS` to it for the run.
+- C0/C1 adapters subclass `ClaimSenseAdapter` and are scored by the unchanged harness. A C1 pick
+  counts only if it is a line-level clause the run retrieved; its final calculator run is logged
+  as an action, or the `money_from_model` gate fires.
 
 ### Eval harness (`eval/`, Eval & Red-Team)
 ```bash

@@ -39,9 +39,17 @@ python -m eval.observability run --stub --label <name> --keep   # traces to Jaeg
 DEEPEVAL_DISABLE_DOTENV=1 DEEPEVAL_TELEMETRY_OPT_OUT=1 CLAIMSENSE_LLM=stub deepeval test run eval/deepeval_suite   # DeepEval unit tests (needs .[deepeval])
 python -m eval.tools.rubric_score                # framework rubric scorecard
 pytest eval/tests -q                             # eval tests (not part of the default `pytest`)
+
+python -X utf8 -m eval.ship --label <name> --stub        # EVERY eval stage, one verdict: SHIP / DO NOT SHIP
+python -X utf8 -m eval.agentic.run --label <name>        # tool calls, tools, hooks, final DB state (offline)
+python -X utf8 -m eval.experiments.run --experiment E1 --label <name> --stub   # E1, E2, E4 from config files
+python -X utf8 -m eval.experiments.e3 learn --reviewer "<name>" --out <dir>   # E3: lessons, with their cost
+python -X utf8 -m eval.calibration.collect collect       # judge calibration: items, rater sheets, Cohen's kappa
+pytest eval/agentic/tests eval/ship/tests eval/experiments/tests eval/calibration/tests
 ```
 `--stub` keeps a run free. Without it, a key in your terminal makes the agents call paid models.
-More in [eval/README.md](eval/README.md).
+More in [eval/README.md](eval/README.md). The one-command ship check, step by step:
+[docs/SHIP_CHECK.md](docs/SHIP_CHECK.md).
 
 ## Documentation
 - **[Team guide](docs/TEAM_GUIDE.md)**: workflow diagram, how each member sets up and runs the code, the
@@ -71,6 +79,13 @@ More in [eval/README.md](eval/README.md).
   [every change, before and after](docs/GUARDRAILS_BEFORE_AFTER.md)
 - **[Claims and gold-set fixes](docs/CLAIMS_AND_GOLD_SET_FIXES.md)**: audit of the dev set, what is
   fixed and what is still open
+- **[Ship check](docs/SHIP_CHECK.md)**: every evaluation in one command and one verdict, with the
+  last stub and real results
+- **[Tool-use evaluation report](eval/agentic/REPORT.md)**: how the agents call tools, tool and
+  hook correctness, final database state, attack coverage, open defects AGENTIC-nn
+- **[Experiments E1-E4](eval/experiments/README.md)**: each experiment as config files, one
+  harness: agent vs fixed workflow (E1), defences off/on (E2), lessons (E3), who computes the
+  rupees (E4) · [judge calibration](eval/calibration/README.md)
 - **Flow diagram:** [SVG](docs/diagrams/claimsense-flow.svg) · editable
   [Excalidraw](docs/diagrams/claimsense-flow.excalidraw) (open at excalidraw.com → Open)
 - Rebuild after editing: `python scripts/build_diagram.py && python scripts/build_pdf.py`
@@ -90,7 +105,7 @@ See `CLAUDE.md` for the folder → role map and the rules every contributor (and
 | `src/claimsense/retrieval/` | Hybrid search over the clauses: Chroma + BM25 + reranker ([README](src/claimsense/retrieval/README.md)) |
 | `data/` | Synthetic starter pack: policy PDFs, tariffs, processed clauses, knowledge base ([README](data/README.md)) |
 | `src/claimsense/graph/`, `agents/`, `reflexion/` | LangGraph supervisor, specialists, playbook loop |
-| `eval/` | Harness, agent suite, live monitoring, observability (OpenTelemetry), DeepEval suite, dev golden set, red-team suite (held-out set lives outside the repo) |
+| `eval/` | Harness, agent suite, live monitoring, observability (OpenTelemetry), DeepEval suite, dev golden set, red-team suite (held-out set lives outside the repo); `ship/` one-command verdict, `agentic/` tool-use eval, `experiments/` E1-E4 configs, `calibration/` judge kappa |
 | `docs/` | ADRs, experiments, threat model, memory policy, meetings |
 | `course/`, `exercises/<name>/` | HW2-style course kit: build the agent yourself, six TODOs ([README](course/README.md)) |
 

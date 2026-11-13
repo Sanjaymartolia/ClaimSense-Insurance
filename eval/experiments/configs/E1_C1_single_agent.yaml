@@ -1,0 +1,21 @@
+# E1: does the agent justify its cost?  Condition C1: one agent with all the tools.
+# Everything below `description` must be identical across E1's configs (config.py checks it).
+experiment: E1
+condition: C1
+architecture: single_agent
+description: >-
+  One model with every read tool bound. It decides which tools to call and when, within the
+  budget, then gives a clause per line, whether the claim is admissible, and whether it needs a
+  person. Rupees still come from the calculator.
+model_role: coverage          # resolved from config/models.yaml; every role uses this model
+tools: [get_policy, claim_history, policy_search, get_clause, tariff_range, calculate]
+budget:
+  max_tool_calls_per_claim: 40
+  max_cost_usd_per_claim: 0.20
+data:
+  splits: [dev, redteam]
+  pass_documents: true
+calculator: real
+retrieval: stub               # stub clause table | real (hybrid retriever, needs the index)
+varies: [architecture]        # the only field E1's conditions may differ in
+measure: harness

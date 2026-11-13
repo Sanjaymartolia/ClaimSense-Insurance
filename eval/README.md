@@ -223,4 +223,4 @@ flagging it for whoever owns `reflexion/` and `agents/clauses.py` next). CLM-001
 - Checks: code first (amounts, cited clause exists, DB state, tool calls, forbidden actions),
   judge (different model family) only for explanation quality; calibrate on 20+ human labels,
   report Cohen's kappa.
-- Experiments E1–E4 are config files, one harness.
+- Experiments E1–E4 are config files, one harness: `eval/experiments/` (E1, E2, E4 via `run.py`, E3 via `e3.py`; see its README).
