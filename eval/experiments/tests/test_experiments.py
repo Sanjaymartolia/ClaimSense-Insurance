@@ -55,7 +55,7 @@ def _copy(tmp_path, change=None, name="E1_C1_single_agent.yaml"):
     "change",
     [
         lambda r: r["budget"].update(max_tool_calls_per_claim=99),
-        lambda r: r.update(model_role="critic"),
+        lambda r: r.update(model_role="reflector"),  # resolves to another model
         lambda r: r.update(tools=["policy_search"]),
         lambda r: r["data"].update(splits=["dev"]),
     ],

@@ -169,7 +169,8 @@ class ExtractionAgent:
         self.llm = get_llm("extraction")
 
     def run(self, packet: dict) -> tuple[Claim, list[str]]:
-        """packet = {"claim_id", "documents": {name: text}} and, for dev fixtures, "claim": {...}."""
+        """packet = {"claim_id", "documents": {name: text}} and, for dev
+        fixtures, "claim": {...}."""
         documents: dict[str, str] = packet.get("documents", {})
         if "claim" in packet:  # dev / eval fixture already extracted by hand
             claim = Claim.model_validate(packet["claim"])

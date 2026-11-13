@@ -1,14 +1,20 @@
 # Single source of truth for model IDs and prompt versions. Bump `version` on any change and
 # record it in the experiment log. Keep models fixed when comparing designs.
-version: 1
+#
+# version 2 (13 Nov 2026): agents/llm.py now reads the agent roles from here; until v2 it kept
+# its own table and ignored them (AGT-09, docs/MODEL_CARD.md). The roles below name the models
+# the agents have actually run since day 1, so no run changes model. One role can be overridden
+# for a run with CLAIMSENSE_MODEL_<ROLE>, e.g. CLAIMSENSE_MODEL_COVERAGE.
+version: 2
 
 models:
   supervisor: openai/gpt-4.1-mini        # stronger model for supervisor + planner
-  extraction: openai/gpt-4o-mini
-  coverage: openai/gpt-4o-mini
-  fraud: openai/gpt-4o-mini
+  extraction: openai/gpt-4.1-mini
+  coverage: openai/gpt-4.1-mini
+  fraud: openai/gpt-4.1-mini
   critic: openai/gpt-4.1-mini
-  settlement: openai/gpt-4o-mini
+  settlement: openai/gpt-4.1-mini
+  reflector: openai/gpt-4.1               # Reflexion lessons only, never in the claim path
   judge: google/gemini-3.1-flash-lite     # different family from the agents
   guard: meta-llama/llama-guard-4-12b
 

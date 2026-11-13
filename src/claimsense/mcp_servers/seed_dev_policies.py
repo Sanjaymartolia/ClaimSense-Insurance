@@ -27,8 +27,8 @@ Strict data rules (enforced by reuse)
 
 Idempotency
 -----------
-``upsert_policy`` keys on ``policy_number`` (``INSERT ... ON CONFLICT DO UPDATE``), so re-running the
-script never creates duplicates and never introduces a second database - it reuses the existing
+``upsert_policy`` keys on ``policy_number`` (``INSERT ... ON CONFLICT DO UPDATE``), so re-running
+the script never creates duplicates and never introduces a second database - it reuses the existing
 schema and the existing ``CLAIMSENSE_CLAIMS_DB`` file.
 """
 
@@ -171,7 +171,10 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--db",
         default=None,
-        help="SQLite path for the claims DB (defaults to CLAIMSENSE_CLAIMS_DB / claimsense_claims.db).",
+        help=(
+            "SQLite path for the claims DB "
+            "(defaults to CLAIMSENSE_CLAIMS_DB / claimsense_claims.db)."
+        ),
     )
     parser.add_argument(
         "--claims",

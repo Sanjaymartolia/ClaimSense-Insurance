@@ -87,7 +87,7 @@ class SettlementAgent:
         reasons = self._plain_reasons(rows)
         table = "\n".join(
             f"- {lid}: Rs {amt} deducted ({reason}, clause {cid}). {why}"
-            for (lid, reason, amt, cid, _), why in zip(rows, reasons)
+            for (lid, reason, amt, cid, _), why in zip(rows, reasons, strict=True)
         )
         return (
             f"Policy number: {claim.policy_number}\nClaim: {claim.claim_id}\n"
@@ -107,8 +107,9 @@ class SettlementAgent:
                 [
                     (
                         "system",
-                        "Rewrite each numbered deduction reason as one short sentence a patient can "
-                        "understand. Do not mention or change any amount. Return one line per item.",
+                        "Rewrite each numbered deduction reason as one short sentence a "
+                        "patient can understand. Do not mention or change any amount. "
+                        "Return one line per item.",
                     ),
                     ("human", prompt),
                 ]

@@ -325,7 +325,7 @@ Text to classify:
 ---
 
 Respond with ONLY "INJECTION" or "SAFE" followed by a confidence score (0.0-1.0).
-Format: VERDICT: <INJECTION|SAFE> | CONFIDENCE: <score>"""
+Format: VERDICT: <INJECTION|SAFE> | CONFIDENCE: <score>"""  # noqa: E501 - prompt text: its line breaks are content
 
         # Note: In production, use async with timeout
         response = llm.invoke(prompt, timeout=timeout)
@@ -701,11 +701,21 @@ def get_safe_error_message(exc: SecurityViolationException) -> str:
     OWASP LLM06: Don't leak system internals in error messages.
     """
     safe_messages = {
-        "pii_leak": "Your request contains sensitive information that must be masked. Please remove personal identifiers and try again.",
-        "prompt_injection": "Your request contains potentially unsafe content. Please rephrase and try again.",
-        "scope_violation": "This request is outside the allowed scope. ClaimSense only handles insurance claims and policies.",
+        "pii_leak": (
+            "Your request contains sensitive information that must be masked. "
+            "Please remove personal identifiers and try again."
+        ),
+        "prompt_injection": (
+            "Your request contains potentially unsafe content. Please rephrase and try again."
+        ),
+        "scope_violation": (
+            "This request is outside the allowed scope. "
+            "ClaimSense only handles insurance claims and policies."
+        ),
         "guard_failure": "Request blocked by security policy. Please try again later.",
-        "extraction_failure": "Unable to process uploaded document. Please ensure it's a valid medical bill.",
+        "extraction_failure": (
+            "Unable to process uploaded document. Please ensure it's a valid medical bill."
+        ),
         "validation_failure": "Uploaded document does not contain required information.",
     }
 

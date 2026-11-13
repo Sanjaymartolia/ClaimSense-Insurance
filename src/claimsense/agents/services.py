@@ -230,7 +230,7 @@ def reference_calculate(
             )
         )
 
-    gross = sum((l.payable for l in out), Decimal("0"))
+    gross = sum((w.payable for w in out), Decimal("0"))
     co = rupees(gross * Decimal("0.05"))
     co_pay = (
         Deduction(
@@ -247,7 +247,7 @@ def reference_calculate(
         version=version,
         lines=out,
         co_pay=co_pay,
-        total_claimed=sum((l.claimed for l in out), Decimal("0")),
+        total_claimed=sum((w.claimed for w in out), Decimal("0")),
         total_payable=gross - co,
         fraud_flags=list(fraud_flags or []),
     )
@@ -300,13 +300,19 @@ def real_services(*, check: bool = True) -> Services:
 # --------------------------------------------------------------------------------------------
 
 _CLAUSE_TEXT = {
-    C.HOSPITALISATION: "4.1 Hospitalization ... room rent, ICU, surgeon fees, OT, medicines, diagnostics",
-    C.OTHER_EXPENSES: "4.1.1 Note b: if room/ICU rate exceeds the limits, all other expenses except "
-    "medicines are paid in the same proportion (proportional deduction).",
+    C.HOSPITALISATION: (
+        "4.1 Hospitalization ... room rent, ICU, surgeon fees, OT, medicines, diagnostics"
+    ),
+    C.OTHER_EXPENSES: (
+        "4.1.1 Note b: if room/ICU rate exceeds the limits, all other expenses except "
+        "medicines are paid in the same proportion (proportional deduction)."
+    ),
     C.ROOM_RENT_LIMIT: "Room rent, boarding, nursing up to 2% of sum insured, max Rs 5000 per day.",
     C.ICU_LIMIT: "ICU charges up to 5% of sum insured, max Rs 10,000 per day.",
     C.CO_PAY: "9.5 Co-payment of 5% on each and every claim.",
-    C.NON_PAYABLE_ITEMS: "List of excluded items: consumables such as gloves, masks are not payable.",
+    C.NON_PAYABLE_ITEMS: (
+        "List of excluded items: consumables such as gloves, masks are not payable."
+    ),
     C.INITIAL_WAITING_PERIOD: "30-day initial waiting period from first policy inception.",
     C.PED_WAITING_PERIOD: "Pre-existing disease waiting period.",
     C.SPECIFIC_WAITING_PERIOD: "Specified illness waiting period of 24/36 months.",
@@ -385,7 +391,7 @@ def make_stub_services(
         return {"status": "repudiated", "claim_id": claim_id}
 
     def record_history(claim: Claim, worksheet: Worksheet | None):
-        fps = [line_fingerprint(claim, l.description, l.amount) for l in claim.bill_lines]
+        fps = [line_fingerprint(claim, b.description, b.amount) for b in claim.bill_lines]
         history.setdefault(claim.policy_number, []).append(
             PastClaim(
                 claim_id=claim.claim_id,

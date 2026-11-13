@@ -6,7 +6,14 @@
 `line-length = 100`)
 **Prepared by:** Sanjay (Eval & Red-Team), with Claude Code
 
-## In short
+**Update, 13 November 2026:** fixed. `ruff check .` and `ruff format --check .` are both clean.
+Long prose lines were reflowed, long strings split into adjacent pieces of the same string (checked
+to evaluate to the same value), and ambiguous names renamed. Two LLM prompts, one ASCII diagram and
+one pinned tool docstring keep their text and carry `# noqa: E501` instead, so no prompt and no tool
+pin changed (`python -m claimsense.hooks.pins`: all 8 match). Product tests, the pinned eval suite
+and a fresh-environment run of both CI jobs pass.
+
+## In short (12 November)
 
 - **CI fails on lint.** `ruff check .` finds **88 errors**, and `ruff format --check .` wants to
   reformat **4 files**. CI runs both (`.github/workflows/ci.yml`), so every push to `main` is red

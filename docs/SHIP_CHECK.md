@@ -108,6 +108,13 @@ be `NOT VERIFIED` or `DO NOT SHIP`.
 
 ## 6. Last results
 
+`ss-1113-phase1` (stub mode, 13 November 2026, after the Phase 1 fixes): **REHEARSAL PASSED**.
+Every blocking stage passed: product tests, lint and format (now clean), tool pins (8 of 8),
+release gate, tool use (61 of 62 tool cases; 6 open defects, all known), DeepEval trajectory
+tests. Security ran (report only); the judge stages need a real model. Retrieval was skipped
+(`--skip retrieval`, report only). The next real run should give `SHIP` unless a model-dependent
+stage fails.
+
 `X-real` (real models, 13 November 2026, commit `18e0d31`): **DO NOT SHIP**.
 
 | Stage | Result |
@@ -139,8 +146,8 @@ review payload lacks what the checklist asks for, or the judge is not shown it. 
 | retrieval | ran (chart `runs/retrieval_ss-1113-stub.png`) |
 | ragas | skipped (needs a real model) |
 
-The only blockers are lint and format. The code owners can fix them with `ruff check --fix .` plus
-hand edits for line length, then run `ruff format .`.
+The only blockers were lint and format. Both were fixed in Phase 1 (see `ss-1113-phase1` above and
+`docs/RUFF_CHECK_REPORT.md`).
 
 ## 7. Rules
 

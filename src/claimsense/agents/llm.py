@@ -10,15 +10,30 @@ from __future__ import annotations
 import os
 from functools import cache
 
-# role -> model. Strong model for judgement (coverage, critic), cheap one for text.
-MODELS = {
-    "extraction": os.getenv("CLAIMSENSE_MODEL_EXTRACTION", "openai/gpt-4.1-mini"),
-    "coverage": os.getenv("CLAIMSENSE_MODEL_COVERAGE", "openai/gpt-4.1-mini"),
-    "critic": os.getenv("CLAIMSENSE_MODEL_CRITIC", "openai/gpt-4.1-mini"),
-    "fraud": os.getenv("CLAIMSENSE_MODEL_FRAUD", "openai/gpt-4.1-mini"),
-    "settlement": os.getenv("CLAIMSENSE_MODEL_SETTLEMENT", "openai/gpt-4.1-mini"),
-    "reflector": os.getenv("CLAIMSENSE_MODEL_REFLECTOR", "openai/gpt-4.1"),
-}
+from claimsense.config import config_path, load_config
+
+#: The roles that call a model. Their IDs live only in config/models.yaml (L16, `models:`).
+ROLES = ("extraction", "coverage", "critic", "fraud", "settlement", "reflector")
+
+
+def _models() -> dict[str, str]:
+    """role -> model ID from config/models.yaml; CLAIMSENSE_MODEL_<ROLE> overrides one role.
+
+    A missing file leaves this empty: stub mode needs no model, and `get_llm` explains the gap.
+    A file without one of the roles is a configuration error and fails at import.
+    """
+    path = config_path()
+    if not path.exists():
+        return {}
+    configured = load_config(path).get("models") or {}
+    missing = [role for role in ROLES if role not in configured]
+    if missing:
+        raise RuntimeError(f"{path} has no model for {missing} under `models:`")
+    return {role: os.getenv(f"CLAIMSENSE_MODEL_{role.upper()}", configured[role]) for role in ROLES}
+
+
+# role -> model. A plain dict, so a run can pin every role to one model (eval/experiments).
+MODELS = _models()
 
 
 def stub_mode() -> bool:
@@ -33,6 +48,8 @@ def get_llm(role: str):
     """Return a LangChain chat model for this role, or None in stub mode."""
     if stub_mode():
         return None
+    if not MODELS:
+        raise RuntimeError(f"no model IDs: {config_path()} was not found (set CLAIMSENSE_CONFIG)")
     from langchain_openai import ChatOpenAI  # imported lazily so tests need no key
 
     return ChatOpenAI(

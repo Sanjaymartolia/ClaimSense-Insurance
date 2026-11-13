@@ -1,7 +1,7 @@
 # ClaimSense tool-use evaluation report
 
-**Date:** 2026-11-13 · **Code evaluated:** commit `366faf4` (latest `main`) plus the
-`eval/agentic/` package · **Data:** 22 dev claims and 30 red-team claims, all synthetic ·
+**Date:** 2026-11-13 · **Code evaluated:** `main` at `7d26378` plus the Phase 1 fixes
+(section 2.1) and the `eval/agentic/` package · **Data:** 22 dev claims and 30 red-team claims, all synthetic ·
 **Held-out cases:** not used · **Previous run:** `cfad026` on 2026-11-08 (section 2)
 
 ## 1. Summary
@@ -11,27 +11,30 @@ every call came in the right order, from the right agent, with the right argumen
 fired. Two of the twelve defects from the last report are fixed, one new defect was found, and
 live controls now notice **29 of the 30** red-team claims, up from 6. Final database state is now
 checked after full pipeline runs on the real claims database: payments and repudiations are written
-correctly, but the claim's status column is never updated (AGENTIC-14, new).
+correctly, but the claim's status column is never updated (AGENTIC-14, new). Phase 1 then fixed six
+settlement-path defects (AGENTIC-02 to -07): a claim is paid once, a settlement approval cannot
+repudiate, and a failed write no longer spends the approval.
 
 | Layer | What it checks | Result |
 |---|---|---|
 | Trajectory | Order, counts, agent, arguments, results, hooks on full pipeline runs | 8 of 8 metrics pass on every applicable run |
-| Tool cases | Real database, approvals, tariff, calculator; policy search on a fake retriever | 55 of 62 pass, 7 known defects |
+| Tool cases | Real database, approvals, tariff, calculator; policy search on a fake retriever | 61 of 62 pass, 1 known defect |
 | Hook cases | Permissions, budgets, audit, output guard, guardrails | 34 of 36 pass, 2 known defects |
 | Control cases | Forced breaches mid-run, each tool failing in turn | 11 of 13 pass, 2 known defects |
 | Database state | Rows left in the real claims database after 208 full runs | 6 of 7 checks pass on every run; `claims.status` fails on all 140 writes |
 | Model decisions | Scripted bad clause, critic failure, injected text | 4 of 4 pass |
 
-No case failed unexpectedly. The test suite gives 132 passed and 9 expected failures.
-**12 defects are open.**
+No case failed unexpectedly. The test suite gives 138 passed and 3 expected failures.
+**6 defects are open.**
 
 **Most urgent fixes**
 
-1. A claim must not be payable twice, or repudiated after payment (AGENTIC-02, -03, -04).
-2. Database errors must come back as `ToolError`, and must not spend the approval (AGENTIC-05, -06, -07).
-3. Decide what a room line with no `days` means (AGENTIC-13, new). The calculator reads the
-   contract's default `quantity` of 1 as one day, which contradicts its own docstring. No current
-   claim changes amount, but a bill that omits `quantity` is underpaid.
+1. Decide what a room line with no `days` means (AGENTIC-13). The calculator reads the contract's
+   default `quantity` of 1 as one day, which contradicts its own docstring. No current claim changes
+   amount, but a bill that omits `quantity` is underpaid.
+2. Write `claims.status` with the decision (AGENTIC-14) and route `record_history` through the belt
+   (AGENTIC-08), so the audit trail is complete.
+3. Scale the tool budget with bill length (AGENTIC-09).
 
 ## 2. What changed since the last run
 
@@ -72,6 +75,21 @@ Their cases stay in the suite, tagged `fixed`, so a regression is caught.
 and the per-process search cache is cleared between cases. `get_clause` now returns headings plus
 text. The calculator invariant expects 22 dev claims instead of 20. The attack table reads the flags
 the pipeline actually raised, instead of re-running an old regex.
+
+### 2.1 Phase 1 fixes (13 Nov 2026)
+
+Each fix started as a failing product test (`tests/mcp_servers/test_settlement_safety.py`, 11
+tests) and the matching eval case, which is now tagged `fixed` and guards against a regression.
+
+| ID | Was | Fixed by |
+|---|---|---|
+| AGENTIC-02 | A new worksheet version with a fresh approval paid the claim again | `ClaimsDatabase._refuse_second_decision`: a claim gets one final decision, checked again inside the write transaction |
+| AGENTIC-03 | A settlement approval authorised a repudiation | Approvals are signed for a purpose (`approvals.SETTLE` / `REPUDIATE`); a repudiation approval can no longer pay either. Settlement signatures are byte-identical to before, and old approval tables gain the column |
+| AGENTIC-04 | A settled claim could be repudiated (`INSERT OR REPLACE`) | The one-decision check, then a plain `INSERT` |
+| AGENTIC-05 | A failed write spent the approval | Approvals are checked with `consume=False` and spent only after the write commits |
+| AGENTIC-06, -07 | `sqlite3` errors reached the agent | All four claims-db MCP wrappers return `ToolError(code="db_error")`, naming only the exception class |
+
+No tool definition changed: `python -m claimsense.hooks.pins` reports all 8 pins matching.
 
 ## 3. Why this evaluation was needed
 
@@ -128,7 +146,7 @@ tag gets updated.
 
 ## 5. Results
 
-![Tool-use pass rates and live attack detection](../../runs/agentic/agentic-dev-dbstate.png)
+![Tool-use pass rates and live attack detection](../../runs/agentic/agentic-dev-phase1.png)
 
 ### 5.1 Trajectory metrics
 
@@ -154,7 +172,10 @@ expected path was updated, these metrics flagged all three design changes in sec
 The settlement checks that **held**: a missing approval, wrong claim, stale hash (RT-006), altered
 amount (RT-008), unsigned token, wrong signing secret, expired token, replayed token, missing senior
 approval, and now a flagged worksheet whose caller says no senior is needed (AGENTIC-01). Each was
-refused, with no row written. `settle_claim` still has no amount argument.
+refused, with no row written. `settle_claim` still has no amount argument. Since Phase 1 these are
+refused too: a second worksheet version, a repudiation after payment, a repudiation presented with
+a settlement approval, and a payment presented with a repudiation approval. A failed write leaves the
+approval usable, and a database failure comes back to the agent as a `ToolError`.
 
 ### 5.3 Hook cases (36)
 
@@ -200,18 +221,12 @@ the tables back. Expected rows are written in the eval, from the run's branch de
 Tests in `tests/test_db_state.py` corrupt a snapshot (extra row, wrong status, amount or hash, amount
 above the claim, missing history, a write on a rejected claim) and confirm the matching check fails.
 
-## 6. Product defects (12 open)
+## 6. Product defects (6 open)
 
 Severity is this evaluation's own judgement. Every defect below was reproduced by a test case.
 
 | ID | Severity | Defect | Observed | Owner |
 |---|---|---|---|---|
-| AGENTIC-02 | High | Duplicate check is per worksheet hash, not per claim | Version 2 with a fresh approval wrote a second payment | Tools & Security |
-| AGENTIC-03 | High | Repudiation approval is not bound to its subject | A settlement approval authorised a repudiation | Tools & Security |
-| AGENTIC-04 | High | No check for an existing settlement before repudiating | A settled claim was also repudiated | Tools & Security |
-| AGENTIC-05 | Medium | Approval is spent before the write commits | After a failed write, the retry was refused | Tools & Security |
-| AGENTIC-06 | Medium | `_tool_settle_claim` lets `sqlite3` errors escape | `IntegrityError` raised to the agent | Tools & Security |
-| AGENTIC-07 | Medium | `_tool_get_policy` has no error handling | `ProgrammingError` raised to the agent | Tools & Security |
 | AGENTIC-08 | Medium | `record_history` bypasses the belt | A write with no permission check, budget or audit row | Agents & Orchestration |
 | AGENTIC-09 | Medium | Tool budget is too small for long bills | A valid 40-line claim stopped with `ToolBudgetExceeded` | Tools & Security, Agents & Orchestration |
 | AGENTIC-13 | Medium (new) | Room/ICU line without `days` is capped for 1 day | Rs 21,000 room over a 3-night stay, Rs 2,00,000 cover: Rs 4,000 paid, Rs 12,000 expected | Tools & Security, Domain lead |
@@ -236,17 +251,12 @@ stops once N + D exceeds 31, and sooner after a revision or edit.
 
 | ID | Direction | Where |
 |---|---|---|
-| 02 | Refuse when the claim already has a settlement of any version | [claims_db.py:200](../../src/claimsense/mcp_servers/claims_db.py#L200) |
-| 03 | Pass the admissibility hash through and match it against the token | [approvals.py](../../src/claimsense/mcp_servers/approvals.py) `verify_repudiation` |
-| 04 | Refuse when a settlement row exists; replace `INSERT OR REPLACE` | [claims_db.py:246](../../src/claimsense/mcp_servers/claims_db.py#L246) |
-| 05 | Consume the approval in the same transaction as the write | [approvals.py:375](../../src/claimsense/mcp_servers/approvals.py#L375) |
-| 06, 07 | Catch `sqlite3.Error` and return a `ToolError` | [claims_db.py:307](../../src/claimsense/mcp_servers/claims_db.py#L307) |
 | 08 | Route it through a belt, or audit it explicitly | [nodes.py:421](../../src/claimsense/graph/nodes.py#L421) |
 | 09 | Scale the budget with bill length, or batch line lookups | [models.yaml:23](../../config/models.yaml#L23) |
 | 11 | Require an ID-shaped value after "patient" | [guardrails.py:564](../../src/claimsense/guardrails/guardrails.py#L564) |
 | 12 | Run `in_bill_duplicates` on the not-admissible branch too, next to the carried extraction flags | [nodes.py:161](../../src/claimsense/graph/nodes.py#L161) |
 | 13 | Drop the `quantity` step, or only use it when the source marks quantity as days | [adjudication.py:134](../../src/claimsense/calc/adjudication.py#L134) |
-| 14 | Insert the claim row before the settle/repudiate update, or set the status in `record_history` | [claims_db.py:230](../../src/claimsense/mcp_servers/claims_db.py#L230) |
+| 14 | Insert the claim row before the settle/repudiate update, or set the status in `record_history` | `ClaimsDatabase.settle_claim` and `record_repudiation` in [claims_db.py](../../src/claimsense/mcp_servers/claims_db.py) |
 
 ## 7. Attack coverage
 
@@ -331,27 +341,26 @@ mismatch.
 
 ```bash
 pip install -r requirements.txt
-python -m eval.agentic.run --label agentic-dev-dbstate
+python -m eval.agentic.run --label agentic-dev-phase1
 pytest eval/agentic/tests
 ```
 
 Outputs go to `runs/agentic/`: `<label>.json`, `<label>.traces.jsonl` and `<label>.png`. The
-`cfad026` results are kept as `agentic-dev.*`, and the run before the database checks as
-`agentic-dev-366faf4.*`.
+`cfad026` results are kept as `agentic-dev.*`, the run before the database checks as
+`agentic-dev-366faf4.*`, and the run before the Phase 1 fixes as `agentic-dev-dbstate.*`.
 
 | Check | Result |
 |---|---|
-| `pytest eval/agentic/tests` | 132 passed, 9 expected failures |
+| `pytest eval/agentic/tests` | 138 passed, 3 expected failures |
 | Two consecutive runs | Byte-identical JSON reports |
 | `ruff check` and `ruff format --check` on `eval/agentic` | Clean |
-| Changes in the repository | Only `eval/agentic/` and `runs/agentic/` |
+| Changes in the repository | The eval: `eval/agentic/`, `runs/agentic/`. The Phase 1 product fixes: `mcp_servers/claims_db.py` and `mcp_servers/approvals.py`, tested in `tests/mcp_servers/` |
 
 ## 12. Recommended next steps
 
-1. **Tools & Security:** fix AGENTIC-02 to -04 (double payment, repudiation after payment).
-   **Domain lead:** rule on AGENTIC-13 (does `quantity` mean days?).
-2. **Tools & Security:** catch `sqlite3.Error` in the claims-db wrappers (AGENTIC-06, -07), and
-   consume the approval only when the write commits (AGENTIC-05).
+1. **Domain lead:** rule on AGENTIC-13 (does `quantity` mean days?).
+2. **Tools & Security:** review the Phase 1 settlement fixes (section 2.1), and scale the tool
+   budget with bill length (AGENTIC-09).
 3. **Agents & Orchestration:** bring `record_history` under the belt (AGENTIC-08), and flag in-bill
    duplicates on the not-admissible branch (AGENTIC-12). Fix the claim status write with Tools &
    Security (AGENTIC-14).

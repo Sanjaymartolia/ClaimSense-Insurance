@@ -9,7 +9,8 @@ Implements the control band from the reference architecture:
 * **Budget** - deterministic per-claim / per-agent / per-tool / repeated-call tool-call ceilings.
   Totals default from ``config/models.yaml -> budgets.max_tool_calls_per_claim`` (40). There is no
   financial-cost ceiling: tool execution is a local Python call with no reliable per-call USD
-  signal, so ``budgets.max_cost_usd_per_claim`` is **intentionally not enforced** here (see §Budget).
+  signal, so ``budgets.max_cost_usd_per_claim`` is **intentionally not
+  enforced** here (see §Budget).
 * **Audit** - post-tool records carry only metadata: timestamp, agent, tool, allowed/status, a safe
   error *code* (exception class name, never its message), optional claim id and execution duration.
   Never the tool arguments, results, documents or any health detail.
@@ -138,7 +139,8 @@ def _config_path() -> str:
 
 
 def default_max_tool_calls_per_claim() -> int:
-    """From ``config/models.yaml -> budgets.max_tool_calls_per_claim``; env override; falls back to 40."""
+    """From ``config/models.yaml -> budgets.max_tool_calls_per_claim``; env override;
+    falls back to 40."""
     env = os.environ.get("CLAIMSENSE_MAX_TOOL_CALLS")
     if env and env.isdigit():
         return int(env)
@@ -149,7 +151,8 @@ def default_max_tool_calls_per_claim() -> int:
 
 
 def default_max_calls_per_tool() -> int | None:
-    """Optional per-tool cap from ``budgets.max_calls_per_tool`` / ``CLAIMSENSE_MAX_CALLS_PER_TOOL``.
+    """Optional per-tool cap from ``budgets.max_calls_per_tool`` /
+    ``CLAIMSENSE_MAX_CALLS_PER_TOOL``.
 
     ``None`` (the default when unset) means *no* per-tool cap. A per-tool cap is intentionally left
     off by default: the legitimate pipeline calls ``calculate`` several times per claim (coverage,
@@ -167,11 +170,12 @@ def default_max_calls_per_tool() -> int | None:
 
 
 def default_max_repeated_calls() -> int | None:
-    """Optional identical-call cap from ``budgets.max_repeated_calls`` / ``CLAIMSENSE_MAX_REPEATED_CALLS``.
+    """Optional identical-call cap from ``budgets.max_repeated_calls`` /
+    ``CLAIMSENSE_MAX_REPEATED_CALLS``.
 
     ``None`` (default) disables repeat detection. A "repeat" is the *same tool with the same
-    arguments* called again - a loop tell. Detection uses a one-way fingerprint of the arguments; the
-    raw arguments are never stored or logged.
+    arguments* called again - a loop tell. Detection uses a one-way fingerprint of the arguments;
+    the raw arguments are never stored or logged.
     """
     env = os.environ.get("CLAIMSENSE_MAX_REPEATED_CALLS")
     if env and env.isdigit():
@@ -206,14 +210,15 @@ class BudgetState:
     * ``per_claim``   - total tool calls for the whole claim (default from ``config/models.yaml``).
     * ``per_agent``   - optional map of per-agent caps (an agent with no entry falls back to
       ``per_claim``).
-    * ``per_tool``    - optional cap on how many times any single tool may be called (``None`` = off).
+    * ``per_tool``    - optional cap on how many times any single tool may be
+      called (``None`` = off).
     * ``max_repeats`` - optional cap on identical (tool, arguments) repeats (``None`` = off).
 
     Create **one per claim** and do not share it across unrelated claims or graph executions (use
     :func:`claim_hooks` / :meth:`reset`). Counting is on *attempt*, not success: a call that passes
     the ACL is charged whether the tool then succeeds or raises, so a failing tool cannot be retried
-    without bound. :meth:`try_charge` checks-and-increments under a single lock, so concurrent agents
-    sharing this state can never slip past a ceiling (no check-then-charge race).
+    without bound. :meth:`try_charge` checks-and-increments under a single lock, so concurrent
+    agents sharing this state can never slip past a ceiling (no check-then-charge race).
     """
 
     per_claim: int = field(default_factory=default_max_tool_calls_per_claim)
@@ -332,10 +337,11 @@ class AuditRecord:
 class AuditLog:
     """Collects scrubbed :class:`AuditRecord`s and emits them to ``claimsense.hooks.audit``.
 
-    Fail-safe policy. The in-memory record is appended *before* the log sink is touched, so it is the
-    source of truth and cannot be lost to a logging-backend outage. If the sink raises, the failure
-    is counted in :attr:`emit_failures` and recorded in :attr:`last_emit_error` (never silently
-    swallowed). With ``fail_closed=True`` a sink failure on a *successful* call additionally raises
+    Fail-safe policy. The in-memory record is appended *before* the log sink is touched, so it
+    is the source of truth and cannot be lost to a logging-backend outage. If the sink raises,
+    the failure is counted in :attr:`emit_failures` and recorded in :attr:`last_emit_error`
+    (never silently swallowed). With ``fail_closed=True`` a sink failure on a *successful*
+    call additionally raises
     :class:`AuditUnavailable`, so an environment that mandates guaranteed audit can halt rather than
     proceed un-audited; the default (``False``) keeps processing but leaves the failure observable.
     """
@@ -459,8 +465,8 @@ class HookedToolBelt(ToolBelt):
     Behaviour-compatible with the Role 3 ``ToolBelt``: agents call ``belt.call(name, **kwargs)``
     exactly as before, and the same ``{agent, tool, allowed}`` lines are appended to the shared
     ``tool_log``. On top, permission is enforced against ``TOOL_ACL``, budget against the
-    ``BudgetState`` (atomically), and a scrubbed audit record is written for every attempt - allowed,
-    denied or errored.
+    ``BudgetState`` (atomically), and a scrubbed audit record is written for every attempt -
+    allowed, denied or errored.
 
     Status semantics in the audit trail:
 
@@ -517,7 +523,8 @@ class HookedToolBelt(ToolBelt):
             )
         except AuditUnavailable:
             # The record is already captured + the failure counted. A denial/error is the dominant
-            # outcome and still propagates; an audit-sink outage must never turn a denial into allow.
+            # outcome and still propagates; an audit-sink outage must never turn
+            # a denial into allow.
             pass
 
     def call(self, name: str, /, **kwargs: Any) -> Any:
@@ -545,7 +552,8 @@ class HookedToolBelt(ToolBelt):
                 self._audit_nonblocking(name, status="denied", error_code="budget_exceeded")
                 raise ToolBudgetExceeded(reason)
 
-        # 3) Execute via the base belt (re-checks the ACL and appends the allowed=True tool_log line).
+        # 3) Execute via the base belt (re-checks the ACL and appends the
+        # allowed=True tool_log line).
         start = time.perf_counter()
         try:
             result = super().call(name, **kwargs)
@@ -562,7 +570,8 @@ class HookedToolBelt(ToolBelt):
             )
             raise  # propagate the ORIGINAL exception unchanged; never a fake success
 
-        # 4) Post-tool success audit. Honours a fail-closed audit sink (AuditUnavailable propagates).
+        # 4) Post-tool success audit. Honours a fail-closed audit sink
+        # (AuditUnavailable propagates).
         dur = (time.perf_counter() - start) * 1000.0
         post_tool_hook(
             self.agent,
@@ -641,8 +650,9 @@ def install_hooks(
     """Swap every agent's ``.belt`` on an already-built ``Team`` for a :class:`HookedToolBelt`.
 
     All agents share one ``budget`` and one ``audit`` so the per-claim ceiling spans the whole team.
-    The hooked belts reuse ``team.services.registry()`` and the shared ``team.services.tool_log``, so
-    the base ACL check and the existing ``{agent, tool, allowed}`` trace behave exactly as before.
+    The hooked belts reuse ``team.services.registry()`` and the shared
+    ``team.services.tool_log``, so the base ACL check and the existing ``{agent, tool, allowed}``
+    trace behave exactly as before.
 
     No Role 3 source is modified: this only reassigns the ``belt`` attribute on the Python objects
     Role 3 already created. Call it **per claim** with a fresh ``BudgetState`` (or use
@@ -673,7 +683,8 @@ def build_hooked_team(
     audit: AuditLog | None = None,
     claim_id: str | None = None,
 ):
-    """Build a Role 3 ``Team`` and immediately install hooked belts. Returns ``(team, HookGuard)``."""
+    """Build a Role 3 ``Team`` and immediately install hooked belts. Returns
+    ``(team, HookGuard)``."""
     from claimsense.agents import Team  # lazy: only when an adapter is actually used
 
     team = Team(services, playbook=playbook)

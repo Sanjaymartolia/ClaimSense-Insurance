@@ -14,12 +14,12 @@ def test_room_rent_claim_settles_with_proportional_cut(team, services):
     out = LocalRunner(team).run(room_breach_packet(), approve())
     ws = out["worksheet"]
     assert out["status"] == Status.SETTLED
-    reasons = {d.reason for l in ws.lines for d in l.deductions}
+    reasons = {d.reason for w in ws.lines for d in w.deductions}
     assert DeductionReason.ROOM_RENT_CAP in reasons
     assert DeductionReason.PROPORTIONAL_CUT in reasons
-    meds = next(l for l in ws.lines if l.line_id == "L4")
+    meds = next(w for w in ws.lines if w.line_id == "L4")
     assert meds.deductions == []  # medicines are exempt from the proportional cut (4.1.1 Note b)
-    assert all(d.clause_id for l in ws.lines for d in l.deductions)
+    assert all(d.clause_id for w in ws.lines for d in w.deductions)
     assert services.settled[-1]["worksheet_hash"] == ws.content_hash()
     assert "PT-7731" in out["letter"] and "POL-001" in out["letter"]
 

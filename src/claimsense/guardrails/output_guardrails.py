@@ -149,7 +149,7 @@ Respond ONLY with valid JSON matching this schema:
   "confidence": 0.0-1.0,
   "reasoning": "brief explanation",
   "missing_citations": ["claim 1 without support", ...]
-}}"""
+}}"""  # noqa: E501 - prompt text: its line breaks are content
 
         # Use structured output
         structured_judge = judge_llm.with_structured_output(GroundingVerdict)
@@ -271,7 +271,8 @@ _INTERNAL_ID_PATTERNS = [
 
 # Secret patterns: these block the output.
 _API_KEY_PATTERNS = [
-    r"\bsk-(?:or-v1-|proj-|ant-|lf-)?[A-Za-z0-9_\-]{20,}",  # OpenAI, OpenRouter, Anthropic, Langfuse
+    # OpenAI, OpenRouter, Anthropic, Langfuse
+    r"\bsk-(?:or-v1-|proj-|ant-|lf-)?[A-Za-z0-9_\-]{20,}",
     r"\bpk-lf-[A-Za-z0-9\-]{20,}",  # Langfuse public key
     r"\blsv2_[A-Za-z0-9_]{20,}",  # LangSmith key
     r"(?:api[_\-]?key|token|secret)[:\s=]+[\w\-]{20,}",  # key=value format
@@ -618,9 +619,16 @@ def get_safe_error_message(exc: OutputGuardViolation) -> str:
     OWASP LLM06: Don't leak system internals in error messages.
     """
     safe_messages = {
-        "hallucination": "The system detected inconsistencies with policy rules. The response has been blocked for review.",
-        "information_disclosure": "The response contained sensitive information and has been blocked.",
-        "output_violation": "The response did not pass security validation. Please contact support.",
+        "hallucination": (
+            "The system detected inconsistencies with policy rules. "
+            "The response has been blocked for review."
+        ),
+        "information_disclosure": (
+            "The response contained sensitive information and has been blocked."
+        ),
+        "output_violation": (
+            "The response did not pass security validation. Please contact support."
+        ),
     }
 
     return safe_messages.get(exc.category, "Response blocked by security policy.")

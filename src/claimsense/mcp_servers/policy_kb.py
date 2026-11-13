@@ -194,7 +194,7 @@ class _PolicyMeta:
 
 @dataclass(frozen=True)
 class _Engine:
-    retriever: "HybridRetriever"
+    retriever: HybridRetriever
     meta: _PolicyMeta
 
 
@@ -204,7 +204,8 @@ _ENGINE_LOCK = threading.Lock()
 
 
 def _derive_policy_meta(chunks: list[dict]) -> _PolicyMeta:
-    """Read insurer/product from the KB ``source`` metadata (uniform across this single-policy KB)."""
+    """Read insurer/product from the KB ``source`` metadata (uniform across this
+    single-policy KB)."""
     for chunk in chunks:
         source = chunk.get("source") if isinstance(chunk, dict) else None
         if isinstance(source, dict) and source.get("insurer") and source.get("product"):
@@ -223,7 +224,8 @@ def _build_engine() -> _Engine:
 
 
 def _engine() -> _Engine:
-    """Return the shared engine, opening it once. Re-raises a cached open failure without retrying."""
+    """Return the shared engine, opening it once. Re-raises a cached open failure
+    without retrying."""
     global _ENGINE, _ENGINE_ERROR
     if _ENGINE is not None:
         return _ENGINE
@@ -273,7 +275,7 @@ def _source_url(document: str, page_numbers: list[int]) -> str:
     return f"{base}#page={page}" if page else base
 
 
-def _clause_from_hit(hit: "SearchHit", meta: _PolicyMeta, effective_date: date) -> Clause:
+def _clause_from_hit(hit: SearchHit, meta: _PolicyMeta, effective_date: date) -> Clause:
     return Clause(
         clause_id=hit.clause_id,
         policy_name=meta.product,
@@ -286,7 +288,7 @@ def _clause_from_hit(hit: "SearchHit", meta: _PolicyMeta, effective_date: date) 
     )
 
 
-def _clause_from_full(full: "FullClause", meta: _PolicyMeta, effective_date: date) -> Clause:
+def _clause_from_full(full: FullClause, meta: _PolicyMeta, effective_date: date) -> Clause:
     return Clause(
         clause_id=full.clause_id,
         policy_name=meta.product,

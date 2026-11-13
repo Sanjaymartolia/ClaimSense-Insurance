@@ -1,0 +1,219 @@
+{
+ "label": "ss-1113-phase1",
+ "mode": "stub",
+ "verdict": "REHEARSAL PASSED",
+ "exit_code": 0,
+ "stages": [
+  {
+   "name": "tests",
+   "what": "Product tests (CI)",
+   "blocking": true,
+   "status": "passed",
+   "exit_code": 0,
+   "seconds": 176.2,
+   "log": "runs/ship/ss-1113-phase1/logs/tests.log",
+   "note": "",
+   "outputs": "",
+   "cmd": [
+    "python.exe",
+    "-m",
+    "pytest",
+    "-q"
+   ]
+  },
+  {
+   "name": "lint",
+   "what": "ruff check (CI)",
+   "blocking": true,
+   "status": "passed",
+   "exit_code": 0,
+   "seconds": 0.2,
+   "log": "runs/ship/ss-1113-phase1/logs/lint.log",
+   "note": "",
+   "outputs": "",
+   "cmd": [
+    "python.exe",
+    "-m",
+    "ruff",
+    "check",
+    "."
+   ]
+  },
+  {
+   "name": "format",
+   "what": "ruff format --check (CI)",
+   "blocking": true,
+   "status": "passed",
+   "exit_code": 0,
+   "seconds": 0.2,
+   "log": "runs/ship/ss-1113-phase1/logs/format.log",
+   "note": "",
+   "outputs": "",
+   "cmd": [
+    "python.exe",
+    "-m",
+    "ruff",
+    "format",
+    "--check",
+    "."
+   ]
+  },
+  {
+   "name": "tool-pins",
+   "what": "Tools unchanged since review",
+   "blocking": true,
+   "status": "passed",
+   "exit_code": 0,
+   "seconds": 0.8,
+   "log": "runs/ship/ss-1113-phase1/logs/tool-pins.log",
+   "note": "",
+   "outputs": "",
+   "cmd": [
+    "python.exe",
+    "-m",
+    "claimsense.hooks.pins"
+   ]
+  },
+  {
+   "name": "release-gate",
+   "what": "Harness self-check + dev and red-team claims + agent suite + combined gate",
+   "blocking": true,
+   "status": "passed",
+   "exit_code": 0,
+   "seconds": 3.2,
+   "log": "runs/ship/ss-1113-phase1/logs/release-gate.log",
+   "note": "",
+   "outputs": "runs/full/ss-1113-phase1-full/",
+   "cmd": [
+    "python.exe",
+    "-X",
+    "utf8",
+    "-m",
+    "eval.full",
+    "--label",
+    "ss-1113-phase1-full",
+    "--splits",
+    "dev,redteam",
+    "--variant",
+    "v1",
+    "--workers",
+    "4",
+    "--quiet",
+    "--stub"
+   ]
+  },
+  {
+   "name": "tool-use",
+   "what": "Tool calls, tools, hooks, guardrails (offline)",
+   "blocking": true,
+   "status": "passed",
+   "exit_code": 0,
+   "seconds": 9.2,
+   "log": "runs/ship/ss-1113-phase1/logs/tool-use.log",
+   "note": "",
+   "outputs": "runs/agentic/ss-1113-phase1-agentic.*",
+   "cmd": [
+    "python.exe",
+    "-X",
+    "utf8",
+    "-m",
+    "eval.agentic.run",
+    "--label",
+    "ss-1113-phase1-agentic"
+   ]
+  },
+  {
+   "name": "deepeval",
+   "what": "DeepEval trajectory tests (code checks, no judge)",
+   "blocking": true,
+   "status": "passed",
+   "exit_code": 0,
+   "seconds": 17.2,
+   "log": "runs/ship/ss-1113-phase1/logs/deepeval.log",
+   "note": "",
+   "outputs": "",
+   "cmd": [
+    "python.exe",
+    "-X",
+    "utf8",
+    "-m",
+    "pytest",
+    "eval/deepeval_suite",
+    "-q",
+    "-p",
+    "no:warnings"
+   ]
+  },
+  {
+   "name": "deepeval-judge",
+   "what": "DeepEval payload judge, GEval + faithfulness (report only; uncalibrated)",
+   "blocking": false,
+   "status": "skipped",
+   "exit_code": null,
+   "seconds": 0.0,
+   "log": "runs/ship/ss-1113-phase1/logs/deepeval-judge.log",
+   "note": "needs real model",
+   "outputs": "",
+   "cmd": [
+    "python.exe",
+    "-X",
+    "utf8",
+    "-m",
+    "pytest",
+    "eval/deepeval_suite/test_payload_quality.py",
+    "-q",
+    "-p",
+    "no:warnings"
+   ]
+  },
+  {
+   "name": "security",
+   "what": "Security scoreboard: each defence against the attacks (report only)",
+   "blocking": false,
+   "status": "passed",
+   "exit_code": 0,
+   "seconds": 2.0,
+   "log": "runs/ship/ss-1113-phase1/logs/security.log",
+   "note": "",
+   "outputs": "runs/security/ss-1113-phase1-sec/",
+   "cmd": [
+    "python.exe",
+    "-X",
+    "utf8",
+    "-m",
+    "eval.security",
+    "scoreboard",
+    "--label",
+    "ss-1113-phase1-sec",
+    "--stub"
+   ]
+  },
+  {
+   "name": "ragas",
+   "what": "RAGAS rationale groundedness (report only; uncalibrated, weight 0.00)",
+   "blocking": false,
+   "status": "skipped",
+   "exit_code": null,
+   "seconds": 0.0,
+   "log": "runs/ship/ss-1113-phase1/logs/ragas.log",
+   "note": "needs real model",
+   "outputs": "runs/ss-1113-phase1-ragas.scorecard.json",
+   "cmd": [
+    "python.exe",
+    "-X",
+    "utf8",
+    "-m",
+    "eval.harness.run",
+    "--adapter",
+    "claimsense-real-retrieval",
+    "--split",
+    "dev",
+    "--judge",
+    "--judge-limit",
+    "5",
+    "--label",
+    "ss-1113-phase1-ragas"
+   ]
+  }
+ ]
+}

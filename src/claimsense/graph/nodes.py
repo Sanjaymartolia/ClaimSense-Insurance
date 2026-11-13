@@ -7,7 +7,7 @@ Pipeline (brief, step 2):
                                   │                              └ escalate → human_review
                                   └─ (not admissible) → human_review → repudiate → memory
   human/senior "edit" → apply_edits → critic → human_review   (old approvals are void)
-"""
+"""  # noqa: E501 - an ASCII diagram: its alignment is content
 
 from __future__ import annotations
 
@@ -321,7 +321,7 @@ class Nodes:
             if e and e.clause_id:
                 locked[line.line_id] = e.clause_id
             lines.append(line)
-        delta = sum((l.amount for l in lines), Decimal(0)) - claim.lines_total()
+        delta = sum((b.amount for b in lines), Decimal(0)) - claim.lines_total()
         claim = claim.model_copy(
             update={"bill_lines": lines, "bill_total": claim.bill_total + delta}
         )

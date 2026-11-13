@@ -2,6 +2,7 @@ name: ci
 on:
   push: { branches: [main] }
   pull_request:
+  workflow_dispatch: # manual run; also the only trigger for the paid `eval-real` job
 
 jobs:
   test:
@@ -15,21 +16,79 @@ jobs:
       - run: ruff format --check .
       - run: pytest
 
-  # T48: eval gate. Fails the build when the dev-set score is below the threshold.
-  # eval-gate:
-  #   needs: test
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #     - uses: actions/checkout@v4
-  #     - uses: actions/setup-python@v5
-  #       with: { python-version: "3.12" }
-  #     - run: pip install -e ".[dev,agents,mcp,retrieval]"
-  #     - run: python -m eval.run --split dev --min-score 0.80
-  #       env: { OPENROUTER_API_KEY: "${{ secrets.OPENROUTER_API_KEY }}" }
-  #     - name: Notify Discord on failure
-  #       if: failure()
-  #       env: { WEBHOOK: "${{ secrets.DISCORD_WEBHOOK_CI }}" }
-  #       run: >
-  #         curl -sS -H "Content-Type: application/json"
-  #         -d "{\"content\": \"❌ eval gate failed on ${{ github.ref_name }}: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\"}"
-  #         "$WEBHOOK"
+  # T48: the eval gate. Free and deterministic: the agents run in stub mode (no key, no model
+  # calls), so a red build means the code changed behaviour, never that a model was unlucky.
+  # It fails when a tool definition changed without review, when the scorer itself can no longer
+  # be trusted, when the dev + red-team composite on the product calculator falls below
+  # `composite_threshold` in eval/harness/scorecard.yaml or a catastrophic gate fires, when a
+  # tool-use check fails unexpectedly, or when an eval test fails. `pytest eval/tests` is not run
+  # here: it needs every optional extra (see CLAUDE.md).
+  eval-gate:
+    needs: test
+    runs-on: ubuntu-latest
+    env:
+      CLAIMSENSE_LLM: stub
+      PYTHONUTF8: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: pip install -e ".[dev,agents,docs]"
+      - name: Tool definitions unchanged since review
+        run: python -m claimsense.hooks.pins
+      - name: Harness self-check (gold replay, floor, every gate on its injected fault)
+        run: python -m eval.harness.suite
+      - name: Eval gate, dev + red-team, product calculator
+        run: python -m eval.harness.run --adapter claimsense-real-calc --split dev,redteam --label ci-gate
+      - name: Release gate (harness + agent suite)
+        run: python -m eval.full --stub --label ci-full --quiet
+      - name: Tool use, hooks and final database state
+        run: python -m eval.agentic.run --label ci-agentic
+      - name: Eval package tests
+        run: pytest eval/agentic/tests eval/ship/tests eval/experiments/tests eval/calibration/tests
+      - name: Keep the scorecards
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: eval-gate-${{ github.run_id }}
+          path: |
+            runs/ci-gate.scorecard.json
+            runs/suite.json
+            runs/full/ci-full/
+            runs/agentic/ci-agentic.json
+            runs/agentic/ci-agentic.png
+          if-no-files-found: ignore
+      # Optional: post failures to the team channel once the DISCORD_WEBHOOK_CI secret exists.
+      # - name: Notify Discord on failure
+      #   if: failure()
+      #   env: { WEBHOOK: "${{ secrets.DISCORD_WEBHOOK_CI }}" }
+      #   run: >
+      #     curl -sS -H "Content-Type: application/json"
+      #     -d "{\"content\": \"eval gate failed on ${{ github.ref_name }}: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\"}"
+      #     "$WEBHOOK"
+
+  # The same release gate with real models. Manual only (Actions > ci > Run workflow): it costs
+  # money and its result varies between runs. Needs the OPENROUTER_API_KEY repository secret.
+  eval-real:
+    if: github.event_name == 'workflow_dispatch'
+    needs: eval-gate
+    runs-on: ubuntu-latest
+    env:
+      OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+      PYTHONUTF8: "1"
+    steps:
+      - name: Refuse to run without a key (it would silently fall back to stub mode)
+        run: test -n "$OPENROUTER_API_KEY" || { echo "::error::OPENROUTER_API_KEY secret is not set"; exit 1; }
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: pip install -e ".[dev,agents,docs]"
+      - name: Release gate with real models
+        run: python -m eval.full --label ci-real --splits dev,redteam --workers 4 --quiet
+      - name: Keep the result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: eval-real-${{ github.run_id }}
+          path: runs/full/ci-real/
+          if-no-files-found: ignore

@@ -231,7 +231,7 @@ class CoverageAgent:
         if self.playbook is None:
             return []
         clause_ids = {p.clause.clause_id for ps in cands.values() for p in ps}
-        text = " ".join(l.description for l in claim.bill_lines) + " " + claim.diagnosis
+        text = " ".join(b.description for b in claim.bill_lines) + " " + claim.diagnosis
         return self.playbook.retrieve(clause_ids=clause_ids, text=text, k=self.lesson_k)
 
     def choose_clauses(
@@ -261,13 +261,13 @@ class CoverageAgent:
             for line in claim.bill_lines:
                 ps = cands[line.line_id]
                 pick = (previous or {}).get(line.line_id) or ps[0].clause.clause_id
-                for l in lessons:
+                for lesson in lessons:
                     if (
-                        line.category.value in l.applies_when.lower().split()
-                        and l.clause_ids
-                        and l.clause_ids[0] in {p.clause.clause_id for p in ps}
+                        line.category.value in lesson.applies_when.lower().split()
+                        and lesson.clause_ids
+                        and lesson.clause_ids[0] in {p.clause.clause_id for p in ps}
                     ):
-                        pick = l.clause_ids[0]
+                        pick = lesson.clause_ids[0]
                 choices[line.line_id] = pick
         else:
             choices = self._ask_model(
@@ -293,7 +293,7 @@ class CoverageAgent:
             if lid not in locked and choices.get(lid) == picked.get(lid) and why.strip()
         }
         self.rationale_clauses = {lid: choices[lid] for lid in self.rationales}
-        return choices, [l.lesson_id for l in lessons], notes
+        return choices, [lesson.lesson_id for lesson in lessons], notes
 
     def _ask_model(
         self, claim, cands, lessons, critic_feedback, previous, rationales=None
@@ -318,7 +318,8 @@ class CoverageAgent:
             parts.append(
                 "PLAYBOOK LESSONS:\n"
                 + "\n".join(
-                    f"- [{l.lesson_id}] {l.text} (applies when: {l.applies_when})" for l in lessons
+                    f"- [{lesson.lesson_id}] {lesson.text} (applies when: {lesson.applies_when})"
+                    for lesson in lessons
                 )
             )
         if critic_feedback:

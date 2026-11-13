@@ -66,19 +66,19 @@ class CriticAgent:
             version=worksheet.version,
             fraud_flags=worksheet.fraud_flags,
         )
-        mine = {l.line_id: l for l in worksheet.lines}
-        for l in redo.lines:
-            got = mine.get(l.line_id)
+        mine = {w.line_id: w for w in worksheet.lines}
+        for w in redo.lines:
+            got = mine.get(w.line_id)
             if got is None:
                 issues.append(
-                    CriticIssue(line_id=l.line_id, kind="arithmetic", message="line missing")
+                    CriticIssue(line_id=w.line_id, kind="arithmetic", message="line missing")
                 )
-            elif got.payable != l.payable:
+            elif got.payable != w.payable:
                 issues.append(
                     CriticIssue(
-                        line_id=l.line_id,
+                        line_id=w.line_id,
                         kind="arithmetic",
-                        message=f"payable {got.payable} but calculator gives {l.payable}",
+                        message=f"payable {got.payable} but calculator gives {w.payable}",
                     )
                 )
         if redo.total_payable != worksheet.total_payable:
@@ -91,7 +91,7 @@ class CriticAgent:
             )
 
         # 2-4. every deduction cites a real clause that supports it
-        deductions = [(l.line_id, d) for l in worksheet.lines for d in l.deductions]
+        deductions = [(w.line_id, d) for w in worksheet.lines for d in w.deductions]
         if worksheet.co_pay:
             deductions.append((None, worksheet.co_pay))
         for line_id, d in deductions:

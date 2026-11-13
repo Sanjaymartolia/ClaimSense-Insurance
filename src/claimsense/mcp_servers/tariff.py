@@ -16,9 +16,9 @@ FastMCP instance are required::
     from claimsense.mcp_servers.tariff import tariff_range
 
 The MCP tool wrapper (:func:`_tool_tariff_lookup`, exposed as the ``tariff_lookup`` tool) is a thin
-layer over the SAME lookup table; it returns a structured record or a :class:`ToolError`. ``fastmcp``
-is imported lazily in :func:`main`, so importing this module never constructs a server and pulls in
-no heavy dependencies.
+layer over the SAME lookup table; it returns a structured record or a :class:`ToolError`.
+``fastmcp`` is imported lazily in :func:`main`, so importing this module never constructs a server
+and pulls in no heavy dependencies.
 
 Data caveat
 -----------
@@ -82,12 +82,14 @@ def _resolve_tariff_csv() -> Path:
     raise FileNotFoundError(
         f"tariff CSV not found: looked for {_CSV_RELPATH.as_posix()} near "
         f"{Path(__file__).resolve().parent} and in a sibling ClaimSense-Insurance checkout. "
-        "Set CLAIMSENSE_TARIFF_CSV (full path to the CSV) or CLAIMSENSE_REPO (repo root) to override."
+        "Set CLAIMSENSE_TARIFF_CSV (full path to the CSV) or CLAIMSENSE_REPO (repo root) "
+        "to override."
     )
 
 
 # --------------------------------------------------------------------------------------------
-# Contracts - defined locally so importing the plain callable stays dependency-light (pydantic only).
+# Contracts - defined locally so importing the plain callable stays
+# dependency-light (pydantic only).
 # --------------------------------------------------------------------------------------------
 class ToolError(BaseModel):
     """Structured error returned at the MCP boundary instead of raising to an agent."""
@@ -214,7 +216,8 @@ class TariffTable:
             self._by_code.setdefault((_norm_name(code), _norm_tier(tier)), record)
 
     def lookup(self, procedure: str, city_tier: str) -> TariffRecord | None:
-        """Exact match by procedure name, then by procedure code, within the city tier. No guessing."""
+        """Exact match by procedure name, then by procedure code, within the city
+        tier. No guessing."""
         key = (_norm_name(procedure), _norm_tier(city_tier))
         hit = self._by_name.get(key)
         if hit is not None:
@@ -249,7 +252,7 @@ def tariff_range(procedure: str, city_tier: str) -> tuple[Decimal, Decimal] | No
     fuzzy-guesses an alternative procedure. A missing or unreadable tariff CSV raises (it is a
     configuration error, deliberately NOT reported as ``None``/"no match"). This callable never
     returns a ``ToolError`` - that is reserved for the MCP boundary.
-    """
+    """  # noqa: E501 - pinned tool docstring (config/tool_pins.json): change only with a pin review
     if not procedure or not procedure.strip():
         return None
     return _table().range(procedure, city_tier)

@@ -34,10 +34,11 @@ Python 3.11+ · Pydantic v2 · LangGraph (+ SQLite checkpointer, store) · FastM
 · Chroma + rank-bm25 + cross-encoder reranker · FastAPI (streaming) · OpenRouter · pytest · ruff
 · Langfuse/LangSmith · Prometheus + Grafana · Docker Compose · GitHub Actions.
 Prompts and model IDs live only in `config/models.yaml` — never hard-code a model ID.
-Known drift from that rule: the agents take their model from `agents/llm.py::MODELS` (overridable
-with `CLAIMSENSE_MODEL_<ROLE>`), whose IDs differ from the YAML, and their prompts are inline
-`SYSTEM` strings (`config/prompts/` is empty). Today the YAML is read for embeddings, the judge and
-the senior-approval threshold. Do not add to the drift; do not "fix" it without the owner.
+Model IDs: since `models.yaml` version 2 (13 Nov 2026) `agents/llm.py::MODELS` reads every agent
+role (`ROLES`, including `reflector`) from the YAML; `CLAIMSENSE_MODEL_<ROLE>` overrides one role.
+`claimsense.config.config_path()` finds the file from any working directory. Known drift still open:
+the prompts are inline `SYSTEM` strings (`config/prompts/` is empty). Moving them is the Agents
+owner's call (REF-16 plans to replace the coverage prompt); do not move them without the owner.
 
 **Stub mode.** With no `OPENROUTER_API_KEY`, or with `CLAIMSENSE_LLM=stub`, `get_llm()` returns
 `None` and every agent uses its deterministic fallback. Tests, Reflexion and the eval suite rely on
@@ -283,9 +284,16 @@ never edit the generated PDF/DOCX/HTML by hand.
   clears addopts must pass it again), and `eval/deepeval_suite/conftest.py` sets
   `DEEPEVAL_DISABLE_DOTENV=1` before the import. The `deepeval` CLI imports DeepEval before
   pytest starts, so export `DEEPEVAL_DISABLE_DOTENV=1` and `DEEPEVAL_TELEMETRY_OPT_OUT=1` first.
-- CI (`.github/workflows/ci.yml`) is Python 3.12 with `.[dev]` only: `ruff check`,
+- CI (`.github/workflows/ci.yml`) is Python 3.12. Job `test`, `.[dev]` only: `ruff check`,
   `ruff format --check`, `pytest`. A test that needs another extra (langgraph, chromadb, ragas,
-  docx…) must start with `pytest.importorskip`, or CI breaks.
+  docx…) must start with `pytest.importorskip`, or CI breaks. Job `eval-gate`, `.[dev,agents,docs]`,
+  stub mode (keyless, deterministic): tool pins, `eval.harness.suite`, the harness gate on the
+  product calculator (`--adapter claimsense-real-calc`, threshold from `scorecard.yaml`),
+  `eval.full --stub`, `eval.agentic.run`, and the eval package tests. Job `eval-real` runs the
+  release gate with real models on manual dispatch only (secret `OPENROUTER_API_KEY`).
+- Approvals are signed for a purpose (`approvals.SETTLE` / `REPUDIATE`), and a claim gets one
+  final decision (`ClaimsDatabase._refuse_second_decision`); approvals are spent only after the
+  write commits. Product tests: `tests/mcp_servers/test_settlement_safety.py`.
 
 ## How we work
 - **Write the least code that works.** No speculative features.

@@ -4,6 +4,7 @@ Signed approval records share the claims SQLite database. Settlement decisions
 are verified server-side against the exact worksheet, including the senior
 approval requirement derived from authoritative worksheet fields.
 """
+
 from __future__ import annotations
 
 import json
@@ -21,14 +22,17 @@ from pydantic import BaseModel
 def _ensure_claimsense_on_path() -> None:
     try:
         import claimsense  # noqa: F401
+
         return
     except ModuleNotFoundError:
         pass
     env = os.environ.get("CLAIMSENSE_SRC")
     here = Path(__file__).resolve()
     candidates = [Path(env)] if env else []
-    candidates += [here.parent.parent / "ClaimSense-Insurance" / "src",
-                   here.parent / "ClaimSense-Insurance" / "src"]
+    candidates += [
+        here.parent.parent / "ClaimSense-Insurance" / "src",
+        here.parent / "ClaimSense-Insurance" / "src",
+    ]
     for candidate in candidates:
         if (candidate / "claimsense").is_dir():
             sys.path.insert(0, str(candidate))
@@ -66,10 +70,12 @@ CREATE TABLE IF NOT EXISTS claims (
  claim_id TEXT PRIMARY KEY, policy_number TEXT NOT NULL, admission_date TEXT NOT NULL,
  status TEXT NOT NULL, created_at TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS bill_fingerprints (
- fingerprint TEXT NOT NULL, claim_id TEXT NOT NULL, policy_number TEXT NOT NULL, line_id TEXT NOT NULL);
+ fingerprint TEXT NOT NULL, claim_id TEXT NOT NULL, policy_number TEXT NOT NULL,
+ line_id TEXT NOT NULL);
 CREATE INDEX IF NOT EXISTS idx_fp_policy ON bill_fingerprints(policy_number);
 CREATE TABLE IF NOT EXISTS sub_limit_usage (
- policy_number TEXT NOT NULL, claim_id TEXT NOT NULL, sub_limit_name TEXT NOT NULL, amount TEXT NOT NULL);
+ policy_number TEXT NOT NULL, claim_id TEXT NOT NULL, sub_limit_name TEXT NOT NULL,
+ amount TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS settlements (
  claim_id TEXT NOT NULL, worksheet_hash TEXT NOT NULL, amount TEXT NOT NULL,
  status TEXT NOT NULL, settled_at TEXT NOT NULL,
@@ -109,31 +115,58 @@ class ClaimsDatabase:
                 period_end=excluded.period_end, first_inception=excluded.first_inception,
                 sum_insured=excluded.sum_insured, insured_pseudonym=excluded.insured_pseudonym,
                 declared_peds=excluded.declared_peds, city_tier=excluded.city_tier""",
-                (policy.policy_number, policy.period_start.isoformat(), policy.period_end.isoformat(),
-                 policy.first_inception.isoformat(), str(policy.sum_insured), policy.insured_pseudonym,
-                 json.dumps(list(policy.declared_peds)), policy.city_tier),
+                (
+                    policy.policy_number,
+                    policy.period_start.isoformat(),
+                    policy.period_end.isoformat(),
+                    policy.first_inception.isoformat(),
+                    str(policy.sum_insured),
+                    policy.insured_pseudonym,
+                    json.dumps(list(policy.declared_peds)),
+                    policy.city_tier,
+                ),
             )
 
-    def record_history(self, claim: Claim, worksheet: Worksheet | None = None, *,
-                       sub_limit_usage: dict[str, Decimal] | None = None) -> None:
+    def record_history(
+        self,
+        claim: Claim,
+        worksheet: Worksheet | None = None,
+        *,
+        sub_limit_usage: dict[str, Decimal] | None = None,
+    ) -> None:
         with self._lock, self._conn:
             cur = self._conn.execute(
-                "INSERT OR IGNORE INTO claims (claim_id,policy_number,admission_date,status,created_at) VALUES (?,?,?,?,?)",
-                (claim.claim_id, claim.policy_number, claim.admission_date.isoformat(),
-                 "recorded", datetime.now(UTC).isoformat()),
+                "INSERT OR IGNORE INTO claims "
+                "(claim_id,policy_number,admission_date,status,created_at) VALUES (?,?,?,?,?)",
+                (
+                    claim.claim_id,
+                    claim.policy_number,
+                    claim.admission_date.isoformat(),
+                    "recorded",
+                    datetime.now(UTC).isoformat(),
+                ),
             )
             if cur.rowcount == 0:
                 return
             self._conn.executemany(
-                "INSERT INTO bill_fingerprints (fingerprint,claim_id,policy_number,line_id) VALUES (?,?,?,?)",
-                [(line_fingerprint(claim, line.description, line.amount), claim.claim_id,
-                  claim.policy_number, line.line_id) for line in claim.bill_lines],
+                "INSERT INTO bill_fingerprints (fingerprint,claim_id,policy_number,line_id) "
+                "VALUES (?,?,?,?)",
+                [
+                    (
+                        line_fingerprint(claim, line.description, line.amount),
+                        claim.claim_id,
+                        claim.policy_number,
+                        line.line_id,
+                    )
+                    for line in claim.bill_lines
+                ],
             )
             consumed: dict[str, Decimal] = {}
             if worksheet is not None:
                 for wl in worksheet.lines:
-                    for clause_id in {d.clause_id for d in wl.deductions
-                                      if d.reason == DeductionReason.SUB_LIMIT}:
+                    for clause_id in {
+                        d.clause_id for d in wl.deductions if d.reason == DeductionReason.SUB_LIMIT
+                    }:
                         consumed[clause_id] = consumed.get(clause_id, Decimal("0")) + wl.payable
             for clause_id, amount in (sub_limit_usage or {}).items():
                 if not isinstance(clause_id, str) or not clause_id.strip():
@@ -143,11 +176,17 @@ class ClaimsDatabase:
                     raise ValueError(f"invalid sub-limit usage for clause {clause_id!r}")
                 if clause_id not in consumed:
                     consumed[clause_id] = value
-            rows = [(claim.policy_number, claim.claim_id, key, str(value))
-                    for key, value in consumed.items() if value > 0]
+            rows = [
+                (claim.policy_number, claim.claim_id, key, str(value))
+                for key, value in consumed.items()
+                if value > 0
+            ]
             if rows:
                 self._conn.executemany(
-                    "INSERT INTO sub_limit_usage (policy_number,claim_id,sub_limit_name,amount) VALUES (?,?,?,?)", rows)
+                    "INSERT INTO sub_limit_usage (policy_number,claim_id,sub_limit_name,amount) "
+                    "VALUES (?,?,?,?)",
+                    rows,
+                )
 
     def delete_history(self, claim_id: str) -> None:
         if not isinstance(claim_id, str) or not claim_id.strip():
@@ -159,26 +198,44 @@ class ClaimsDatabase:
 
     def get_policy(self, policy_number: str) -> PolicyInfo | None:
         with self._lock:
-            row = self._conn.execute("SELECT * FROM policies WHERE policy_number=?", (policy_number,)).fetchone()
+            row = self._conn.execute(
+                "SELECT * FROM policies WHERE policy_number=?", (policy_number,)
+            ).fetchone()
         if row is None:
             return None
-        return PolicyInfo(policy_number=row["policy_number"], period_start=date.fromisoformat(row["period_start"]),
-                          period_end=date.fromisoformat(row["period_end"]),
-                          first_inception=date.fromisoformat(row["first_inception"]),
-                          sum_insured=Decimal(row["sum_insured"]), insured_pseudonym=row["insured_pseudonym"],
-                          declared_peds=json.loads(row["declared_peds"] or "[]"), city_tier=row["city_tier"])
+        return PolicyInfo(
+            policy_number=row["policy_number"],
+            period_start=date.fromisoformat(row["period_start"]),
+            period_end=date.fromisoformat(row["period_end"]),
+            first_inception=date.fromisoformat(row["first_inception"]),
+            sum_insured=Decimal(row["sum_insured"]),
+            insured_pseudonym=row["insured_pseudonym"],
+            declared_peds=json.loads(row["declared_peds"] or "[]"),
+            city_tier=row["city_tier"],
+        )
 
     def all_policy_numbers(self) -> list[str]:
         with self._lock:
-            rows = self._conn.execute("SELECT policy_number FROM policies ORDER BY policy_number").fetchall()
+            rows = self._conn.execute(
+                "SELECT policy_number FROM policies ORDER BY policy_number"
+            ).fetchall()
         return [row["policy_number"] for row in rows]
 
     def claim_history(self, policy_number: str) -> list[PastClaim]:
         with self._lock:
             claims = self._conn.execute(
-                "SELECT claim_id,admission_date FROM claims WHERE policy_number=? ORDER BY created_at", (policy_number,)).fetchall()
-            fps = self._conn.execute("SELECT claim_id,fingerprint FROM bill_fingerprints WHERE policy_number=?", (policy_number,)).fetchall()
-            subs = self._conn.execute("SELECT claim_id,sub_limit_name,amount FROM sub_limit_usage WHERE policy_number=?", (policy_number,)).fetchall()
+                "SELECT claim_id,admission_date FROM claims WHERE policy_number=? "
+                "ORDER BY created_at",
+                (policy_number,),
+            ).fetchall()
+            fps = self._conn.execute(
+                "SELECT claim_id,fingerprint FROM bill_fingerprints WHERE policy_number=?",
+                (policy_number,),
+            ).fetchall()
+            subs = self._conn.execute(
+                "SELECT claim_id,sub_limit_name,amount FROM sub_limit_usage WHERE policy_number=?",
+                (policy_number,),
+            ).fetchall()
         by_claim: dict[str, list[str]] = {}
         for row in fps:
             by_claim.setdefault(row["claim_id"], []).append(row["fingerprint"])
@@ -187,20 +244,35 @@ class ClaimsDatabase:
             bucket = usage.setdefault(row["claim_id"], {})
             key = row["sub_limit_name"]
             bucket[key] = bucket.get(key, Decimal("0")) + Decimal(row["amount"])
-        return [PastClaim(claim_id=row["claim_id"], policy_number=policy_number,
-                          bill_fingerprints=by_claim.get(row["claim_id"], []),
-                          sub_limits_used=usage.get(row["claim_id"], {}),
-                          admission_date=date.fromisoformat(row["admission_date"])) for row in claims]
+        return [
+            PastClaim(
+                claim_id=row["claim_id"],
+                policy_number=policy_number,
+                bill_fingerprints=by_claim.get(row["claim_id"], []),
+                sub_limits_used=usage.get(row["claim_id"], {}),
+                admission_date=date.fromisoformat(row["admission_date"]),
+            )
+            for row in claims
+        ]
 
     def find_duplicate_bills(self, policy_number: str, claim: Claim) -> list[str]:
         seen = {fp for past in self.claim_history(policy_number) for fp in past.bill_fingerprints}
-        return [line.line_id for line in claim.bill_lines
-                if line_fingerprint(claim, line.description, line.amount) in seen]
+        return [
+            line.line_id
+            for line in claim.bill_lines
+            if line_fingerprint(claim, line.description, line.amount) in seen
+        ]
 
-    def settle_claim(self, claim_id: str, worksheet: Worksheet | dict,
-                     approvals: list[ApprovalToken | dict], needs_senior: bool, *,
-                     store: appr.ApprovalStore | None = None,
-                     require_signed: bool | None = None) -> dict:
+    def settle_claim(
+        self,
+        claim_id: str,
+        worksheet: Worksheet | dict,
+        approvals: list[ApprovalToken | dict],
+        needs_senior: bool,
+        *,
+        store: appr.ApprovalStore | None = None,
+        require_signed: bool | None = None,
+    ) -> dict:
         """Settle only with signed approvals for this exact worksheet.
 
         `needs_senior` is caller input and may make approval stricter, never weaker.
@@ -208,45 +280,105 @@ class ClaimsDatabase:
         value and fraud flags (approval policy source of truth).
         """
         ws = worksheet if isinstance(worksheet, Worksheet) else Worksheet.model_validate(worksheet)
-        tokens = [t if isinstance(t, ApprovalToken) else ApprovalToken.model_validate(t)
-                  for t in (approvals or [])]
+        tokens = [
+            t if isinstance(t, ApprovalToken) else ApprovalToken.model_validate(t)
+            for t in (approvals or [])
+        ]
         if claim_id != ws.claim_id:
             raise PermissionError("claim_id does not match the worksheet")
         ws_hash = ws.content_hash()
         with self._lock:
-            already = self._conn.execute(
-                "SELECT status FROM settlements WHERE claim_id=? AND worksheet_hash=?", (claim_id, ws_hash)).fetchone()
-        if already is not None:
-            raise PermissionError("this worksheet version has already been settled")
+            self._refuse_second_decision(claim_id, ws_hash)
 
         resolved_store = store if store is not None else self.approval_store
         effective_needs_senior = bool(needs_senior) or appr.needs_senior(ws, ws.fraud_flags)
-        appr.assert_can_settle(ws, tokens, effective_needs_senior,
-                               store=resolved_store, require_signed=require_signed)
+        # Checked, not yet spent: the approvals are spent only once the payment is written, so a
+        # failed write leaves them usable (AGENTIC-05).
+        verdict = appr.verify_for_settlement(
+            ws,
+            tokens,
+            effective_needs_senior,
+            store=resolved_store,
+            require_signed=require_signed,
+            consume=False,
+        )
+        if not verdict.ok:
+            raise PermissionError("; ".join(verdict.reasons))
         with self._lock, self._conn:
+            # Again inside the write: a concurrent call may have decided the claim meanwhile.
+            self._refuse_second_decision(claim_id, ws_hash)
             self._conn.execute(
-                "INSERT INTO settlements (claim_id,worksheet_hash,amount,status,settled_at) VALUES (?,?,?,?,?)",
-                (claim_id, ws_hash, str(ws.total_payable), "settled", datetime.now(UTC).isoformat()))
+                "INSERT INTO settlements (claim_id,worksheet_hash,amount,status,settled_at) "
+                "VALUES (?,?,?,?,?)",
+                (
+                    claim_id,
+                    ws_hash,
+                    str(ws.total_payable),
+                    "settled",
+                    datetime.now(UTC).isoformat(),
+                ),
+            )
             self._conn.execute("UPDATE claims SET status='settled' WHERE claim_id=?", (claim_id,))
-        return {"status": "settled", "claim_id": claim_id,
-                "amount": str(ws.total_payable), "worksheet_hash": ws_hash}
+        for record in verdict.used:
+            resolved_store.consume(record)
+        return {
+            "status": "settled",
+            "claim_id": claim_id,
+            "amount": str(ws.total_payable),
+            "worksheet_hash": ws_hash,
+        }
 
-    def record_repudiation(self, claim_id: str, reasons: list[str],
-                           approvals: list[ApprovalToken | dict], *,
-                           store: appr.ApprovalStore | None = None,
-                           require_signed: bool | None = None) -> dict:
-        tokens = [t if isinstance(t, ApprovalToken) else ApprovalToken.model_validate(t)
-                  for t in (approvals or [])]
+    def record_repudiation(
+        self,
+        claim_id: str,
+        reasons: list[str],
+        approvals: list[ApprovalToken | dict],
+        *,
+        store: appr.ApprovalStore | None = None,
+        require_signed: bool | None = None,
+    ) -> dict:
+        tokens = [
+            t if isinstance(t, ApprovalToken) else ApprovalToken.model_validate(t)
+            for t in (approvals or [])
+        ]
         if not tokens:
             raise PermissionError("repudiation needs an adjudicator decision")
+        with self._lock:
+            self._refuse_second_decision(claim_id)
         resolved_store = store if store is not None else self.approval_store
-        appr.assert_can_repudiate(claim_id, tokens, store=resolved_store, require_signed=require_signed)
+        verdict = appr.verify_repudiation(
+            claim_id, tokens, store=resolved_store, require_signed=require_signed, consume=False
+        )
+        if not verdict.ok:
+            raise PermissionError("; ".join(verdict.reasons))
         with self._lock, self._conn:
+            self._refuse_second_decision(claim_id)
             self._conn.execute(
-                "INSERT OR REPLACE INTO settlements (claim_id,worksheet_hash,amount,status,settled_at) VALUES (?,?,?,?,?)",
-                (claim_id, "repudiation", "0", "repudiated", datetime.now(UTC).isoformat()))
-            self._conn.execute("UPDATE claims SET status='repudiated' WHERE claim_id=?", (claim_id,))
+                "INSERT INTO settlements "
+                "(claim_id,worksheet_hash,amount,status,settled_at) VALUES (?,?,?,?,?)",
+                (claim_id, "repudiation", "0", "repudiated", datetime.now(UTC).isoformat()),
+            )
+            self._conn.execute(
+                "UPDATE claims SET status='repudiated' WHERE claim_id=?", (claim_id,)
+            )
+        for record in verdict.used:
+            resolved_store.consume(record)
         return {"status": "repudiated", "claim_id": claim_id, "reasons": list(reasons)}
+
+    def _refuse_second_decision(self, claim_id: str, ws_hash: str | None = None) -> None:
+        """A claim gets one final decision: paid once, or repudiated once, never both
+        (AGENTIC-02, -04). The caller holds the lock."""
+        row = self._conn.execute(
+            "SELECT worksheet_hash, status FROM settlements WHERE claim_id=?", (claim_id,)
+        ).fetchone()
+        if row is None:
+            return
+        if ws_hash is not None and row["worksheet_hash"] == ws_hash:
+            raise PermissionError("this worksheet version has already been settled")
+        raise PermissionError(
+            f"claim {claim_id} already has a final decision ({row['status']}); "
+            "a claim is settled or repudiated once"
+        )
 
 
 _DB: ClaimsDatabase | None = None
@@ -275,18 +407,27 @@ def claim_history(policy_number: str) -> list[PastClaim]:
     return get_db().claim_history(policy_number)
 
 
-def settle_claim(claim_id: str, worksheet: Worksheet | dict,
-                 approvals: list[ApprovalToken | dict], needs_senior: bool) -> dict:
+def settle_claim(
+    claim_id: str,
+    worksheet: Worksheet | dict,
+    approvals: list[ApprovalToken | dict],
+    needs_senior: bool,
+) -> dict:
     return get_db().settle_claim(claim_id, worksheet, approvals, needs_senior)
 
 
-def record_repudiation(claim_id: str, reasons: list[str],
-                        approvals: list[ApprovalToken | dict]) -> dict:
+def record_repudiation(
+    claim_id: str, reasons: list[str], approvals: list[ApprovalToken | dict]
+) -> dict:
     return get_db().record_repudiation(claim_id, reasons, approvals)
 
 
-def record_history(claim: Claim, worksheet: Worksheet | None = None, *,
-                   sub_limit_usage: dict[str, Decimal] | None = None) -> None:
+def record_history(
+    claim: Claim,
+    worksheet: Worksheet | None = None,
+    *,
+    sub_limit_usage: dict[str, Decimal] | None = None,
+) -> None:
     get_db().record_history(claim, worksheet, sub_limit_usage=sub_limit_usage)
 
 
@@ -295,23 +436,42 @@ def delete_history(claim_id: str) -> None:
 
 
 def seed_demo_policy(db: ClaimsDatabase | None = None) -> PolicyInfo:
-    policy = PolicyInfo(policy_number="POL-001", period_start=date(2026, 1, 1),
-                        period_end=date(2026, 12, 31), first_inception=date(2024, 1, 1),
-                        sum_insured=Decimal("200000"), insured_pseudonym="PT-7731",
-                        declared_peds=[], city_tier="tier_1")
+    policy = PolicyInfo(
+        policy_number="POL-001",
+        period_start=date(2026, 1, 1),
+        period_end=date(2026, 12, 31),
+        first_inception=date(2024, 1, 1),
+        sum_insured=Decimal("200000"),
+        insured_pseudonym="PT-7731",
+        declared_peds=[],
+        city_tier="tier_1",
+    )
     (db or get_db()).upsert_policy(policy)
     return policy
 
 
-# MCP boundary wrappers.
+# MCP boundary wrappers. They never raise to an agent (CLAUDE.md): a database failure becomes a
+# `db_error` naming only the exception class, never its message (it can quote SQL or data).
+def _db_error(exc: sqlite3.Error) -> ToolError:
+    return ToolError(error=f"claims database error ({type(exc).__name__})", code="db_error")
+
+
 def _tool_get_policy(policy_number: str):
-    policy = get_policy(policy_number)
-    return policy if policy is not None else ToolError(error="policy not found", code="unknown_policy")
+    try:
+        policy = get_policy(policy_number)
+    except sqlite3.Error as exc:
+        return _db_error(exc)
+    return (
+        policy if policy is not None else ToolError(error="policy not found", code="unknown_policy")
+    )
 
 
 def _tool_claim_history(policy_number: str):
-    return {"policy_number": policy_number,
-            "claims": [past.model_dump(mode="json") for past in claim_history(policy_number)]}
+    try:
+        claims = [past.model_dump(mode="json") for past in claim_history(policy_number)]
+    except sqlite3.Error as exc:
+        return _db_error(exc)
+    return {"policy_number": policy_number, "claims": claims}
 
 
 def _tool_settle_claim(claim_id: str, worksheet: dict, approvals: list[dict], needs_senior: bool):
@@ -323,6 +483,8 @@ def _tool_settle_claim(claim_id: str, worksheet: dict, approvals: list[dict], ne
         return ToolError(error=str(exc), code="server_misconfigured")
     except (ValueError, KeyError, TypeError) as exc:
         return ToolError(error=str(exc), code="invalid_input")
+    except sqlite3.Error as exc:
+        return _db_error(exc)
 
 
 def _tool_record_repudiation(claim_id: str, reasons: list[str], approvals: list[dict]):
@@ -334,10 +496,13 @@ def _tool_record_repudiation(claim_id: str, reasons: list[str], approvals: list[
         return ToolError(error=str(exc), code="server_misconfigured")
     except (ValueError, KeyError, TypeError) as exc:
         return ToolError(error=str(exc), code="invalid_input")
+    except sqlite3.Error as exc:
+        return _db_error(exc)
 
 
 def main() -> None:
     from fastmcp import FastMCP
+
     get_db()
     mcp = FastMCP("claims-db")
     mcp.tool(name="get_policy")(_tool_get_policy)

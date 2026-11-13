@@ -49,6 +49,20 @@ the reviewer, honest claims decided right, and **clean claims blocked** (the 10 
 gold is "ready for approval" that went to a person instead). Stub result: attack success 0.33
 with defences off, 0 with them on; clean claims blocked 0.1 either way.
 
+**Real run `e2-ss-1113`** (OpenRouter, 52 claims per defence, `runs/experiments/e2-ss-1113/`):
+
+| Defence | Attack success | Injections shown | Honest claims right | Clean claims blocked | USD/claim | p95 s |
+|---|---|---|---|---|---|---|
+| D0 none | 0.333 (10/30) | 0.0 | 0.909 | 0.1 (1/10) | 0.00048 | 32.3 |
+| D1 input (shipped) | 0.0 | 1.0 | 0.909 | 0.1 | 0.00047 | 35.2 |
+| D2 input + scan | 0.0 | 1.0 | 0.909 | 0.1 | 0.00034 | 33.5 |
+| D3 input + guard model | 0.0 | 1.0 | 0.909 | 0.1 | 0.00061 | 42.9 |
+
+The input guardrail stops every attack in the suite and blocks no extra clean claim (the one blocked
+clean claim is blocked with defences off too). The guard model adds about 8 s at p95 and 30% cost
+and stops nothing more on this suite. One real run: no repeats, so no spread yet. The attacks were
+written by the same team that wrote the defences, so new wordings are still needed.
+
 ## E3: did the lessons help?
 
 `configs/E3_reflexion.yaml` holds the settings; `e3.py` runs the two Reflexion scripts with them:

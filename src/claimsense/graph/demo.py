@@ -53,13 +53,14 @@ def show(payload: dict):
     print(f"\n⏸  {payload['level'].upper()} REVIEW  {payload['plan']}")
     ws = payload.get("worksheet")
     if ws:
-        for l in ws["lines"]:
+        for w in ws["lines"]:
             ded = "; ".join(
-                f"-{d['amount']} {d['reason']} [{d['clause_id']}]" for d in l["deductions"]
+                f"-{d['amount']} {d['reason']} [{d['clause_id']}]" for d in w["deductions"]
             )
-            print(f"   {l['line_id']}: {l['claimed']:>10} → {l['payable']:>10}  {ded}")
+            print(f"   {w['line_id']}: {w['claimed']:>10} → {w['payable']:>10}  {ded}")
         print(
-            f"   co-pay {ws['co_pay']['amount'] if ws['co_pay'] else 0};  PAYABLE {ws['total_payable']}"
+            f"   co-pay {ws['co_pay']['amount'] if ws['co_pay'] else 0};"
+            f"  PAYABLE {ws['total_payable']}"
             f"   hash {payload['worksheet_hash'][:12]}"
         )
     for k in ("fraud_flags", "critic", "escalation"):

@@ -6,7 +6,21 @@ from pathlib import Path
 
 import yaml
 
-CONFIG_PATH = Path(os.environ.get("CLAIMSENSE_CONFIG", "config/models.yaml"))
+
+def config_path() -> Path:
+    """$CLAIMSENSE_CONFIG, else config/models.yaml in the working directory, else the one in this
+    checkout, so a script run from a subfolder (the course kit's exercises/<name>/) still finds
+    it."""
+    env = os.environ.get("CLAIMSENSE_CONFIG")
+    if env:
+        return Path(env)
+    cwd = Path("config/models.yaml")
+    if cwd.exists():
+        return cwd
+    return Path(__file__).resolve().parents[2] / "config" / "models.yaml"
+
+
+CONFIG_PATH = config_path()
 
 
 @lru_cache

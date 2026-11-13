@@ -80,9 +80,11 @@ All models are reached through OpenRouter, at temperature 0 (`agents/llm.py`).
 | Embeddings | `BAAI/bge-small-en-v1.5` | Local |
 | Re-ranker | `cross-encoder/ms-marco-MiniLM-L-6-v2` | Local |
 
-**Known discrepancy (AGT-09).** `config/models.yaml` names `openai/gpt-4o-mini` for four roles,
-but the agents take their model from `agents/llm.py`, which uses `openai/gpt-4.1-mini`. The table
-above shows what actually runs. The two must be reconciled before approval (Section 5.1).
+**Resolved discrepancy (AGT-09).** Until 13 November 2026, `config/models.yaml` named
+`openai/gpt-4o-mini` for four roles while the agents took `openai/gpt-4.1-mini` from their own table
+in `agents/llm.py`. Since `models.yaml` version 2 the agents read their model IDs from the YAML,
+which now names the models in the table above. No run changed model. The prompts are still inline
+in the agent code (an open item for the Agents owner).
 
 ### 2.4 Tools
 

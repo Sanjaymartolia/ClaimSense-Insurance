@@ -108,6 +108,8 @@ __all__ = [
     "IdentityProvider",
     "DemoIdentityProvider",
     # records + stores
+    "SETTLE",
+    "REPUDIATE",
     "ApprovalRecord",
     "ApprovalStore",
     "InMemoryApprovalStore",
@@ -178,7 +180,8 @@ def senior_threshold_inr() -> Decimal:
 
 
 def require_signed_default() -> bool:
-    """Whether a signed store record is required by default (``CLAIMSENSE_REQUIRE_SIGNED_APPROVAL``).
+    """Whether a signed store record is required by default
+    (``CLAIMSENSE_REQUIRE_SIGNED_APPROVAL``).
 
     Defaults to ``True`` (secure): a token whose hash matches is *not* enough; a signed record must
     back it. Set the env var to ``0``/``false``/``no`` only for the documented bare-token
@@ -306,17 +309,26 @@ class DemoIdentityProvider:
 # ============================================================================================
 # 4. Signed approval records + stores
 # ============================================================================================
-def _signature(token: ApprovalToken, nonce: str, secret: bytes) -> str:
-    msg = "|".join(
-        [
-            token.claim_id,
-            token.worksheet_hash,
-            token.level.value,
-            token.approver_id,
-            token.decided_at.isoformat(),
-            nonce,
-        ]
-    ).encode("utf-8")
+#: What an approval authorises. The purpose is part of the signed message, so a settlement
+#: approval never authorises a repudiation and a repudiation approval never pays (AGENTIC-03).
+SETTLE = "settle"
+REPUDIATE = "repudiate"
+
+
+def _signature(token: ApprovalToken, nonce: str, secret: bytes, purpose: str = SETTLE) -> str:
+    parts = [
+        token.claim_id,
+        token.worksheet_hash,
+        token.level.value,
+        token.approver_id,
+        token.decided_at.isoformat(),
+        nonce,
+    ]
+    # A settlement keeps the original message, so settlement records signed before purposes
+    # existed still verify. Every other purpose is appended, which keeps the two apart.
+    if purpose != SETTLE:
+        parts.append(purpose)
+    msg = "|".join(parts).encode("utf-8")
     return hmac.new(secret, msg, hashlib.sha256).hexdigest()
 
 
@@ -328,11 +340,11 @@ class ApprovalRecord:
     nonce: str
     signature: str
     auth_source: str
+    purpose: str = SETTLE  # SETTLE or REPUDIATE; signed with the token
 
     def signature_valid(self, secret: bytes | None = None) -> bool:
-        return hmac.compare_digest(
-            self.signature, _signature(self.token, self.nonce, secret or _server_secret())
-        )
+        expected = _signature(self.token, self.nonce, secret or _server_secret(), self.purpose)
+        return hmac.compare_digest(self.signature, expected)
 
 
 class ApprovalStore(Protocol):
@@ -393,7 +405,8 @@ CREATE TABLE IF NOT EXISTS approvals (
     nonce          TEXT NOT NULL,
     auth_source    TEXT NOT NULL,
     consumed       INTEGER NOT NULL DEFAULT 0,
-    created_at     TEXT NOT NULL
+    created_at     TEXT NOT NULL,
+    purpose        TEXT NOT NULL DEFAULT 'settle'
 );
 CREATE INDEX IF NOT EXISTS idx_approvals_lookup ON approvals(claim_id, worksheet_hash);
 """
@@ -403,10 +416,15 @@ def ensure_approvals_schema(conn: sqlite3.Connection) -> None:
     """Create the ``approvals`` table if absent. Safe to call repeatedly; needs no secret.
 
     ``claims_db`` calls this at startup so the one claims database also holds the approval records
-    (no second database, no two sources of truth).
+    (no second database, no two sources of truth). A table made before approvals carried a purpose
+    gains the column; its old rows read as settlement approvals, so an old repudiation approval no
+    longer verifies and the person approves that repudiation again.
     """
     with conn:
         conn.executescript(APPROVALS_SCHEMA)
+        columns = {row[1] for row in conn.execute("PRAGMA table_info(approvals)")}
+        if "purpose" not in columns:
+            conn.execute("ALTER TABLE approvals ADD COLUMN purpose TEXT NOT NULL DEFAULT 'settle'")
 
 
 class SqliteApprovalStore:
@@ -469,6 +487,7 @@ class SqliteApprovalStore:
             nonce=row["nonce"],
             signature=row["signature"],
             auth_source=row["auth_source"],
+            purpose=row["purpose"],
         )
 
     def add(self, record: ApprovalRecord) -> None:
@@ -476,8 +495,8 @@ class SqliteApprovalStore:
         with self._lock, self._conn:
             self._conn.execute(
                 "INSERT OR IGNORE INTO approvals (signature, claim_id, worksheet_hash, level, "
-                "approver_id, decided_at, nonce, auth_source, consumed, created_at) "
-                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?)",
+                "approver_id, decided_at, nonce, auth_source, consumed, created_at, purpose) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)",
                 (
                     record.signature,
                     t.claim_id,
@@ -488,6 +507,7 @@ class SqliteApprovalStore:
                     record.nonce,
                     record.auth_source,
                     datetime.now(UTC).isoformat(),
+                    record.purpose,
                 ),
             )
 
@@ -531,15 +551,20 @@ def reset_default_store() -> None:
 # 5. Issue / verify
 # ============================================================================================
 def _sign_and_store(
-    token: ApprovalToken, auth_source: str, store: ApprovalStore | None, nonce: str | None
+    token: ApprovalToken,
+    auth_source: str,
+    store: ApprovalStore | None,
+    nonce: str | None,
+    purpose: str = SETTLE,
 ) -> ApprovalToken:
     store = store or default_store()
     nonce = nonce or secrets.token_hex(16)
     record = ApprovalRecord(
         token=token,
         nonce=nonce,
-        signature=_signature(token, nonce, _server_secret()),
+        signature=_signature(token, nonce, _server_secret(), purpose),
         auth_source=auth_source,
+        purpose=purpose,
     )
     store.add(record)
     return token
@@ -581,7 +606,9 @@ def issue_repudiation_approval(
     A "not admissible" claim has no worksheet, so the approval is bound to ``subject_hash`` - the
     SHA-256 of the admissibility finding (the same hash ``build_review_payload`` puts in the
     repudiation payload). Everything else (nonce, HMAC, store, consume-on-use) is identical to a
-    settlement approval, so there is one signing/verifying mechanism, not two.
+    settlement approval, so there is one signing/verifying mechanism, not two. The record is
+    signed for :data:`REPUDIATE`, so it can never authorise a settlement, and a settlement
+    approval can never authorise a repudiation.
     """
     token = ApprovalToken(
         claim_id=claim_id,
@@ -590,7 +617,7 @@ def issue_repudiation_approval(
         approver_id=approver.approver_id,
         decided_at=approver.authenticated_at,
     )
-    return _sign_and_store(token, approver.auth_source, store, nonce)
+    return _sign_and_store(token, approver.auth_source, store, nonce, REPUDIATE)
 
 
 def needs_senior(
@@ -617,15 +644,19 @@ def _is_expired(decided_at: datetime, max_age: float | None) -> bool:
     return (datetime.now(UTC) - dt).total_seconds() > max_age
 
 
-def _find_signed_record(token: ApprovalToken, store: ApprovalStore) -> ApprovalRecord | None:
-    """A signature-valid, same-level, same-approver, not-yet-consumed record for this token.
+def _find_signed_record(
+    token: ApprovalToken, store: ApprovalStore, purpose: str = SETTLE
+) -> ApprovalRecord | None:
+    """A signature-valid, same-level, same-approver, not-yet-consumed record for this token,
+    signed for ``purpose``.
 
     Expiry is applied by the caller so the reason reported can distinguish "expired" from
     "no signed record".
     """
     for rec in store.find(token.claim_id, token.worksheet_hash):
         if (
-            rec.token.level == token.level
+            rec.purpose == purpose
+            and rec.token.level == token.level
             and rec.token.approver_id == token.approver_id
             and not store.is_consumed(rec)
             and rec.signature_valid()
@@ -662,7 +693,8 @@ def verify_for_settlement(
         level: ApprovalLevel,
     ) -> tuple[ApprovalRecord | ApprovalToken | None, str | None]:
         """Return (valid record/token, reason-if-none). Only reports a reason when no token of this
-        level is valid, so one stale token alongside a valid one does not cause a false rejection."""
+        level is valid, so one stale token alongside a valid one does not cause
+        a false rejection."""
         signed_missing = expired = False
         for tok in tokens:
             if tok.level != level or not tok.is_valid_for(worksheet):
@@ -745,7 +777,8 @@ def verify_repudiation(
 
     A repudiation needs at least an ADJUDICATOR decision for this claim. When ``require_signed``
     (the default), that decision must be backed by a signed, non-consumed, non-expired record -
-    exactly like a settlement, but bound to the admissibility subject hash rather than a worksheet.
+    exactly like a settlement, but bound to the admissibility subject hash rather than a worksheet,
+    and signed for :data:`REPUDIATE`: a settlement approval for the same claim is not enough.
     The record is consumed to prevent replay.
     """
     store = store or default_store()
@@ -766,7 +799,7 @@ def verify_repudiation(
 
     expired = False
     for tok in adjudicator_tokens:
-        record = _find_signed_record(tok, store)
+        record = _find_signed_record(tok, store, REPUDIATE)
         if record is None:
             continue
         if _is_expired(record.token.decided_at, max_age):
@@ -950,7 +983,8 @@ def make_node_review(
     identity_provider: IdentityProvider | None = None,
     **kwargs: Any,
 ) -> Callable[[dict, ApprovalLevel], dict]:
-    """Return a ``(state, level) -> update`` callable - the form ``nodes._review`` could delegate to."""
+    """Return a ``(state, level) -> update`` callable - the form ``nodes._review``
+    could delegate to."""
     gate = ReviewGate(interrupt_fn, identity_provider, **kwargs)
     return gate.review
 

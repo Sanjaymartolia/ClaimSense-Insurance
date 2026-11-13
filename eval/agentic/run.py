@@ -32,12 +32,6 @@ SCOPE = (
 )
 
 DEFECTS = {
-    "AGENTIC-02": "A new worksheet version with a fresh approval settles the same claim again.",
-    "AGENTIC-03": "A settlement approval can authorise a repudiation of the same claim.",
-    "AGENTIC-04": "A claim can be repudiated after it has been settled.",
-    "AGENTIC-05": "A database failure after verification spends the approval.",
-    "AGENTIC-06": "settle_claim MCP wrapper raises sqlite3 errors instead of returning ToolError.",
-    "AGENTIC-07": "get_policy MCP wrapper raises sqlite3 errors instead of returning ToolError.",
     "AGENTIC-08": "record_history writes outside the ToolBelt: no ACL, budget or audit.",
     "AGENTIC-09": "A 40-line bill exceeds the 40-call budget, so a valid claim cannot finish.",
     "AGENTIC-11": "check_consistency reads 'Patient discharged' as a patient id.",
@@ -53,6 +47,15 @@ DEFECTS = {
 FIXED = {
     "AGENTIC-01": "settle_claim derives the senior gate on the server (claims_db, after cfad026).",
     "AGENTIC-10": "Input and output guardrails are called by extraction and settlement (dc934a7).",
+    "AGENTIC-02": "A claim gets one final decision: a second worksheet version is refused "
+    "(claims_db._refuse_second_decision).",
+    "AGENTIC-03": "Approvals are signed for a purpose: a settlement approval cannot repudiate, "
+    "and the reverse (approvals.SETTLE / REPUDIATE).",
+    "AGENTIC-04": "A settled claim cannot be repudiated: a plain INSERT after the "
+    "one-decision check replaces INSERT OR REPLACE.",
+    "AGENTIC-05": "Approvals are spent only after the write commits; a failed write keeps them.",
+    "AGENTIC-06": "settle_claim / record_repudiation MCP wrappers return ToolError(db_error).",
+    "AGENTIC-07": "get_policy / claim_history MCP wrappers return ToolError(db_error).",
 }
 
 

@@ -32,9 +32,9 @@ class FraudAgent:
         if any(p.claim_id == claim.claim_id for p in history):
             flags.append(f"duplicate claim id {claim.claim_id} already in history")
         dups = [
-            l.line_id
-            for l in claim.bill_lines
-            if line_fingerprint(claim, l.description, l.amount) in seen
+            b.line_id
+            for b in claim.bill_lines
+            if line_fingerprint(claim, b.description, b.amount) in seen
         ]
         if dups:
             flags.append(f"duplicate bill lines already claimed: {', '.join(dups)}")
@@ -73,9 +73,9 @@ class FraudAgent:
             rng = self.belt.call("tariff_range", procedure=claim.procedure, city_tier=tier)
             proc_total = sum(
                 (
-                    l.amount
-                    for l in claim.bill_lines
-                    if l.category in (LineCategory.PROCEDURE, LineCategory.OT)
+                    b.amount
+                    for b in claim.bill_lines
+                    if b.category in (LineCategory.PROCEDURE, LineCategory.OT)
                 ),
                 Decimal(0),
             )
@@ -87,9 +87,9 @@ class FraudAgent:
         # 4. dates
         if pol and not (pol.period_start <= claim.admission_date <= pol.period_end):
             flags.append("admission date outside policy period")
-        for l in claim.bill_lines:
-            if l.days is not None and l.days > max(claim.nights, 1):
-                flags.append(f"{l.line_id}: billed {l.days} days for a {claim.nights}-night stay")
+        for b in claim.bill_lines:
+            if b.days is not None and b.days > max(claim.nights, 1):
+                flags.append(f"{b.line_id}: billed {b.days} days for a {claim.nights}-night stay")
 
         # 5. anything extraction noticed (total mismatch, injected notes, bad spans)
         flags += [f"extraction: {i}" for i in (extraction_issues or [])]
