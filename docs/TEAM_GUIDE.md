@@ -80,6 +80,7 @@ All commands below run from **your own folder** `exercises/<yourname>/` unless m
 | Draw the agent graph | `python -c "from claimsense_hw.graph import draw; draw()"` | free |
 | Rebuild the policy knowledge base (repo root) | `python -m claimsense.ingestion.build_policy_knowledge_base` | free |
 | Case API, stub agents (repo root; section 5.1) | `CLAIMSENSE_LLM=stub CLAIMSENSE_REVIEWERS="local-alice=alice:adjudicator,local-bob=bob:senior" uvicorn claimsense.api.main:app` | free |
+| Case API, real models (repo root; `OPENROUTER_API_KEY` set; step by step in `src/claimsense/ui/README.md`, "Real models") | `CLAIMSENSE_LLM=real CLAIMSENSE_CHECKPOINTS=claimsense_checkpoints_real.sqlite CLAIMSENSE_REVIEWERS="local-alice=alice:adjudicator,local-bob=bob:senior" uvicorn claimsense.api.main:app` | yes, about $0.0013 a claim |
 | Case UI in the browser (repo root, with the API running; needs `.[ui]`) | `python -m claimsense.ui`, then open http://127.0.0.1:8501 | free with stub agents |
 | Case API and UI in Docker (repo root; `CLAIMSENSE_REVIEWERS` in `.env`) | `docker compose up --build api ui` | free unless `CLAIMSENSE_LLM=real` |
 | Full stack with Prometheus and Grafana (repo root) | `docker compose up --build` | free unless `CLAIMSENSE_LLM=real` |
@@ -100,9 +101,11 @@ Model IDs come only from `config/models.yaml`. Never type a model ID into code. 
 
 ### 5.1 The case API, the case UI and the demo
 
-The case API (`src/claimsense/api/README.md`) starts a claim, streams the agents' work step by step, and takes the adjudicator's decision: approve, edit a line, or reject. Each reviewer signs in with a token from `CLAIMSENSE_REVIEWERS`; the approver and the level (adjudicator or senior) come from the token, never from the request. A claim above the senior threshold or with a fraud flag needs both levels, by two different people.
+The case API (`src/claimsense/api/README.md`) starts a claim, streams the agents' work step by step, and takes the adjudicator's decision: approve, edit a line, or reject. On a claim ruled not admissible, an edit overrides that finding, and the claim comes back for review with a worksheet. Each reviewer signs in with a token from `CLAIMSENSE_REVIEWERS`; the approver and the level (adjudicator or senior) come from the token, never from the request. A claim above the senior threshold or with a fraud flag needs both levels, by two different people.
 
 The case UI (`src/claimsense/ui/README.md`) is the adjudicator's screen on top of the API. Sign in twice in the sidebar (`local-alice`, then `local-bob`), then click the demo scenes in order: 1 (room-rent cut explained line by line), 2 (injected note flagged, then the same bill caught as a duplicate), 3 (an edit voids the approval; both levels approve again). Its Dashboard page shows claims processed, the edit rate, rupees deducted by reason, fraud flags, turnaround and cost per claim. What changed from 12 to 14 November, and why: `docs/CHANGE_REPORT_PHASES_1_TO_3.md`.
+
+Stub agents are free and give the same answer every time; real models cost about $0.0013 a claim. The UI README's "Run it" section gives both, step by step: the key check that never prints the key, a separate checkpoints file for real runs (otherwise a case id already used in stub mode is refused), how to switch between the two, Docker, and real tools. A real-model run in CI is manual: Actions, then ci, then Run workflow (`docs/CI_CD_PIPELINE.md`).
 
 ## 6. The test sets and eval sets
 
@@ -274,6 +277,8 @@ CI runs on every push and pull request (`docs/CI_CD_PIPELINE.md`): job `test` (r
     CLAIMSENSE_LLM=stub CLAIMSENSE_REVIEWERS="local-alice=alice:adjudicator,local-bob=bob:senior" uvicorn claimsense.api.main:app
     python -m claimsense.ui            # second terminal, then open http://127.0.0.1:8501
     docker compose up --build api ui   # or both in Docker
+    # real models (paid; OPENROUTER_API_KEY set): CLAIMSENSE_LLM=real, its own checkpoints file
+    CLAIMSENSE_LLM=real CLAIMSENSE_CHECKPOINTS=claimsense_checkpoints_real.sqlite CLAIMSENSE_REVIEWERS="local-alice=alice:adjudicator,local-bob=bob:senior" uvicorn claimsense.api.main:app
 
     # evaluation and monitoring (repo root; --stub keeps it free)
     python -m eval.harness.suite

@@ -17,6 +17,7 @@ pip install -e ".[agents,ui]"
 # 1. the case API (stub agents: free and deterministic)
 $env:CLAIMSENSE_LLM = "stub"
 $env:CLAIMSENSE_REVIEWERS = "local-alice=alice:adjudicator,local-bob=bob:senior,local-alice-senior=alice:senior"
+$env:CLAIMSENSE_CHECKPOINTS = "claimsense_checkpoints.sqlite"
 uvicorn claimsense.api.main:app --port 8000
 # 2. the UI, in a second terminal
 python -m claimsense.ui      # open http://127.0.0.1:8501
@@ -26,8 +27,73 @@ python -m claimsense.ui      # open http://127.0.0.1:8501
 after `python -m claimsense.ui` go to `streamlit run` and win over the defaults, for example
 `--server.port 8600`.
 
-With Docker: `docker compose up --build api ui` starts both (the agents stay in stub mode unless
-`CLAIMSENSE_LLM=real` is set); put `CLAIMSENSE_REVIEWERS` in `.env` first.
+### Real models (they cost money)
+
+The same two terminals; only the API's settings change. A claim costs about $0.0013 with the
+current models (`docs/MODEL_CARD.md`).
+
+```powershell
+# 1. the case API with real models
+$env:CLAIMSENSE_LLM = "real"
+$env:CLAIMSENSE_REVIEWERS = "local-alice=alice:adjudicator,local-bob=bob:senior,local-alice-senior=alice:senior"
+$env:CLAIMSENSE_CHECKPOINTS = "claimsense_checkpoints_real.sqlite"   # real cases apart from stub ones
+[bool]$env:OPENROUTER_API_KEY      # must print True (it prints True or False, never the key)
+uvicorn claimsense.api.main:app --port 8000
+# 2. the UI, in a second terminal, as above
+python -m claimsense.ui
+```
+
+- **The key.** A terminal opened inside VS Code usually has `OPENROUTER_API_KEY` already: VS Code
+  loads `.env` into its terminals. If the check prints `False`, load the key from `.env` without
+  printing it, then start the API:
+
+  ```powershell
+  $line = Select-String -Path .env -Pattern '^\s*OPENROUTER_API_KEY\s*=' | Select-Object -First 1
+  $env:OPENROUTER_API_KEY = ($line.Line -split '=', 2)[1].Trim().Trim('"')
+  ```
+
+  Without a key the API still starts and reports `agents: real`, but the first claim fails at its
+  first model call.
+- **A checkpoints file per mode.** The API keeps each case under its case id. Without a second
+  file, a scene already run in stub mode (CLM-0004, say) is refused in real mode: "the case exists
+  already". `:memory:` keeps no case at all.
+- **Switch modes:** Ctrl+C in the API terminal, run the other block, refresh the browser; the UI
+  keeps running. The caption under the page title shows the mode (`agents: stub` or
+  `agents: real`), and so does `Invoke-RestMethod http://127.0.0.1:8000/health`.
+- **Real tools as well (optional).** The blocks above use the stub tools, which read each demo
+  claim's built-in policy data. For the tool servers' own code, run once
+  `python -m claimsense.mcp_servers.seed_dev_policies` and `python -m claimsense.retrieval.index`
+  (needs `.[retrieval]`), then also set `$env:CLAIMSENSE_TOOLS = "real"` and
+  `$env:CLAIMSENSE_APPROVAL_SECRET` to a long random string (`src/claimsense/api/README.md`).
+
+### Docker
+
+Docker is optional: the two terminals above run the same API and UI, and CI's `compose` job builds
+and tests both images on every push. It needs Docker Desktop: `docker --version` must work. To
+install it: `winget install -e --id Docker.DockerDesktop`, start Docker Desktop once (it may ask
+for WSL 2 and a restart), then open a new terminal.
+
+Run **one** of the two blocks. `docker compose up` keeps running until Ctrl+C.
+
+```powershell
+# stub agents (free)
+$env:CLAIMSENSE_LLM = "stub"
+$env:CLAIMSENSE_REVIEWERS = "local-alice=alice:adjudicator,local-bob=bob:senior,local-alice-senior=alice:senior"
+docker compose up --build api ui
+```
+
+```powershell
+# real models (paid): the key reaches the API container from .env
+$env:CLAIMSENSE_LLM = "real"
+$env:CLAIMSENSE_REVIEWERS = "local-alice=alice:adjudicator,local-bob=bob:senior,local-alice-senior=alice:senior"
+docker compose up --build api ui
+```
+
+`CLAIMSENSE_REVIEWERS` can go in `.env` instead. `$env:CLAIMSENSE_LLM` stays set in that terminal
+until you change it or close the terminal, and other commands there read it too. Docker keeps
+cases in its `case-data` volume between runs, so the case-id clash above applies here too. To
+clear only the cases: `docker compose down`, then `docker volume ls`, and `docker volume rm` the
+volume whose name ends in `_case-data`.
 
 ## The demo, step by step
 
