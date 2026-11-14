@@ -246,7 +246,7 @@ CI runs on every push and pull request (`docs/CI_CD_PIPELINE.md`): job `test` (r
 | Enable the CI eval gate (T48) | Deploy & Ops | done (13 Nov 2026) |
 | Adopt the edit-rate alert and the operations dashboard into `monitoring/` (bundle: `python -m eval.monitoring export`, `eval/monitoring/README.md`) | Deploy & Ops | ready to adopt |
 | At least one approved Reflexion lesson, so before and after can differ (run-04 has none) | Agents & Orchestration | open |
-| Judge calibration: two people label `eval/calibration/sheet_rater_a.csv` and `_b.csv`, without opening Claude's draft | Eval & Red-Team and one member | open |
+| Judge calibration: the raters agree (Cohen's kappa 0.739 on 24 items, 14 Nov); next, compare the judge with them (`python -X utf8 -m eval.calibration.collect score`, paid) | Eval & Red-Team | raters done; judge step open |
 | Real-model release check, E1 and E4 runs, cost per claim through the API | Eval & Red-Team | open (needs the key) |
 | A corrected CLM-0022 change, with its follow-ups (red-team rebuild, suite rows, counts) | Domain & Product | open |
 | Fix the type errors in your package and take it off the `mypy` owners' list in `pyproject.toml` (counts in `docs/CI_CD_PIPELINE.md`) | each package owner | open: 31 errors in six packages |

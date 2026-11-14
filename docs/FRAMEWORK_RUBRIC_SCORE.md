@@ -396,6 +396,12 @@ the harness tests at all. The CI evaluation gate is still commented out, and its
 disagrees with the scorecard's 0.85. The judge is disabled and carries a weight of zero.
 Experiments E1 to E4 have not run. Kappa has not been measured.
 
+Note of 14 November 2026: two of those reasons are gone. The CI evaluation gate runs on every push
+since 13 November (job `eval-gate`, threshold from `scorecard.yaml`), and two people labelled the
+24 calibration items: their Cohen's kappa is 0.739, above the 0.7 bar (`eval/calibration/README.md`).
+Level 5 still needs E1 to E4 with real models and the judge's own agreement with the raters (the
+paid `collect score` step); until then the judge keeps a weight of zero. Score unchanged.
+
 ### 5.6 D6 Cost and performance — score 1, weight 10%
 
 **Matched: "Moderate cost/speed".** This is the lowest score in the report.
@@ -583,7 +589,7 @@ Each row gives the points that the work is worth. The list is ordered by value.
 | Wrap coverage and critic prompts in `as_data` (AGT-04), scan the diagnosis, close CLAIM-03 | D7 3→4 | +0.15 |
 | Raise `MAX_REVISIONS`, let the planner reason | D1 4→5 | +0.15 |
 | Clear the `mypy` owners' list (`mypy` runs in CI since 14 November; six packages, 31 errors) | D8 4→5 | +0.10 |
-| Run E1 to E4 with real models and measure kappa (the CI eval gate runs since 13 November) | D5 4→5 | +0.05 |
+| Run E1 to E4 with real models and calibrate the judge against the raters (the CI eval gate runs since 13 November; the raters' kappa, 0.739, since 14 November) | D5 4→5 | +0.05 |
 
 Issue 1 listed T16 (connect the MCP servers and the retriever) at +0.55. It is done: the retriever
 was connected in Issue 2 (D4 2→3), and the MCP client and the API endpoint (T37) in Issue 3

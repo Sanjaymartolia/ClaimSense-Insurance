@@ -266,6 +266,8 @@ pytest eval/agentic/tests              # NOT in eval/tests, so docs/EVAL_HARNESS
 - Judge calibration: `python -m eval.calibration.collect collect` (real model) writes unlabelled
   items; after two people label them, `... collect score` prints Cohen's kappa. Tests:
   `pytest eval/calibration/tests`. Model rationales are never saved by any other run (rule 4).
+  State (14 Nov 2026): the 24 items in `calibration_set.jsonl` are labelled, raters' kappa 0.739
+  (pass); `collect score` (the judge, paid) is next. `collect` refuses to overwrite that file.
 
 ### Agent suite, combined run, live monitoring (`eval/`, Eval & Red-Team)
 ```bash

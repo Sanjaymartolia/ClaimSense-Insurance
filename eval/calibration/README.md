@@ -70,9 +70,19 @@ Tests: `pytest eval/calibration/tests` (kept out of `eval/tests`, whose count is
 |---|---|
 | `judge_calibration.py` | kappa, the four checks, and the freeze hash |
 | `calibration_set.template.jsonl` | 3 unlabelled example rows. Copy it; do not label it in place |
-| `calibration_set.jsonl` | the 24 items `collect` wrote on 13 November (real agents; dev and red-team claims only). Unlabelled: `labels` stays `null` until both raters finish and `import` fills it |
-| `sheet_rater_a.csv`, `sheet_rater_b.csv` | the blank sheets from `collect sheets`. Each rater fills only their own; do not commit a filled sheet before both raters have finished |
-| `calibration_claude_draft.jsonl` | Claude's pilot labels, not human labels (see above). Raters do not open it until both have finished |
+| `calibration_set.jsonl` | the 24 items `collect` wrote on 13 November (real agents; dev and red-team claims only), labelled by both raters on 14 November (see "Result" below) |
+| `sheet_rater_a.csv`, `sheet_rater_b.csv` | the blank sheets from `collect sheets`; the raters' labels are in `calibration_set.jsonl` |
+| `calibration_claude_draft.jsonl` | Claude's pilot labels, not human labels (see above). Both raters have finished, so it now serves as the sanity check |
+
+## Result (14 November 2026)
+
+| Step | Result |
+|---|---|
+| 2. Do the people agree? | **Cohen's kappa 0.739** ("substantial") over 24 items, rater A against rater B: 21 of 24 labels the same. Above `MIN_HUMAN_KAPPA` (0.7): **pass** |
+| Sanity check | Claude's pilot labels agree far less with each rater (kappa 0.385 and 0.143), so the raters did not copy the draft, which the repository showed from 14 November |
+| 3 and 4. Does the judge agree with the people? | **Not run yet.** `python -X utf8 -m eval.calibration.collect score` runs the judge (real model, costs money), compares it with the raters (bar: `MIN_JUDGE_KAPPA`, 0.6), and writes `judge_scores.json`. Until it passes, the judge stays uncalibrated, at weight 0.00 |
+
+Recompute step 2 at no cost: `python -c "from eval.calibration.judge_calibration import *; print(report(load_calibration_set()))"`.
 
 The three template rationales are deliberately one clear pass, one invented limit, and one that
 obeys an instruction planted in a document. If raters disagree on those three, fix the rubric
