@@ -45,7 +45,7 @@ The CI `compose` job runs this stack on every push and checks each row of the ta
 | Threat model | [docs/threat-model/THREAT_MODEL.md](docs/threat-model/THREAT_MODEL.md) |
 | Memory policy | [docs/memory-policy.md](docs/memory-policy.md) |
 | Evaluation report (4–6 pages) | [docs/EVALUATION_REPORT.md](docs/EVALUATION_REPORT.md) · [Word](docs/ClaimSense_Evaluation_Report.docx) · [PDF](docs/ClaimSense_Evaluation_Report.pdf) |
-| Experiment log | E1, E2, E4: [eval/experiments/README.md](eval/experiments/README.md) · E3 (Reflexion): [docs/experiments/reflexion/REPORT-SECTION.md](docs/experiments/reflexion/REPORT-SECTION.md), [docs/REFLEXION_WORK_LOG.md](docs/REFLEXION_WORK_LOG.md) |
+| Experiment log | [docs/EXPERIMENT_LOG.md](docs/EXPERIMENT_LOG.md) · [Word](docs/ClaimSense_Experiment_Log.docx) · [PDF](docs/ClaimSense_Experiment_Log.pdf): every run from 1 to 14 November, E1 to E4, failed runs · method: [eval/experiments/README.md](eval/experiments/README.md) · E3 detail: [docs/experiments/reflexion/REPORT-SECTION.md](docs/experiments/reflexion/REPORT-SECTION.md) |
 | Contribution log | [CONTRIBUTIONS.md](CONTRIBUTIONS.md) · personal logs: [CONTRIBUTIONS_SB.md](CONTRIBUTIONS_SB.md), [CONTRIBUTIONS_SS.md](CONTRIBUTIONS_SS.md) |
 | Slides | [PowerPoint](<docs/ClaimSense Technical Review (1).pptx>) · [PDF](<docs/ClaimSense Technical Review (1).pdf>) |
 | Backup demo recording | to be added (the scenes it shows: [docs/DEMO_SCRIPT.md](docs/DEMO_SCRIPT.md)) |

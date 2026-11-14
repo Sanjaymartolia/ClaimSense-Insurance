@@ -1,0 +1,21 @@
+tool_order           260/260
+call_counts          260/260
+correct_agent        260/260
+forbidden_calls      260/260
+args_consistent      260/260
+tool_result_used     175/175
+hook_fired           260/260
+edit_invalidates     35/35
+db: one_write_or_none 208/208
+db: write_kind       140/140
+db: amount_matches   140/140
+db: hash_matches     89/89
+db: amount_within_claimed 89/89
+db: history_recorded 208/208
+db: claim_status_updated 0/140  (AGENTIC-14)
+tool                 {'known_defect': 1, 'pass': 61}
+hook                 {'known_defect': 2, 'pass': 34}
+control              {'known_defect': 2, 'pass': 11}
+llm                  {'pass': 4}
+open defects: 6
+report: C:\Users\HP\OneDrive\Documents\ClaimSense-Insurance\runs\agentic\er-1114-agentic.json

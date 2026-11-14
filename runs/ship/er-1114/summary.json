@@ -1,0 +1,239 @@
+{
+ "label": "er-1114",
+ "mode": "stub",
+ "verdict": "REHEARSAL PASSED",
+ "exit_code": 0,
+ "stages": [
+  {
+   "name": "tests",
+   "what": "Product tests (CI)",
+   "blocking": true,
+   "status": "passed",
+   "exit_code": 0,
+   "seconds": 200.6,
+   "log": "runs/ship/er-1114/logs/tests.log",
+   "note": "",
+   "outputs": "",
+   "cmd": [
+    "python.exe",
+    "-m",
+    "pytest",
+    "-q"
+   ]
+  },
+  {
+   "name": "lint",
+   "what": "ruff check (CI)",
+   "blocking": true,
+   "status": "passed",
+   "exit_code": 0,
+   "seconds": 0.8,
+   "log": "runs/ship/er-1114/logs/lint.log",
+   "note": "",
+   "outputs": "",
+   "cmd": [
+    "python.exe",
+    "-m",
+    "ruff",
+    "check",
+    "."
+   ]
+  },
+  {
+   "name": "format",
+   "what": "ruff format --check (CI)",
+   "blocking": true,
+   "status": "passed",
+   "exit_code": 0,
+   "seconds": 0.5,
+   "log": "runs/ship/er-1114/logs/format.log",
+   "note": "",
+   "outputs": "",
+   "cmd": [
+    "python.exe",
+    "-m",
+    "ruff",
+    "format",
+    "--check",
+    "."
+   ]
+  },
+  {
+   "name": "tool-pins",
+   "what": "Tools unchanged since review",
+   "blocking": true,
+   "status": "passed",
+   "exit_code": 0,
+   "seconds": 0.7,
+   "log": "runs/ship/er-1114/logs/tool-pins.log",
+   "note": "",
+   "outputs": "",
+   "cmd": [
+    "python.exe",
+    "-m",
+    "claimsense.hooks.pins"
+   ]
+  },
+  {
+   "name": "release-gate",
+   "what": "Harness self-check + dev and red-team claims + agent suite + combined gate",
+   "blocking": true,
+   "status": "passed",
+   "exit_code": 0,
+   "seconds": 2.3,
+   "log": "runs/ship/er-1114/logs/release-gate.log",
+   "note": "",
+   "outputs": "runs/full/er-1114-full/",
+   "cmd": [
+    "python.exe",
+    "-X",
+    "utf8",
+    "-m",
+    "eval.full",
+    "--label",
+    "er-1114-full",
+    "--splits",
+    "dev,redteam",
+    "--variant",
+    "v1",
+    "--workers",
+    "4",
+    "--quiet",
+    "--stub"
+   ]
+  },
+  {
+   "name": "tool-use",
+   "what": "Tool calls, tools, hooks, guardrails (offline)",
+   "blocking": true,
+   "status": "passed",
+   "exit_code": 0,
+   "seconds": 5.7,
+   "log": "runs/ship/er-1114/logs/tool-use.log",
+   "note": "",
+   "outputs": "runs/agentic/er-1114-agentic.*",
+   "cmd": [
+    "python.exe",
+    "-X",
+    "utf8",
+    "-m",
+    "eval.agentic.run",
+    "--label",
+    "er-1114-agentic"
+   ]
+  },
+  {
+   "name": "deepeval",
+   "what": "DeepEval trajectory tests (code checks, no judge)",
+   "blocking": true,
+   "status": "passed",
+   "exit_code": 0,
+   "seconds": 14.2,
+   "log": "runs/ship/er-1114/logs/deepeval.log",
+   "note": "",
+   "outputs": "",
+   "cmd": [
+    "python.exe",
+    "-X",
+    "utf8",
+    "-m",
+    "pytest",
+    "eval/deepeval_suite",
+    "-q",
+    "-p",
+    "no:warnings"
+   ]
+  },
+  {
+   "name": "deepeval-judge",
+   "what": "DeepEval payload judge, GEval + faithfulness (report only; uncalibrated)",
+   "blocking": false,
+   "status": "skipped",
+   "exit_code": null,
+   "seconds": 0.0,
+   "log": "runs/ship/er-1114/logs/deepeval-judge.log",
+   "note": "needs real model",
+   "outputs": "",
+   "cmd": [
+    "python.exe",
+    "-X",
+    "utf8",
+    "-m",
+    "pytest",
+    "eval/deepeval_suite/test_payload_quality.py",
+    "-q",
+    "-p",
+    "no:warnings"
+   ]
+  },
+  {
+   "name": "security",
+   "what": "Security scoreboard: each defence against the attacks (report only)",
+   "blocking": false,
+   "status": "passed",
+   "exit_code": 0,
+   "seconds": 1.2,
+   "log": "runs/ship/er-1114/logs/security.log",
+   "note": "",
+   "outputs": "runs/security/er-1114-sec/",
+   "cmd": [
+    "python.exe",
+    "-X",
+    "utf8",
+    "-m",
+    "eval.security",
+    "scoreboard",
+    "--label",
+    "er-1114-sec",
+    "--stub"
+   ]
+  },
+  {
+   "name": "retrieval",
+   "what": "Policy search recall on 47 queries (report only, about 12 min)",
+   "blocking": false,
+   "status": "passed",
+   "exit_code": 0,
+   "seconds": 640.1,
+   "log": "runs/ship/er-1114/logs/retrieval.log",
+   "note": "",
+   "outputs": "runs/retrieval_er-1114.png",
+   "cmd": [
+    "python.exe",
+    "-X",
+    "utf8",
+    "-m",
+    "claimsense.retrieval.evaluate",
+    "--label",
+    "er-1114"
+   ]
+  },
+  {
+   "name": "ragas",
+   "what": "RAGAS rationale groundedness (report only; uncalibrated, weight 0.00)",
+   "blocking": false,
+   "status": "skipped",
+   "exit_code": null,
+   "seconds": 0.0,
+   "log": "runs/ship/er-1114/logs/ragas.log",
+   "note": "needs real model",
+   "outputs": "runs/er-1114-ragas.scorecard.json",
+   "cmd": [
+    "python.exe",
+    "-X",
+    "utf8",
+    "-m",
+    "eval.harness.run",
+    "--adapter",
+    "claimsense-real-retrieval",
+    "--split",
+    "dev",
+    "--judge",
+    "--judge-limit",
+    "5",
+    "--label",
+    "er-1114-ragas"
+   ]
+  }
+ ]
+}
