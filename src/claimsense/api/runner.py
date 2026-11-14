@@ -373,6 +373,9 @@ def summarize(case_id: str, snapshot: Any) -> dict[str, Any]:
         "worksheet": worksheet.model_dump(mode="json")
         if worksheet is not None and _admissible(values)
         else None,
+        # The lines an edit can name, as ids only, from the worksheet in state: a not-admissible
+        # claim keeps its Rs 0 sheet hidden, but an edit on it overrides the ruling (apply_edits).
+        "line_ids": [line.line_id for line in worksheet.lines] if worksheet is not None else [],
         "fraud_flags": list(values.get("fraud_flags") or []),
         "approvals": [
             {

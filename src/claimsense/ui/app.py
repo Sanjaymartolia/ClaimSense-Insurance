@@ -300,7 +300,7 @@ def case_panel(s: Any, me: dict[str, str]) -> None:
         worksheet(sheet)
     approvals(views.mark_void(seen, now))
     if review and case["status"] == "awaiting_review":
-        decision_box(review, sheet)
+        decision_box(review, views.edit_line_ids(case))
     outcome(case)
     if case.get("trace"):
         with st.expander("Audit trail"):
@@ -373,26 +373,39 @@ def approvals(marked: list[dict[str, Any]]) -> None:
     st.dataframe(pd.DataFrame(rows), hide_index=True, width="stretch")
 
 
-def decision_box(review: dict[str, Any], sheet: dict[str, Any] | None) -> None:
+def decision_box(review: dict[str, Any], line_ids: list[str]) -> None:
+    """Approve · Edit a line · Reject, side by side, on every review. On a claim ruled not
+    admissible an edit overrides the ruling (`apply_edits`), so it is offered there too."""
     st.subheader("Decision")
-    approve, reject = st.columns(2)
-    approve.button(
-        "Approve", key="approve", type="primary", on_click=queue_decision, args=("approve",)
-    )
+    says = views.decision_texts(review.get("kind", "worksheet"))
+    approve, edit, reject = st.columns(3)
+    with approve:
+        st.markdown("**Approve**")
+        st.caption(says["approve"])
+        st.button(
+            "Approve", key="approve", type="primary", on_click=queue_decision, args=("approve",)
+        )
+    with edit:
+        st.markdown("**Edit a line**")
+        st.caption(says["edit"])
+        if line_ids:
+            with st.form("edit"):
+                st.selectbox("Line", line_ids, key="edit_line")
+                st.text_input(
+                    "New clause id (optional)",
+                    key="edit_clause",
+                    help="A policy clause id, e.g. new_india_arogya_sanjeevani:4.1",
+                )
+                st.text_input("Corrected amount in Rs (optional)", key="edit_amount")
+                st.text_input("Reason", key="edit_reason")
+                st.form_submit_button("Submit edit", key="edit_submit", on_click=queue_edit)
+        else:
+            st.caption("This case has no lines to edit.")
     with reject:
+        st.markdown("**Reject**")
+        st.caption(says["reject"])
         st.text_input("Reason for rejecting (optional)", key="reject_note")
         st.button("Reject", key="reject", on_click=queue_decision, args=("reject",))
-    if sheet and review.get("kind") == "worksheet":
-        with st.form("edit"):
-            st.caption(
-                "Edit one line: point it to another clause, or correct a misread amount. The "
-                "calculator recomputes the totals, and every earlier approval becomes void."
-            )
-            st.selectbox("Line", [line["line_id"] for line in sheet["lines"]], key="edit_line")
-            st.text_input("New clause id (optional)", key="edit_clause")
-            st.text_input("Corrected amount in Rs (optional)", key="edit_amount")
-            st.text_input("Reason", key="edit_reason")
-            st.form_submit_button("Submit edit", key="edit_submit", on_click=queue_edit)
 
 
 def outcome(case: dict[str, Any]) -> None:

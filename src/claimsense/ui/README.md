@@ -52,6 +52,13 @@ The tokens above are for a local run only: anywhere else use long random values.
    `local-alice-senior`: on a fresh CLM-0019 case, alice approves as adjudicator and then cannot
    approve again as senior.
 
+Every pending review shows **Approve · Edit a line · Reject** side by side, each with a line on
+what it does. On a claim ruled not admissible (for example CLM-0001 from "Start a claim"), approve
+means repudiate, and an edit **overrides the not-admissible finding**: give one line a clause id
+(for example `new_india_arogya_sanjeevani:4.1`, hospitalisation) or a corrected amount, and a
+reason. Coverage, the fraud screen and the calculator run again, and the claim comes back for
+review with a worksheet.
+
 The dashboard page shows claims processed, the edit rate, rupees deducted by reason, fraud flags,
 turnaround and cost per claim, counted since the API started. Grafana keeps history and alerts
 (Phase 4).

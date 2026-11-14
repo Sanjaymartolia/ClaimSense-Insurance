@@ -128,6 +128,22 @@ def test_every_deduction_keeps_its_clause_and_the_calculator_s_explanation():
     assert (rows[-1]["line"], rows[-1]["reason"]) == ("whole claim", "co_pay")
 
 
+def test_each_decision_says_what_it_does_on_this_kind_of_review():
+    sheet, repudiation = views.decision_texts("worksheet"), views.decision_texts("repudiation")
+    assert set(sheet) == set(repudiation) == {"approve", "edit", "reject"}
+    assert "void" in sheet["edit"]
+    assert "overrides the not-admissible finding" in repudiation["edit"]
+    assert "repudiation" in repudiation["approve"]
+
+
+def test_the_lines_to_edit_come_from_the_line_ids_or_else_the_worksheet():
+    ids = ["CLM-0001-L01", "CLM-0001-L02"]
+    assert views.edit_line_ids({"line_ids": ids, "worksheet": None}) == ids
+    from_sheet = [line["line_id"] for line in WORKSHEET["lines"]]
+    assert views.edit_line_ids({"worksheet": WORKSHEET}) == from_sheet
+    assert views.edit_line_ids({"line_ids": [], "worksheet": None}) == []
+
+
 def test_flags_get_the_kind_the_api_metrics_use():
     injection = "extraction: possible prompt injection in CLM-9001-DOC01: 'note to ai'"
     duplicate = "duplicate claim id CLM-0004 already in history"

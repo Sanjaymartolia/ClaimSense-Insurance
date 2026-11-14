@@ -106,6 +106,41 @@ def plan_rows(plan: Mapping[str, Any]) -> list[dict[str, str]]:
     ]
 
 
+# ------------------------------------------------------------------------------- decisions
+#: What approve, edit and reject each do, per kind of review (`build_review_payload`).
+_DECISIONS = {
+    "worksheet": {
+        "approve": "Approve this worksheet as it stands. The approval binds to its exact hash.",
+        "edit": (
+            "Point one line to another clause, or correct a misread amount. The calculator "
+            "recomputes the totals, and every earlier approval becomes void."
+        ),
+        "reject": "Close the case as rejected. Nothing is settled.",
+    },
+    "repudiation": {
+        "approve": "Approve the repudiation: the claim is not admissible, and nothing is paid.",
+        "edit": (
+            "An edit overrides the not-admissible finding. Give one line a clause or a corrected "
+            "amount: coverage, the fraud screen and the calculator run again, and the claim "
+            "comes back for review."
+        ),
+        "reject": "Close the case as rejected. Nothing is settled or repudiated.",
+    },
+}
+
+
+def decision_texts(kind: str) -> dict[str, str]:
+    """One line per decision, for the kind of review in front of the reviewer."""
+    return dict(_DECISIONS.get(kind, _DECISIONS["worksheet"]))
+
+
+def edit_line_ids(case: Mapping[str, Any]) -> list[str]:
+    """The lines an edit can name: the API's `line_ids`, else the worksheet's own lines."""
+    if case.get("line_ids"):
+        return list(case["line_ids"])
+    return [line["line_id"] for line in (case.get("worksheet") or {}).get("lines", [])]
+
+
 # ------------------------------------------------------------------------------- approvals
 def current_hash(case: Mapping[str, Any]) -> str | None:
     """The worksheet a decision binds to now: the pending review's, else the settled one's."""

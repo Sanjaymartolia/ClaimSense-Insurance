@@ -14,6 +14,7 @@ pytest.importorskip("streamlit")
 from streamlit.testing.v1 import AppTest  # noqa: E402
 
 import claimsense.ui  # noqa: E402
+from claimsense.agents.clauses import HOSPITALISATION  # noqa: E402
 from claimsense.api.demo import demo_packet  # noqa: E402
 from claimsense.ui import views  # noqa: E402
 from tests.api.conftest import ALICE, ALICE_SENIOR, BOB  # noqa: E402
@@ -123,6 +124,26 @@ def test_a_claim_ruled_not_admissible_shows_why_and_is_repudiated(api):
     assert "Not admissible." in page
     page = shown(click(at, "approve"))
     assert "repudiated" in page
+
+
+def test_a_not_admissible_claim_offers_all_three_choices_and_an_edit_overrides_it(api):
+    at = sign_in(open_ui(api), ALICE)
+    at.selectbox(key="demo_claim").select("CLM-0001")
+    at = click(at, "demo_start")
+    page = shown(at)
+    assert "Not admissible." in page
+    assert {"approve", "edit_submit", "reject"} <= {button.key for button in at.button}
+    assert "overrides the not-admissible finding" in page
+    lines = at.selectbox(key="edit_line").options
+    assert lines and all(line.startswith("CLM-0001-L") for line in lines)
+    assert "Payable" not in {metric.label for metric in at.metric}  # no worksheet shown yet
+
+    at.selectbox(key="edit_line").select(lines[0])
+    at.text_input(key="edit_clause").input(HOSPITALISATION)
+    at.text_input(key="edit_reason").input("the stay is covered")
+    at = click(at, "edit_submit")
+    assert "Payable" in {metric.label for metric in at.metric}  # the calculator's worksheet
+    assert "Edits 1" in shown(at)
 
 
 def test_a_packet_pasted_as_json_starts_a_claim_under_its_case_id(api):

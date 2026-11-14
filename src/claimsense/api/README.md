@@ -57,7 +57,7 @@ it reads (`agents/mcp_services.py::SERVER_ENV`); the model key never reaches one
 | `POST /claims[?case_id=]` | reviewer | Start a claim from a packet; stream the run to its first review |
 | `GET /demo/claims` | reviewer | The synthetic claims the demo can start |
 | `POST /demo/claims/{claim_id}[?case_id=]` | reviewer | Start a synthetic claim; stream the run |
-| `GET /claims/{case_id}` | reviewer | Status, plan, worksheet, pending review, approvals, settlement, letter, trace |
+| `GET /claims/{case_id}` | reviewer | Status, plan, worksheet, the line ids an edit can name (`line_ids`), pending review, approvals, settlement, letter, trace |
 | `POST /claims/{case_id}/decision` | reviewer of the level the review asks for | Approve, edit or reject; stream the run to its next review or its end |
 
 A request names its reviewer with `Authorization: Bearer <token>`. The approver id and level come
@@ -74,6 +74,12 @@ Decision body: `{"decision": "approve" | "edit" | "reject", "edits": [...], "not
 edit is `{"line_id", "clause_id"?, "amount"?, "reason"}`: re-point a line to another clause, or
 correct a misread amount. Totals are never typed in: the calculator recomputes the worksheet, every
 earlier approval becomes void, and the claim goes back to the adjudicator.
+
+A claim ruled not admissible has a review of kind `repudiation` and no worksheet in the response
+(its Rs 0 sheet stays hidden, ADR-0010), but its `line_ids` are listed. An edit on it overrides the
+ruling (`graph/nodes.py::apply_edits`): coverage, the fraud screen and the calculator run, and the
+claim comes back for review with a worksheet. The API does not yet check that an edit's `line_id`
+is on the claim; an unknown id is ignored, but the override still happens.
 
 | Status | Means |
 |---|---|

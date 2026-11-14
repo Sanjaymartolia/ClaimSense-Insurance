@@ -2,12 +2,14 @@
 (CLM-0004), an injected note (CLM-9001), the same bill sent again (CLM-0004 twice), and an edit
 that voids the earlier approval (CLM-0019, which needs a senior)."""
 
+import re
 from decimal import Decimal
 
 import pytest
 
 pytest.importorskip("langgraph.checkpoint.sqlite")
 
+from claimsense.agents.clauses import HOSPITALISATION  # noqa: E402
 from claimsense.api import demo  # noqa: E402
 
 from .conftest import (  # noqa: E402
@@ -106,6 +108,21 @@ def test_a_claim_ruled_not_admissible_is_repudiated(client):
     done = last(sse(decide(client, "CLM-0001", ALICE)), "done")
     assert done["status"] == "repudiated"
     assert done["settlement"] == {"status": "repudiated", "claim_id": "CLM-0001"}
+
+
+def test_a_not_admissible_claim_lists_its_lines_and_an_edit_overrides_the_ruling(client):
+    sse(start(client, "CLM-0001"))
+    case = get(client, "CLM-0001")
+    assert case["worksheet"] is None  # its Rs 0 sheet stays hidden (ADR-0010)
+    ids = case["line_ids"]
+    assert ids and all(re.fullmatch(r"CLM-0001-L\d+", i) for i in ids)  # ids only, no bill text
+
+    edit = {"line_id": ids[0], "clause_id": HOSPITALISATION, "reason": "the stay is covered"}
+    again = last(sse(decide(client, "CLM-0001", ALICE, "edit", edits=[edit])), "review")
+    assert (again["kind"], again["level"]) == ("worksheet", "adjudicator")
+    case = get(client, "CLM-0001")
+    assert case["worksheet"] is not None and case["edits"] == 1
+    assert case["line_ids"] == ids
 
 
 def test_an_injected_note_is_flagged_for_the_reviewer(client):
