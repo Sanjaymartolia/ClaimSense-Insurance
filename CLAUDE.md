@@ -291,11 +291,14 @@ python -m eval.monitoring export --out runs/monitoring/export      # alert rules
   failed; rerun). The drill is enforced only in stub mode, full length, arms `v1,guarded`.
 - Thresholds in `eval/agent_suite/gate.yaml` and `eval/monitoring/alert_rules.yml` are proposals:
   never loosen one to get a pass. `test_monitoring.py` checks that rules, dashboard queries and
-  metric names agree. Never edit `monitoring/` (Deploy & Ops); `export` refuses to write there.
+  metric names agree. `monitoring/` belongs to Deploy & Ops; `export` refuses to write there.
+  Since 14 Nov 2026 it holds the adopted L16 bundle (below), mounted by `docker-compose.yml`.
 - The L16 edit-rate alert (`eval/monitoring/ops_alert_rules.yml`, production windows; promtool
   unit test `ops_alert_rules.test.yml`) and the operations dashboard (`eval/monitoring/ops.py`)
-  read the case API's own metrics, not the drill's. `export` writes them for Deploy & Ops to adopt;
-  `test_monitoring.py` checks every metric they read exists in `claimsense.api.metrics`.
+  read the case API's own metrics, not the drill's. Adopted copies live in `monitoring/rules/` and
+  `monitoring/grafana/`; `tests/test_compose_stack.py` fails when they drift from `eval/monitoring/`
+  (export again with `MSYS_NO_PATHCONV=1` in Git Bash, then copy). `test_monitoring.py` checks
+  every metric they read exists in `claimsense.api.metrics`.
 - L15 guardrails are wired in (`docs/GUARDRAILS_BEFORE_AFTER.md`, `docs/SECURITY_REPORT_CARD.md`):
   extraction masks PII (`input_guardrails.mask_pii`) before the model and runs
   `classify_injection_fast`; `SettlementAgent` runs `payment_guard` (`check_payment_ceiling`) and

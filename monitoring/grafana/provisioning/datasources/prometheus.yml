@@ -1,0 +1,13 @@
+# From `python -m eval.monitoring export` (14 Nov 2026), mounted by docker-compose.yml.
+# timeInterval matches the 15 s scrape_interval of monitoring/prometheus.yml (the export's 5 s
+# suits the 4-minute drill only).
+apiVersion: 1
+datasources:
+- name: Prometheus
+  uid: prom
+  type: prometheus
+  access: proxy
+  url: http://prometheus:9090
+  isDefault: true
+  jsonData:
+    timeInterval: 15s

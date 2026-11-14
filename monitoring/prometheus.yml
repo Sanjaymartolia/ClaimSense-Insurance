@@ -1,5 +1,11 @@
 global:
   scrape_interval: 15s
+  evaluation_interval: 15s
+# L16: the edit-rate alert on the case API's own metrics (production windows). Source and its
+# promtool unit test: eval/monitoring/ops_alert_rules*.yml; tests/test_compose_stack.py keeps
+# the copy in monitoring/rules/ equal to it.
+rule_files:
+  - /etc/prometheus/rules/ops_alert_rules.yml
 scrape_configs:
   - job_name: claimsense-api
     metrics_path: /metrics/

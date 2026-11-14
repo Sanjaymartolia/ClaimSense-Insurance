@@ -82,8 +82,8 @@ All commands below run from **your own folder** `exercises/<yourname>/` unless m
 | Case API, stub agents (repo root; section 5.1) | `CLAIMSENSE_LLM=stub CLAIMSENSE_REVIEWERS="local-alice=alice:adjudicator,local-bob=bob:senior" uvicorn claimsense.api.main:app` | free |
 | Case API, real models (repo root; `OPENROUTER_API_KEY` set; step by step in `src/claimsense/ui/README.md`, "Real models") | `CLAIMSENSE_LLM=real CLAIMSENSE_CHECKPOINTS=claimsense_checkpoints_real.sqlite CLAIMSENSE_REVIEWERS="local-alice=alice:adjudicator,local-bob=bob:senior" uvicorn claimsense.api.main:app` | yes, about $0.0013 a claim |
 | Case UI in the browser (repo root, with the API running; needs `.[ui]`) | `python -m claimsense.ui`, then open http://127.0.0.1:8501 | free with stub agents |
-| Case API and UI in Docker (repo root; `CLAIMSENSE_REVIEWERS` in `.env`) | `docker compose up --build api ui` | free unless `CLAIMSENSE_LLM=real` |
-| Full stack with Prometheus and Grafana (repo root) | `docker compose up --build` | free unless `CLAIMSENSE_LLM=real` |
+| Everything in one command: case API, case UI, Prometheus with the edit-rate alert, Grafana with the operations dashboard (repo root; demo tokens `local-alice`, `local-bob` by default) | `docker compose up --build` | free unless `CLAIMSENSE_LLM=real` |
+| Case API and UI only, in Docker (repo root) | `docker compose up --build api ui` | free unless `CLAIMSENSE_LLM=real` |
 | Agent tools over MCP (repo root; servers start with the API) | `CLAIMSENSE_TOOLS=mcp` before the `uvicorn` command | free with stub agents |
 | Every check at once, one verdict (repo root) | `python -X utf8 -m eval.ship --label <name> --stub` | free with `--stub` |
 | Check the scorer, score the agents (repo root) | `python -m eval.harness.suite` | free |
@@ -247,7 +247,7 @@ CI runs on every push and pull request (`docs/CI_CD_PIPELINE.md`): job `test` (r
 | Claim JSON does not match `contracts.claim.Claim` (ADR-0002) | two-role PR | open |
 | Record the shipped-kit baseline with a real key | first member with a key | open |
 | Enable the CI eval gate (T48) | Deploy & Ops | done (13 Nov 2026) |
-| Adopt the edit-rate alert and the operations dashboard into `monitoring/` (bundle: `python -m eval.monitoring export`, `eval/monitoring/README.md`) | Deploy & Ops | ready to adopt |
+| Adopt the edit-rate alert and the operations dashboard into `monitoring/` (bundle: `python -m eval.monitoring export`, `eval/monitoring/README.md`) | Deploy & Ops | done (14 Nov 2026): mounted by `docker compose up --build`, checked in CI |
 | At least one approved Reflexion lesson, so before and after can differ (run-04 has none) | Agents & Orchestration | open |
 | Judge calibration: the raters agree (Cohen's kappa 0.739 on 24 items) but the judge does not (kappa 0.150, bar 0.6; 14 Nov), so it stays at weight 0.00. Next: a judge with the raters' rule that never takes claim-document text as policy, checked on 20+ new items (`eval/calibration/README.md`) | Eval & Red-Team | judge failed; fix open |
 | Real-model release check, E1 and E4 runs, cost per claim through the API | Eval & Red-Team | open (needs the key) |
@@ -276,7 +276,7 @@ CI runs on every push and pull request (`docs/CI_CD_PIPELINE.md`): job `test` (r
     # the case API and the case UI (repo root; free with stub agents)
     CLAIMSENSE_LLM=stub CLAIMSENSE_REVIEWERS="local-alice=alice:adjudicator,local-bob=bob:senior" uvicorn claimsense.api.main:app
     python -m claimsense.ui            # second terminal, then open http://127.0.0.1:8501
-    docker compose up --build api ui   # or both in Docker
+    docker compose up --build          # or everything in Docker, in one command
     # real models (paid; OPENROUTER_API_KEY set): CLAIMSENSE_LLM=real, its own checkpoints file
     CLAIMSENSE_LLM=real CLAIMSENSE_CHECKPOINTS=claimsense_checkpoints_real.sqlite CLAIMSENSE_REVIEWERS="local-alice=alice:adjudicator,local-bob=bob:senior" uvicorn claimsense.api.main:app
 

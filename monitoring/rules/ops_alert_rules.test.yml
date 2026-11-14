@@ -1,0 +1,52 @@
+# Unit test for ops_alert_rules.yml. Run from this folder:
+#     promtool test rules ops_alert_rules.test.yml
+# promtool comes with Prometheus (`python -m eval.monitoring setup` downloads it). Synthetic series
+# only: one sample a minute of the API's review-decision counter.
+rule_files:
+  - ops_alert_rules.yml
+evaluation_interval: 1m
+tests:
+  # A normal day: 10% of 60 decisions an hour are edits, for 25 hours. Nothing fires.
+  - interval: 1m
+    input_series:
+      - series: 'claimsense_review_decisions_total{level="adjudicator",decision="approve"}'
+        values: "0+0.9x1500"
+      - series: 'claimsense_review_decisions_total{level="adjudicator",decision="edit"}'
+        values: "0+0.1x1500"
+    alert_rule_test:
+      - eval_time: 25h
+        alertname: AdjudicatorEditRateRising
+        exp_alerts: []
+
+  # A quiet morning: half the decisions are edits, but only 6 decisions an hour. Nothing fires.
+  - interval: 1m
+    input_series:
+      - series: 'claimsense_review_decisions_total{level="adjudicator",decision="approve"}'
+        values: "0+0.05x1560"
+      - series: 'claimsense_review_decisions_total{level="adjudicator",decision="edit"}'
+        values: "0+0.05x1560"
+    alert_rule_test:
+      - eval_time: 26h
+        alertname: AdjudicatorEditRateRising
+        exp_alerts: []
+
+  # Drift: a normal day, then edits jump to 40% for two hours. It fires, and says 40%.
+  - interval: 1m
+    input_series:
+      - series: 'claimsense_review_decisions_total{level="adjudicator",decision="approve"}'
+        values: "0+0.9x1440 1296.6+0.6x119"
+      - series: 'claimsense_review_decisions_total{level="adjudicator",decision="edit"}'
+        values: "0+0.1x1440 144.4+0.4x119"
+    alert_rule_test:
+      - eval_time: 26h
+        alertname: AdjudicatorEditRateRising
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+            exp_annotations:
+              summary: "adjudicators edited 40% of worksheets in the last hour"
+              runbook: >-
+                The agents may have drifted: a model, prompt or policy change, or a new kind of bill.
+                Open a few edited cases in the case UI and read their audit trails to see which clause
+                or amount people corrected. Then run the release gate with real models on a new label
+                (python -m eval.full --label <new label>; costs money) to see whether it still passes.

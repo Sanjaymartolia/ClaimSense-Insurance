@@ -21,7 +21,7 @@ stub mode (no API key, no model calls). Real-model checks run only when someone 
 | Real-model release gate | Built, manual only (costs money) |
 | Failure notice to the team channel | Written, commented out until the `DISCORD_WEBHOOK_CI` secret exists |
 | Docker image build (API and case UI) | Built: job `compose`, after the tests. First run #110 (14 November) passed in 76 s |
-| `docker compose up` smoke test on a clean machine | Built for the API and the case UI (job `compose`); Chroma, Prometheus and Grafana are not started there (section 8) |
+| `docker compose up` smoke test on a clean machine | Built (job `compose`): the API, the case UI, Prometheus with the edit-rate alert and Grafana with the operations dashboard; Chroma is not started there (section 8) |
 | Image publishing, deployment | **Not built**; the capstone deliverable is a local `docker compose up` |
 
 ---
@@ -33,7 +33,7 @@ flowchart LR
     P[push to main or any pull request] --> T[test: ruff + pytest]
     M[manual: Run workflow] --> T
     T --> G[eval-gate: stub mode, free]
-    T --> C[compose: API + UI images, smoke test]
+    T --> C[compose: the one-command stack, API, UI, Prometheus, Grafana]
     G -->|manual runs only| R[eval-real: real models, paid]
 ```
 
@@ -88,9 +88,12 @@ empty. Never add a package to the list to silence a new error.
 | Step | Command | Fails when |
 |---|---|---|
 | Compose file is valid | `docker compose config --quiet` | `docker-compose.yml` does not parse, or names something that does not exist |
-| Build and start | `docker compose up --build --detach --no-deps --wait --wait-timeout 300 api ui` | An image does not build, or a container is not healthy within 5 minutes (healthchecks in `Dockerfile` and `Dockerfile.ui`) |
+| A fresh clone gets demo tokens | `CLAIMSENSE_REVIEWERS= docker compose config` shows `local-alice` | The local demo default for `CLAIMSENSE_REVIEWERS` is gone, so the one command would answer 503 |
+| Build and start | `docker compose up --build --detach --no-deps --wait --wait-timeout 300 api ui prometheus grafana` | An image does not build, or a container is not healthy within 5 minutes (healthchecks in `Dockerfile` and `Dockerfile.ui`) |
 | The API serves a demo claim | `curl` `/health`, then `POST /demo/claims/CLM-0004` with a throwaway token; the stream must reach `event: review` | The image lacks a file the claim needs (the demo claims, `config/`), or the run fails in the container |
 | The UI reaches the API | `curl` `/_stcore/health`, then the UI's own client calls `http://api:8000/health` from inside the `ui` container | Streamlit does not start, or the compose network or `CLAIMSENSE_API_URL` is wrong |
+| Prometheus scrapes the API and loads the alert | `/api/v1/targets` shows the API `up`; `/api/v1/rules` lists `AdjudicatorEditRateRising` | `monitoring/prometheus.yml` or the rules mount is wrong, or the rule does not parse |
+| Grafana opens on the operations dashboard | `/api/health`; `/api/search` and `/api/dashboards/home` give `claimsense-ops`; a query through the `prom` data source succeeds | The provisioning or dashboards mount is wrong, or Grafana cannot reach Prometheus |
 
 The compose file runs the agents in stub mode unless `CLAIMSENSE_LLM` is set, and this job sets
 only `CLAIMSENSE_REVIEWERS`: no key, no model call. On a failure it prints both containers' logs;
@@ -253,8 +256,7 @@ Gaps left (owner Deploy & Ops):
 |---|---|
 | The API image copies `src/`, `config/` and the demo claims but not `data/`, and skips `.[retrieval]` | No policy index or tariff table inside the container: stub tools only |
 | MCP servers | With `CLAIMSENSE_TOOLS=mcp` the API starts the four servers inside its own container (stdio, ADR-0012), but policy-kb needs the index and `.[retrieval]` (row above) |
-| No Grafana provisioning | Grafana starts with no data source, dashboard or edit-rate alert. A tested bundle is ready to adopt: `python -m eval.monitoring export` writes the edit-rate alert (with its promtool unit test) and the operations dashboard (`eval/monitoring/README.md`). Until then the case UI's dashboard page shows the numbers since the API started (ADR-0015) |
-| The case API needs `CLAIMSENSE_REVIEWERS` | Without it the case routes answer 503; `/health` and `/metrics/` still work |
+| Reviewer tokens | `docker compose` uses local demo tokens when `CLAIMSENSE_REVIEWERS` is not set (ports listen on 127.0.0.1 only). A server started outside compose answers 503 on the case routes without it. Anywhere but a laptop, set long random tokens |
 | No image publishing | Images are built and thrown away in CI; publishing to the GitHub container registry on a version tag would be a next step |
 
 ---

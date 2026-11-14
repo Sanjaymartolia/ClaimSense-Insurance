@@ -89,7 +89,8 @@ $env:CLAIMSENSE_REVIEWERS = "local-alice=alice:adjudicator,local-bob=bob:senior,
 docker compose up --build api ui
 ```
 
-`CLAIMSENSE_REVIEWERS` can go in `.env` instead. `$env:CLAIMSENSE_LLM` stays set in that terminal
+Without `CLAIMSENSE_REVIEWERS`, compose uses these same local demo tokens, so `docker compose up
+--build` alone starts everything (the repository README). `$env:CLAIMSENSE_LLM` stays set in that terminal
 until you change it or close the terminal, and other commands there read it too. Docker keeps
 cases in its `case-data` volume between runs, so the case-id clash above applies here too. To
 clear only the cases: `docker compose down`, then `docker volume ls`, and `docker volume rm` the

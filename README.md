@@ -4,24 +4,68 @@ Health-insurance claim adjudication: read a hospitalisation claim, check every b
 Arogya Sanjeevani policy wording, compute rupee amounts in tested code, and prepare a settlement for
 a claims adjudicator to approve. Agentic AI Capstone, team of six.
 
-## Quick start
+## Start everything with one command
+
+```bash
+docker compose up --build
+```
+
+It needs only Docker (on Windows: `winget install -e --id Docker.DockerDesktop`, then start Docker
+Desktop once). No key and no other setup: the agents run in stub mode, which is free and gives the
+same answer every time.
+
+| What starts | Where |
+|---|---|
+| Case UI for the adjudicator | http://127.0.0.1:8501 · sign in with `local-alice` (adjudicator) and `local-bob` (senior) |
+| Case API, with interactive docs | http://127.0.0.1:8000/docs |
+| Grafana, opening on the operations dashboard: claims processed, edit rate, rupees deducted by reason, fraud flags, turnaround, cost per claim | http://127.0.0.1:3000 |
+| Prometheus, scraping the case API, with the edit-rate alert | http://127.0.0.1:9090 |
+| Chroma vector store | http://127.0.0.1:8001 |
+
+- **The demo:** in the case UI, start the three scenes in order: the room-rent cut explained line
+  by line, the injected "pre-approved" note and the duplicate bill, and an edit that voids the
+  approval. Steps: [src/claimsense/ui/README.md](src/claimsense/ui/README.md) · scripted:
+  [docs/DEMO_SCRIPT.md](docs/DEMO_SCRIPT.md).
+- **Stop:** Ctrl+C, then `docker compose down` (add `--volumes` to also clear the saved cases and
+  dashboards).
+- **Real models (paid):** copy `.env.example` to `.env`, set `OPENROUTER_API_KEY` and
+  `CLAIMSENSE_LLM=real`, then run the same command.
+- The ports listen on this machine only, and the demo tokens are for local use. Anywhere else, set
+  `CLAIMSENSE_REVIEWERS` in `.env` to long random tokens.
+
+The CI `compose` job runs this stack on every push and checks each row of the table.
+
+## What we submit
+
+| Item | Where |
+|---|---|
+| One command that starts everything | the section above · [docker-compose.yml](docker-compose.yml) |
+| Architecture diagram | [docs/diagrams/langgraph-claim-flow.svg](docs/diagrams/langgraph-claim-flow.svg) · system flow: [docs/diagrams/claimsense-flow.svg](docs/diagrams/claimsense-flow.svg) · claim workflow: below |
+| Numbered walkthrough of one request | [docs/TECHNICAL_WORKFLOW.md](docs/TECHNICAL_WORKFLOW.md), section 3 |
+| Threat model | [docs/threat-model/THREAT_MODEL.md](docs/threat-model/THREAT_MODEL.md) |
+| Memory policy | [docs/memory-policy.md](docs/memory-policy.md) |
+| Evaluation report (4–6 pages) | [docs/EVALUATION_REPORT.md](docs/EVALUATION_REPORT.md) · [Word](docs/ClaimSense_Evaluation_Report.docx) · [PDF](docs/ClaimSense_Evaluation_Report.pdf) |
+| Experiment log | E1, E2, E4: [eval/experiments/README.md](eval/experiments/README.md) · E3 (Reflexion): [docs/experiments/reflexion/REPORT-SECTION.md](docs/experiments/reflexion/REPORT-SECTION.md), [docs/REFLEXION_WORK_LOG.md](docs/REFLEXION_WORK_LOG.md) |
+| Contribution log | [CONTRIBUTIONS.md](CONTRIBUTIONS.md) · personal logs: [CONTRIBUTIONS_SB.md](CONTRIBUTIONS_SB.md), [CONTRIBUTIONS_SS.md](CONTRIBUTIONS_SS.md) |
+| Slides | to be added |
+| Backup demo recording | to be added (the scenes it shows: [docs/DEMO_SCRIPT.md](docs/DEMO_SCRIPT.md)) |
+
+No API keys or private data: `.env` and the course notebooks with keys are git-ignored, every claim
+is synthetic, and the tracked files were scanned for key patterns (14 November 2026).
+
+## Develop and test without Docker
+
 ```bash
 python -m venv .venv
-source .venv/Scripts/activate        # Windows Git Bash  (macOS/Linux: .venv/bin/activate)
-pip install -e ".[dev]"
-pytest
-uvicorn claimsense.api.main:app --reload   # http://localhost:8000/health
+source .venv/Scripts/activate        # Windows Git Bash (PowerShell: .\.venv\Scripts\Activate.ps1; macOS/Linux: .venv/bin/activate)
+pip install -r requirements.txt      # everything; or only your area's extras, e.g. pip install -e ".[dev,agents]"
+pytest                               # product tests, no key needed
 ```
-Case API (start a claim, stream the agents' work, approve, edit or reject; needs `.[agents]` and
-`CLAIMSENSE_REVIEWERS`): [src/claimsense/api/README.md](src/claimsense/api/README.md).
-Case UI for the adjudicator (Streamlit; `python -m claimsense.ui` with the API running, needs
-`.[ui]`), with the three demo scenes step by step: [src/claimsense/ui/README.md](src/claimsense/ui/README.md).
-Full stack (needs Docker): `cp .env.example .env`, set `CLAIMSENSE_REVIEWERS`, then
-`docker compose up --build`. Case UI: http://127.0.0.1:8501 · Grafana: http://127.0.0.1:3000 ·
-Prometheus: http://127.0.0.1:9090 (agents in stub mode unless `CLAIMSENSE_LLM=real`).
 
-Install extras for your area: `pip install -e ".[dev,agents,mcp,retrieval]"` (others: `course`,
-`docs`, `eval`). Or install everything in one step: `pip install -r requirements.txt`.
+The case API and the case UI without Docker (two terminals, stub or real models):
+[src/claimsense/ui/README.md](src/claimsense/ui/README.md). Every command of the project, with
+its cost: [docs/COMMAND_REFERENCE.md](docs/COMMAND_REFERENCE.md)
+([PDF](docs/ClaimSense_Command_Reference.pdf)).
 
 No API key is needed for the tests or the eval suite: without `OPENROUTER_API_KEY` (or with
 `CLAIMSENSE_LLM=stub`) the agents run on deterministic fallbacks. A real model run needs the key
@@ -57,6 +101,12 @@ More in [eval/README.md](eval/README.md). The one-command ship check, step by st
 [docs/SHIP_CHECK.md](docs/SHIP_CHECK.md).
 
 ## Documentation
+- **[Evaluation report](docs/EVALUATION_REPORT.md)**: every measured result against the capstone
+  brief, the limits and the recommendations, in 4 to 6 pages
+  ([Word](docs/ClaimSense_Evaluation_Report.docx) · [PDF](docs/ClaimSense_Evaluation_Report.pdf))
+- **[Command reference](docs/COMMAND_REFERENCE.md)**: every terminal command of the project, with its
+  purpose and cost ([PDF](docs/ClaimSense_Command_Reference.pdf))
+- **[Threat model](docs/threat-model/THREAT_MODEL.md)** and **[memory policy](docs/memory-policy.md)**
 - **[What changed in Phases 1 to 3](docs/CHANGE_REPORT_PHASES_1_TO_3.md)**: before and after for CI,
   the case API, the tools over MCP, the case UI and Docker (12 to 14 November 2026), and what each
   role should review
@@ -90,7 +140,8 @@ More in [eval/README.md](eval/README.md). The one-command ship check, step by st
 - **[Ship check](docs/SHIP_CHECK.md)**: every evaluation in one command and one verdict, with the
   last stub and real results
 - **[CI/CD pipeline](docs/CI_CD_PIPELINE.md)**: what runs on every push (lint, tests, the keyless
-  eval gate), the manual real-model gate, thresholds, how to read a red build, what CD still lacks
+  eval gate, the one-command stack), the manual real-model gate, thresholds, how to read a red
+  build, what CD still lacks
 - **[Tool-use evaluation report](eval/agentic/REPORT.md)**: how the agents call tools, tool and
   hook correctness, final database state, attack coverage, open defects AGENTIC-nn
 - **[Experiments E1-E4](eval/experiments/README.md)**: each experiment as config files, one
@@ -103,7 +154,6 @@ More in [eval/README.md](eval/README.md). The one-command ship check, step by st
 ![ClaimSense flow](docs/diagrams/claimsense-flow.svg)
 
 ## Where things go
-See `CLAUDE.md` for the folder → role map and the rules every contributor (and Claude) follows.
 
 | Folder | What |
 |---|---|
@@ -115,17 +165,11 @@ See `CLAUDE.md` for the folder → role map and the rules every contributor (and
 | `src/claimsense/retrieval/` | Hybrid search over the clauses: Chroma + BM25 + reranker ([README](src/claimsense/retrieval/README.md)) |
 | `data/` | Synthetic starter pack: policy PDFs, tariffs, processed clauses, knowledge base ([README](data/README.md)) |
 | `src/claimsense/graph/`, `agents/`, `reflexion/` | LangGraph supervisor, specialists, playbook loop |
-| `eval/` | Harness, agent suite, live monitoring, observability (OpenTelemetry), DeepEval suite, dev golden set, red-team suite (held-out set lives outside the repo); `ship/` one-command verdict, `agentic/` tool-use eval, `experiments/` E1-E4 configs, `calibration/` judge kappa |
-| `docs/` | ADRs, experiments, threat model, memory policy, meetings |
+| `src/claimsense/api/`, `ui/` | Case API (FastAPI, streaming review) and the adjudicator's case UI (Streamlit) |
+| `monitoring/` | Prometheus config, the edit-rate alert and Grafana's operations dashboard, mounted by `docker-compose.yml` |
+| `eval/` | Harness, agent suite, live monitoring, observability (OpenTelemetry), DeepEval suite, dev golden set, red-team suite; `ship/` one-command verdict, `agentic/` tool-use eval, `experiments/` E1-E4 configs, `calibration/` judge kappa. The held-out set (`data/claimsense-heldout/`) is run once, by Eval & Red-Team only |
+| `docs/` | ADRs, experiments, threat model, memory policy, reports |
 | `course/`, `exercises/<name>/` | HW2-style course kit: build the agent yourself, six TODOs ([README](course/README.md)) |
-
-## Working with Claude Code
-1. Open this folder in VS Code and start `claude`.
-2. Plan mode (Shift+Tab) → *"Read issue T15 and contracts/. Plan the change; don't code yet."*
-3. Review the plan, write the key test cases yourself, then let Claude implement.
-4. `/code-review` before opening a PR. One reviewer from another role.
-
-Project hooks (`.claude/settings.json`) auto-format with ruff after every edit and block reading `.env` and the held-out eval set.
 
 ## Claim workflow
 

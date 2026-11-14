@@ -82,15 +82,17 @@ read the case API's own metrics (`src/claimsense/api/metrics.py`), so they are s
 
 `python -m eval.monitoring export --out runs/monitoring/export` writes them next to the drill's
 files: `ops_alert_rules.yml` (also listed in `prometheus.example.yml`) and
-`grafana/dashboards/claimsense-ops.json`. To adopt them (Deploy & Ops, in `monitoring/`):
+`grafana/dashboards/claimsense-ops.json`.
 
-1. Copy `ops_alert_rules.yml` into `monitoring/` and add `rule_files: [ops_alert_rules.yml]` to
-   `monitoring/prometheus.yml`; mount the file next to it in the `prometheus` service.
-2. Copy `grafana/provisioning/` and `grafana/dashboards/` into `monitoring/grafana/`, set the data
-   source URL to `http://prometheus:9090`, and mount them in the `grafana` service at
-   `/etc/grafana/provisioning` and at the dashboards path the provider names.
-3. Check: `promtool test rules ops_alert_rules.test.yml` passes; after `docker compose up` and one
-   demo claim, the "ClaimSense operations" dashboard shows it.
+**Adopted on 14 November 2026** (Deploy & Ops): `docker compose up --build` mounts them from
+`monitoring/`. Prometheus loads `monitoring/rules/ops_alert_rules.yml`; Grafana gets its data
+source (`http://prometheus:9090`) and dashboard provider from `monitoring/grafana/provisioning/`
+and opens on `monitoring/grafana/dashboards/claimsense-ops.json`. The export was made with
+`--prometheus-url http://prometheus:9090 --dashboards-dir /etc/grafana/dashboards
+--metrics-target api:8000` (in Git Bash, prefix `MSYS_NO_PATHCONV=1`, or the container path is
+rewritten). `tests/test_compose_stack.py` fails if the copies drift from this package: after a
+change here, export again and copy the rules and the ops dashboard into `monitoring/`. The CI
+`compose` job starts both containers and checks the target, the alert and the dashboard.
 
 Checked on 14 November 2026: `promtool check rules` and the unit test pass, and a live run (the
 case API with stub agents, the demo scenes through it, then this package's Prometheus and Grafana)
