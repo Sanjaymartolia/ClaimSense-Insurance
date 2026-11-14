@@ -5,7 +5,10 @@
 # its own table and ignored them (AGT-09, docs/MODEL_CARD.md). The roles below name the models
 # the agents have actually run since day 1, so no run changes model. One role can be overridden
 # for a run with CLAIMSENSE_MODEL_<ROLE>, e.g. CLAIMSENSE_MODEL_COVERAGE.
-version: 2
+#
+# version 3 (14 Nov 2026): the first file in prompts_dir, config/prompts/judge.md, the judge's
+# written rubric for calibration round 2 (eval/calibration/README.md). No model changes.
+version: 3
 
 models:
   supervisor: openai/gpt-4.1-mini        # stronger model for supervisor + planner

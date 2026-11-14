@@ -7,7 +7,8 @@ shown to agree with people. This folder holds that process.
 
 **Status (14 November 2026): the judge failed this check.** Two raters agree with each other
 (Cohen's kappa 0.739), but the judge agrees with them at only 0.150 against a bar of 0.6. It stays
-at weight 0.00. See "Result" below for why, and for what to try next.
+at weight 0.00. See "Result" below for why. A judge with the raters' rule written into its prompt
+is built and waits for new items: see "Round 2".
 
 ## The rule that is easy to skip
 
@@ -40,7 +41,9 @@ finished, so they are not anchored by it. Use it afterwards as a sanity check.
 `collect` takes each item's context exactly as the judge gets it: the clause wording the agent
 was shown plus the claim's facts. It picks lines round-robin across claims and refuses stub mode
 (stub agents give no model reasons) and an existing file (it may hold labels). `score` stops
-before any paid judge call if the raters' kappa is below 0.7, and writes `judge_scores.json`.
+before any paid judge call if the raters' kappa is below 0.7, and writes the judge's scores beside
+the set, one file per judge (`judge_scores.json` for RAGAS, `judge_scores_rubric.json` for the
+rubric judge).
 Tests: `pytest eval/calibration/tests` (kept out of `eval/tests`, whose count is pinned).
 
 ## Steps (by hand)
@@ -81,7 +84,8 @@ before labelling the other seventeen.
 | `calibration_set.jsonl` | the 24 items `collect` wrote on 13 November (real agents; dev and red-team claims only), labelled by both raters on 14 November (see "Result" below) |
 | `sheet_rater_a.csv`, `sheet_rater_b.csv` | the blank sheets from `collect sheets`; the raters' labels are in `calibration_set.jsonl` |
 | `calibration_claude_draft.jsonl` | Claude's pilot labels, not human labels (see above). Both raters have finished, so it now serves as the sanity check |
-| `judge_scores.json` | the judge's score for each of the 24 items and the judge model, from `collect score` on 14 November (see "Result"). Item ids and scores only, no rationale text. `score` rewrites this file on every run, whatever `--out` says; the 14 November version is in git |
+| `judge_scores.json` | the RAGAS judge's score for each of the 24 items and the judge model, from `collect score` on 14 November (see "Result"). Item ids and scores only, no rationale text. A later RAGAS run on this set rewrites it; a run on another set writes beside that set |
+| `rubric_judge.py` | the judge with the raters' rule (see "Round 2"); its prompt is `config/prompts/judge.md` |
 
 ## Result (14 November 2026)
 
@@ -131,17 +135,60 @@ Claude's pilot labels, which are also a model's reading, agree with the judge (k
 more than with either rater (0.385 and 0.143): two models accept "procedure fees" where two people
 do not. So a stronger model alone may not close the gap; the rule has to be written down.
 
-### Next steps (each needs a paid run)
+### Next steps
 
-1. **Give the judge the raters' rule.** A statement is supported only when the policy wording says
-   it; a near-synonym of a listed item ("procedure fees" for surgeon fees and OT) does not count.
-   RAGAS faithfulness runs on its own fixed prompt, so this means a judge with a written rubric
-   (`eval/harness/llm_judge_metrics.py`; its prompt in `config/models.yaml`, like every prompt).
-2. **Stop document text from counting as policy.** The judge needs the claim facts (section 9.5 of
-   `docs/EVAL_HARNESS_REPORT.md`), but they must never establish a policy term. Mark them as claim
-   data, or check the policy statements of a rationale against the policy wording alone.
-3. **Try a stronger judge model** (role `judge` in `config/models.yaml`), together with 1 and 2.
+1. **Give the judge the raters' rule.** Built: `--judge rubric`, with the rule in
+   `config/prompts/judge.md` (see "Round 2").
+2. **Stop document text from counting as policy.** Built into the same judge: the claim facts
+   reach it as their own data block, and its third check fails any policy term taken from them.
+   The judge still needs the facts (section 9.5 of `docs/EVAL_HARNESS_REPORT.md`).
+3. **A stronger judge model** (role `judge` in `config/models.yaml`), only if the rubric judge
+   still fails: change one thing at a time.
 4. **Calibrate again on at least 20 new items**, labelled by two raters: these 24 guided the
-   diagnosis, so a pass on them would prove little. `collect` picks lines in a fixed order, so a
-   second run over the same claims may give the same lines; write to a new file with `--out` and
-   drop any line already in this set. Until a judge passes there, it stays at weight 0.00.
+   diagnosis, so a pass on them would prove little. `collect --exclude` skips the explanations
+   already labelled (see "Round 2"). Until a judge passes there, it stays at weight 0.00.
+
+## Round 2: the rubric judge (built, not run yet)
+
+`collect score --judge rubric` uses a judge built to the raters' rule. It differs from RAGAS
+faithfulness in three ways:
+
+- **The rule is written down** in `config/prompts/judge.md` (the `prompts_dir` of
+  `config/models.yaml`, version 3). It has three checks, `names_listed_item`, `nothing_invented`
+  and `no_policy_from_claim_documents`, and hand-written examples that are not calibration items.
+- **It sees what the raters saw.** The policy wording, the claim facts and the explanation arrive
+  as three separate `<document>` blocks (`as_data`), so text in a bill line cannot pass as policy.
+- **Code decides.** The model answers the three checks, reasoning first, and an explanation
+  scores 1.0 only if all three hold. The reasoning is never saved, because it can quote claim
+  facts; the scores file keeps one score and the three checks per item.
+
+The model is unchanged (`google/gemini-3.1-flash-lite`), so the prompt is the only difference.
+The rule was read off the round 1 labels, so a score on those 24 items is **development only**,
+never the result. In order:
+
+1. Development check on round 1 (paid, about $0.01). It shows whether the model follows the rule
+   and whether structured output works through OpenRouter:
+
+       python -X utf8 -m eval.calibration.collect score --judge rubric
+
+2. **Both raters confirm** that the Constraints section of `config/prompts/judge.md` states their
+   rule, or correct it. Look hardest at the clause-number point of check 2: CAL-010 and CAL-020
+   are the same explanation with the same policy text, and rater B labelled them 1 and 0.
+3. Round 2 items, in their own folder (paid, about $0.10). `--exclude` skips every explanation
+   that round 1 labelled and numbers the new items from CAL-025. `--real-retrieval` changes the
+   wording shown, so it gives new explanations and other clauses:
+
+       python -X utf8 -m eval.calibration.collect collect --real-retrieval --out eval/calibration/round2/calibration_set.jsonl --exclude eval/calibration/calibration_set.jsonl
+       python -X utf8 -m eval.calibration.collect sheets --out eval/calibration/round2/calibration_set.jsonl
+
+   If it writes fewer than 20 items it says so: stop there and decide how to add items before
+   anyone labels. The two raters label with the written rule, independently, then run `import`
+   with the same `--out`.
+4. One scoring run per judge on round 2, so both judges are compared on the same new items:
+
+       python -X utf8 -m eval.calibration.collect score --judge rubric --out eval/calibration/round2/calibration_set.jsonl
+       python -X utf8 -m eval.calibration.collect score --out eval/calibration/round2/calibration_set.jsonl
+
+   A pass (raters 0.7 or more, judge 0.6 or more) prints a freeze hash: record it, with a chart in
+   `runs/`. Wiring the judge into the harness and giving it a weight is then a team decision. A
+   fail is recorded like round 1, and round 2 is then used up.

@@ -38,7 +38,8 @@ Prompts and model IDs live only in `config/models.yaml` — never hard-code a mo
 Model IDs: since `models.yaml` version 2 (13 Nov 2026) `agents/llm.py::MODELS` reads every agent
 role (`ROLES`, including `reflector`) from the YAML; `CLAIMSENSE_MODEL_<ROLE>` overrides one role.
 `claimsense.config.config_path()` finds the file from any working directory. Known drift still open:
-the prompts are inline `SYSTEM` strings (`config/prompts/` is empty). Moving them is the Agents
+the agent prompts are inline `SYSTEM` strings (`config/prompts/` holds only the judge's rubric,
+`judge.md`, since `models.yaml` version 3). Moving them is the Agents
 owner's call (REF-16 plans to replace the coverage prompt); do not move them without the owner.
 
 **Stub mode.** With no `OPENROUTER_API_KEY`, or with `CLAIMSENSE_LLM=stub`, `get_llm()` returns
@@ -269,7 +270,9 @@ pytest eval/agentic/tests              # NOT in eval/tests, so docs/EVAL_HARNESS
   State (14 Nov 2026): the 24 items in `calibration_set.jsonl` are labelled, raters' kappa 0.739
   (pass); the judge failed against them (kappa 0.150, bar 0.6; `judge_scores.json`), so it stays
   at weight 0.00. Check a changed judge on new items, not these 24. `collect` refuses to overwrite
-  `calibration_set.jsonl`; `score` rewrites `judge_scores.json`.
+  `calibration_set.jsonl`. `score --judge rubric` is the judge with the raters' rule
+  (`config/prompts/judge.md`; reasoning never saved); scores go beside their set, one file per
+  judge. Round 2 goes in its own folder: `collect --exclude <round-1 set>` (README "Round 2").
 
 ### Agent suite, combined run, live monitoring (`eval/`, Eval & Red-Team)
 ```bash

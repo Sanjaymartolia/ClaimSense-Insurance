@@ -139,6 +139,49 @@ def test_sheets_split_policy_text_from_claim_facts_and_round_trip(tmp_path):
     assert C.main(["sheets", "--out", str(path)]) == 2  # never overwrites a sheet
 
 
+def test_pick_skips_explanations_already_labelled_and_continues_the_ids():
+    old = {"claim_id": "A", "line_id": "A-L01", "rationale": "Same  WORDS.", "contexts": ["x"]}
+    new = {"claim_id": "B", "line_id": "B-L01", "rationale": "New words.", "contexts": ["x"]}
+    rows = C.pick([[old], [new]], 5, seen={C.explanation_key("same words.")}, first=25)
+    assert [(r["item_id"], r["line_id"]) for r in rows] == [("CAL-025", "B-L01")]
+
+
+def _not_stub(monkeypatch):
+    monkeypatch.setattr("claimsense.agents.llm.stub_mode", lambda: False)
+
+
+def test_collect_into_a_new_folder_skips_what_an_earlier_set_labelled(tmp_path, monkeypatch):
+    first = tmp_path / "calibration_set.jsonl"
+    labelled = [
+        {"item_id": f"CAL-00{i}", "rationale": f"Reason {i}.", "labels": {}} for i in (1, 2)
+    ]
+    first.write_text("".join(json.dumps(r) + "\n" for r in labelled), encoding="utf-8")
+    outputs = [
+        SimpleNamespace(
+            claim_id=claim,
+            rationales={f"{claim}-L01": text},
+            retrieved_contexts={f"{claim}-L01": ["x"]},
+        )
+        for claim, text in (("A", "Reason 1."), ("B", "A fresh reason."))
+    ]
+    _not_stub(monkeypatch)
+    monkeypatch.setattr(C, "_real_outputs", lambda splits, retrieval: outputs)
+    out = tmp_path / "round2" / "calibration_set.jsonl"
+    argv = ["collect", "--n", "5", "--out", str(out), "--exclude", str(first)]
+    assert C.main(argv) == 1  # written, but fewer than the 20 items a calibration needs
+    rows = [json.loads(t) for t in out.read_text(encoding="utf-8").splitlines()]
+    assert [(r["item_id"], r["rationale"]) for r in rows] == [("CAL-003", "A fresh reason.")]
+
+
+def test_a_missing_exclude_file_stops_before_the_paid_run(tmp_path, monkeypatch):
+    _not_stub(monkeypatch)
+    monkeypatch.setattr(C, "_real_outputs", lambda *a: pytest.fail("the agents must not run"))
+    out = tmp_path / "round2" / "calibration_set.jsonl"
+    argv = ["collect", "--out", str(out), "--exclude", str(tmp_path / "missing.jsonl")]
+    assert C.main(argv) == 2
+    assert not out.exists()
+
+
 def test_import_refuses_a_blank_or_bad_label(tmp_path):
     path = _set(tmp_path)
     C.main(["sheets", "--out", str(path)])

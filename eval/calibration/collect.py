@@ -1,19 +1,25 @@
 """Build the judge calibration set from real agent output, then score the judge against it.
 
     python -m eval.calibration.collect collect [--n 24] [--splits dev,redteam] [--real-retrieval]
+                                               [--out SET] [--exclude EARLIER_SET]
     #   two people label every row independently (rater_a, rater_b: 1 supported, 0 not)
     python -m eval.calibration.collect sheets                      # one CSV per rater, for Excel
     python -m eval.calibration.collect import --a sheet_rater_a.csv --b sheet_rater_b.csv
-    python -m eval.calibration.collect score
+    python -m eval.calibration.collect score [--judge ragas|rubric]
 
 `collect` runs the real coverage agent (needs OPENROUTER_API_KEY, costs a little) and writes
 `calibration_set.jsonl` with unlabelled rows. Each row holds the model's one-sentence reason for one
 bill line and exactly the context the judge sees for it: the clause wording the agent was shown,
 plus the claim's facts (`attach_clause_contexts`). Rows are picked round-robin across claims so no
-claim dominates. Synthetic claims only; the file stays local until the labels are done.
+claim dominates. Synthetic claims only; the file stays local until the labels are done. A later
+round goes in its own folder, with `--exclude` naming the earlier set: its explanations are
+skipped, and the item ids continue after its ids.
 
-`score` runs the same RAGAS faithfulness judge on every labelled row and prints Cohen's kappa
-between the raters and between the judge and the raters (`judge_calibration.report`).
+`score` runs a judge on every labelled row and prints Cohen's kappa between the raters and between
+the judge and the raters (`judge_calibration.report`). `--judge ragas` (the default) is the
+harness's RAGAS faithfulness judge; `--judge rubric` is the judge with the raters' written rule
+(`rubric_judge`). The scores go beside the set, one file per judge (`scores_path`), with the
+freeze hash when the judge passes.
 """
 
 from __future__ import annotations
@@ -21,6 +27,7 @@ from __future__ import annotations
 import argparse
 import csv
 import json
+import re
 import sys
 from collections.abc import Iterable
 from pathlib import Path
@@ -28,13 +35,17 @@ from typing import Any
 
 from .judge_calibration import (
     CALIBRATION_SET,
+    CalibrationItem,
+    freeze,
     inter_rater_reliability,
+    judge_agreement,
     load_calibration_set,
     report,
 )
+from .rubric_judge import judge_item, prompt_path, split_contexts
 
 RATERS = ("rater_a", "rater_b")
-SCORES_FILE = CALIBRATION_SET.with_name("judge_scores.json")
+JUDGES = ("ragas", "rubric")
 SHEET_COLUMNS = (
     "item_id",
     "claim_and_line",
@@ -45,6 +56,25 @@ SHEET_COLUMNS = (
     "note",
 )
 SEPARATOR = "\n---\n"  # between texts in one spreadsheet cell
+
+
+def scores_path(calibration_set: Path | str, judge: str) -> Path:
+    """Beside its set, one file per judge, so no run overwrites another set's or judge's scores.
+    RAGAS keeps the name of the first file, `judge_scores.json`."""
+    name = "judge_scores.json" if judge == "ragas" else f"judge_scores_{judge}.json"
+    return Path(calibration_set).with_name(name)
+
+
+def explanation_key(text: str) -> str:
+    """Two explanations are one item when they match word for word, whatever the case or spacing."""
+    return " ".join(text.lower().split())
+
+
+def excluded(path: Path | str) -> tuple[set[str], int]:
+    """An earlier set's explanations, to skip, and the first item number after its ids."""
+    rows = _rows(path)
+    numbers = [int(m.group()) for r in rows if (m := re.search(r"\d+$", str(r["item_id"])))]
+    return {explanation_key(r["rationale"]) for r in rows}, max(numbers, default=0) + 1
 
 
 def candidates(outputs: Iterable[Any]) -> list[list[dict[str, Any]]]:
@@ -70,30 +100,36 @@ def candidates(outputs: Iterable[Any]) -> list[list[dict[str, Any]]]:
     return per_claim
 
 
-def pick(per_claim: list[list[dict[str, Any]]], n: int) -> list[dict[str, Any]]:
+def pick(
+    per_claim: list[list[dict[str, Any]]],
+    n: int,
+    seen: set[str] | None = None,
+    first: int = 1,
+) -> list[dict[str, Any]]:
     """Round-robin across claims, so 24 items come from many claims, not three long bills.
 
     Claim k starts at its line k (mod its length), so 24 claims do not all give their first line,
-    and an explanation already chosen word for word (a red-team copy of a dev claim) is skipped.
+    and an explanation already chosen word for word (a red-team copy of a dev claim) is skipped,
+    as is one in `seen` (an earlier set's). Item numbers start at `first`.
     """
     rotated = []
     for k, lines in enumerate(per_claim):
         start = k % len(lines)
         rotated.append(lines[start:] + lines[:start])
     chosen: list[dict[str, Any]] = []
-    seen: set[str] = set()
+    taken = set(seen or ())
     depth = 0
     while len(chosen) < n and any(depth < len(lines) for lines in rotated):
         for lines in rotated:
             if depth < len(lines) and len(chosen) < n:
-                key = " ".join(lines[depth]["rationale"].lower().split())
-                if key not in seen:
-                    seen.add(key)
+                key = explanation_key(lines[depth]["rationale"])
+                if key not in taken:
+                    taken.add(key)
                     chosen.append(lines[depth])
         depth += 1
     return [
         {"item_id": f"CAL-{i:03d}", **row, "labels": dict.fromkeys(RATERS)}
-        for i, row in enumerate(chosen, 1)
+        for i, row in enumerate(chosen, first)
     ]
 
 
@@ -126,11 +162,19 @@ def collect(args: argparse.Namespace) -> int:
             file=sys.stderr,
         )
         return 2
+    seen: set[str] = set()
+    first = 1
+    if args.exclude:
+        if not Path(args.exclude).exists():  # checked before the paid run
+            print(f"{args.exclude} does not exist; nothing was run", file=sys.stderr)
+            return 2
+        seen, first = excluded(args.exclude)
     splits = [s.strip() for s in args.splits.split(",") if s.strip()]
     outputs = _real_outputs(splits, "real" if args.real_retrieval else "stub")
-    rows = pick(candidates(outputs), args.n)
+    rows = pick(candidates(outputs), args.n, seen=seen, first=first)
     if len(rows) < args.n:
-        print(f"only {len(rows)} lines had a model reason; wanted {args.n}", file=sys.stderr)
+        print(f"only {len(rows)} new lines had a model reason; wanted {args.n}", file=sys.stderr)
+    out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text("".join(json.dumps(r, ensure_ascii=False) + "\n" for r in rows), "utf-8")
     print(f"wrote {len(rows)} unlabelled items from {len({r['claim_id'] for r in rows})} claims")
     print(f"to {out}. Next: two people fill labels.rater_a and labels.rater_b (1 or 0).")
@@ -138,36 +182,75 @@ def collect(args: argparse.Namespace) -> int:
 
 
 def score(args: argparse.Namespace) -> int:
-    import asyncio
-
-    from eval.harness.llm_judge_metrics import _build_scorer
-
     items = load_calibration_set(args.out)  # refuses unlabelled rows
     if not inter_rater_reliability(items)["passed"]:
         print(report(items))  # people disagree: do not pay for a judge run
         return 1
-    lines = {
-        row["item_id"]: row.get("line_id", "")
-        for row in (json.loads(t) for t in Path(args.out).read_text("utf-8").splitlines() if t)
-    }
+    rows = {r["item_id"]: r for r in _rows(args.out)}
+    checks: dict[str, dict[str, bool]] | None = None
+    rubric_file: Path | None = None
+    if args.judge == "rubric":
+        rubric_file = prompt_path()
+        model, scores, checks = _rubric_scores(items, rows, rubric_file)
+    else:
+        model, scores = _ragas_scores(items, rows)
+    result: dict[str, Any] = {"judge": args.judge, "judge_model": model, "scores": scores}
+    if checks is not None:
+        result["checks"] = checks  # true/false per check; the judge's reasoning is never saved
+    if judge_agreement(items, scores)["passed"]:
+        result["freeze"] = freeze(items, model, rubric_file)
+    path = scores_path(args.out, args.judge)
+    path.write_text(json.dumps(result, indent=1), "utf-8")
+    print(report(items, scores))
+    if "freeze" in result:
+        print(f"  frozen as {result['freeze']['frozen_hash']}: record it in the report")
+    print(f"  scores written to {path}")
+    return 0
+
+
+def _ragas_scores(
+    items: list[CalibrationItem], rows: dict[str, dict[str, Any]]
+) -> tuple[str, dict[str, float]]:
+    import asyncio
+
+    from eval.harness.llm_judge_metrics import _build_scorer
+
     scorer, model = _build_scorer()
 
     async def run() -> dict[str, float]:
         scores = {}
         for item in items:
+            line = rows[item.item_id].get("line_id", "")
             result = await scorer.ascore(
                 # the harness judge's own question (llm_judge_metrics._score_output)
-                user_input=f"Is line {lines[item.item_id]} payable, and under which clause?",
+                user_input=f"Is line {line} payable, and under which clause?",
                 response=item.rationale,
                 retrieved_contexts=item.contexts,
             )
             scores[item.item_id] = float(getattr(result, "value", result))
         return scores
 
-    scores = asyncio.run(run())
-    SCORES_FILE.write_text(json.dumps({"judge_model": model, "scores": scores}, indent=1), "utf-8")
-    print(report(items, scores))
-    return 0
+    return model, asyncio.run(run())
+
+
+def _rubric_scores(
+    items: list[CalibrationItem], rows: dict[str, dict[str, Any]], rubric_file: Path
+) -> tuple[str, dict[str, float], dict[str, dict[str, bool]]]:
+    from claimsense.config import model_for
+
+    rubric = rubric_file.read_text("utf-8")
+    scores: dict[str, float] = {}
+    checks: dict[str, dict[str, bool]] = {}
+    for item in items:
+        row = rows[item.item_id]
+        policy, facts = split_contexts(row["claim_id"], item.contexts)
+        scores[item.item_id], checks[item.item_id] = judge_item(
+            rubric, row.get("line_id", ""), item.rationale, policy, facts
+        )
+        failed = [name for name, ok in checks[item.item_id].items() if not ok]
+        verdict = f"not supported ({', '.join(failed)})" if failed else "supported"
+        print(f"  {item.item_id}: {verdict}", flush=True)  # ids and check names only (rule 4)
+    return model_for("judge"), scores, checks
 
 
 def _rows(path: Path | str) -> list[dict[str, Any]]:
@@ -176,9 +259,7 @@ def _rows(path: Path | str) -> list[dict[str, Any]]:
 
 def sheet_row(row: dict[str, Any]) -> dict[str, str]:
     """One spreadsheet row: what the model said, beside exactly what it was shown."""
-    facts_prefix = f"Claim {row['claim_id']} facts"
-    facts = [c for c in row["contexts"] if c.startswith(facts_prefix)]
-    policy = [c for c in row["contexts"] if not c.startswith(facts_prefix)]
+    policy, facts = split_contexts(row["claim_id"], row["contexts"])
     return {
         "item_id": row["item_id"],
         "claim_and_line": row.get("line_id", row["claim_id"]),
@@ -244,8 +325,17 @@ def main(argv: list[str] | None = None) -> int:
     c.add_argument("--splits", default="dev,redteam")
     c.add_argument("--real-retrieval", action="store_true", help="hybrid retriever, as RAGAS uses")
     c.add_argument("--out", default=str(CALIBRATION_SET))
+    c.add_argument(
+        "--exclude", help="an earlier set: skip its explanations, number new items after its ids"
+    )
     s = sub.add_parser("score", help="judge the labelled items and report Cohen's kappa")
     s.add_argument("--out", default=str(CALIBRATION_SET))
+    s.add_argument(
+        "--judge",
+        choices=JUDGES,
+        default="ragas",
+        help="ragas: the harness judge; rubric: the raters' rule in config/prompts/judge.md",
+    )
     sh = sub.add_parser("sheets", help="write one CSV per rater, for Excel")
     sh.add_argument("--out", default=str(CALIBRATION_SET))
     im = sub.add_parser("import", help="copy both raters' labels into the set")
