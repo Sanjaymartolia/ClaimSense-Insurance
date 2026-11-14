@@ -47,7 +47,7 @@ The CI `compose` job runs this stack on every push and checks each row of the ta
 | Evaluation report (4–6 pages) | [docs/EVALUATION_REPORT.md](docs/EVALUATION_REPORT.md) · [Word](docs/ClaimSense_Evaluation_Report.docx) · [PDF](docs/ClaimSense_Evaluation_Report.pdf) |
 | Experiment log | E1, E2, E4: [eval/experiments/README.md](eval/experiments/README.md) · E3 (Reflexion): [docs/experiments/reflexion/REPORT-SECTION.md](docs/experiments/reflexion/REPORT-SECTION.md), [docs/REFLEXION_WORK_LOG.md](docs/REFLEXION_WORK_LOG.md) |
 | Contribution log | [CONTRIBUTIONS.md](CONTRIBUTIONS.md) · personal logs: [CONTRIBUTIONS_SB.md](CONTRIBUTIONS_SB.md), [CONTRIBUTIONS_SS.md](CONTRIBUTIONS_SS.md) |
-| Slides | to be added |
+| Slides | [PowerPoint](<docs/ClaimSense Technical Review (1).pptx>) · [PDF](<docs/ClaimSense Technical Review (1).pdf>) |
 | Backup demo recording | to be added (the scenes it shows: [docs/DEMO_SCRIPT.md](docs/DEMO_SCRIPT.md)) |
 
 No API keys or private data: `.env` and the course notebooks with keys are git-ignored, every claim
