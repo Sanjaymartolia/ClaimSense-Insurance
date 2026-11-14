@@ -231,6 +231,10 @@ python -m claimsense.reflexion.review_cli review runs/live-playbook.json --revie
    items, 1 duplicate. After pass twice: identical. Frozen hash `4f53cda1…`.
 5. `run_one.py CLM-0004 --playbook .../run-04/playbook.json`: `Playbook: 4f53cda18c2b, 0
    approved lessons`, `lessons_used: []`, settled Rs 67,067.10.
+6. Held-out run (same day, Eval owner's agreement): `run_reflexion_heldout.py --playbook
+   run-04/playbook.json --heldout data/claimsense-heldout --repeat 1 --tolerance-rs 1`. 60 claims.
+   Before == after: Rs 178,203.73 total, mean Rs 2,970.06, exact 0.883, edit 0.117, critic 0.05.
+   Report written outside the repo. REPORT-SECTION 4.5.
 
 ---
 
@@ -559,7 +563,7 @@ harness pins must change together).
 | 12 | Teach the critic the DEC-04 duplicate-line deduction (REF-17). | Agents & Orchestration (critic owner) | Clean critic rate |
 | 10 | Make nursing and cataract clauses retrievable in the stub search (REF-14). | Agents & Orchestration | Ceiling |
 | 13 | ~~Rerun the experiment as `run-04` (real model, console approval, tolerance Rs 1). Freeze.~~ Done 14 Nov 2026: Rs 39,904.80 / exact 0.909 / edit 0.091 before and after; 1 proposed, 0 approved, 9 triaged; hash `4f53cda1…` (same as run-03, no approved lesson). REPORT-SECTION 10.4. The E3 config stays on `run-03`: same hash. | Dhruvi Ramani | — |
-| 14 | Run the held-out set with the frozen `run-04` playbook (same hash as `run-03`; replaces action 6). | Eval & Red-Team | Final report |
+| 14 | ~~Run the held-out set with the frozen `run-04` playbook.~~ Done 14 Nov 2026 with the Eval owner's agreement: 60 claims, Rs 178,203.73 / exact 0.883 / edit 0.117 / critic 0.05, before == after (0 approved lessons), one repeat. REPORT-SECTION 4.5. | Dhruvi Ramani | — |
 | 15 | Rule on the cataract sub-limit for CLM-0021/0022 (REF-21); if 59,850 is intended, change the line items, GOLD-05 and the harness pins together. | Domain & Product | Gold freeze |
 
 ---

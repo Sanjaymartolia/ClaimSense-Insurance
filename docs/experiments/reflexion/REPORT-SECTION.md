@@ -308,13 +308,35 @@ it will show before == after by construction, which is itself the honest stateme
 final gold, every remaining miss is a code or gold gap. Where the real model *does* leave headroom
 is the citation, not the money: section 9 measures that and GEPA closes it.
 
-### 4.5 Held-out, 60 claims — PENDING
+### 4.5 Held-out, 60 claims (14 November 2026) — the E3 result
 
-Run once by the Evaluation owner with `scripts/run_reflexion_heldout.py` against the frozen
-`run-04` playbook (section 10.4; same hash as `run-03`, both without an approved lesson);
-before/after table and the spread over 3 repeats to be pasted from its `heldout_report.md`.
-With no approved lesson, before equals after by construction; the run is still owed as the brief's
-evidence, and its "before" column is the system's held-out score.
+Run once, with the Evaluation owner's agreement, by Dhruvi Ramani with
+`scripts/run_reflexion_heldout.py` against the frozen `run-04` playbook (hash
+`4f53cda18c2b…`, 0 approved lessons; same hash as `run-03`). Real model (`openai/gpt-4.1-mini`,
+reflector not called: no reflection in a held-out run), reference calculator, tolerance Rs 1,
+held-out set `data/claimsense-heldout/` (60 claims, reviewed gold, ADR-0013). Output
+`../claimsense-heldout-results/run-04/heldout_report.md`, outside the repository as the script
+requires. One with-playbook repeat instead of the brief's three: with no approved lesson the
+with-playbook pass is the no-playbook pass, so the three repeats would measure model noise only.
+
+| metric | before (no playbook) | after (frozen playbook) |
+|---|---|---|
+| settlement_error_total_rs | 178203.73 | 178203.73 |
+| settlement_error_mean_rs | 2970.06 | 2970.06 |
+| exact_match_rate | 0.883 | 0.883 |
+| edit_rate | 0.117 | 0.117 |
+| critic_rejection_rate | 0.05 | 0.05 |
+
+**Reading.** Before equals after by construction: the playbook the loop produced has no approved
+lesson, so the coverage analyst read nothing extra and made the same choices. The "before" column
+is therefore the system's held-out score on claims it had never seen: 53 of 60 claims within Rs 1
+of the gold, a mean error of Rs 2,970 per claim, 7 claims an adjudicator would have edited. The
+dev-set figures of `run-04` (exact-match 0.909, edit rate 0.091) carry over with a small drop, so
+the loop did not overfit the dev claims: there was nothing in the playbook to overfit with. The
+per-case table in `heldout_report.md` names the seven misses; whether they are clause choices the
+analyst could learn from, or calculator and gold gaps like the dev misses, is the question the next
+learning pass would answer, and it is left for the Domain and Eval owners (the held-out set may not
+be used for learning).
 
 ## 5. Design decisions
 
