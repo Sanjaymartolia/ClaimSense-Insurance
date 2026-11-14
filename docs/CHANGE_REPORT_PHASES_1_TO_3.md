@@ -2,8 +2,8 @@
 
 **For:** the whole team, including anyone who did not follow the work day by day.
 **Period:** 12 to 14 November 2026. **Written by:** Eval & Red-Team.
-**State when written:** Phase 1 and Phase 2 are on `main` (commits `4e46e8d` and `2462975`).
-Phase 3 is ready for review in the working tree and goes in with this report.
+**State:** Phases 1, 2 and 3 are on `main` (commits `4e46e8d`, `2462975` and `49f705e`). CI run
+#110 on Phase 3 passed every job, including the first Docker build.
 
 This report says what the project could do before, what it can do now, why each change was made,
 how it was checked, and what each role should look at next. Commands are for Windows PowerShell
@@ -34,7 +34,7 @@ from the repository root; Git Bash works the same with `export NAME=value`.
 
 | Area | Before (12 November) | After (14 November) |
 |---|---|---|
-| CI | Red at `ruff check` since 12 November (runs #93 to #98) | Green: `test` and `eval-gate` pass (runs #106 to #109). Phase 3 adds a `compose` job |
+| CI | Red at `ruff check` since 12 November (runs #93 to #98) | Green (runs #106 to #110). Phase 3 added a `compose` job; its first run (#110) passed |
 | Eval gate in CI | None | Keyless and free: tool pins, harness self-check, harness gate (composite 0.964 against 0.85), release gate, tool use, eval package tests |
 | Case API | `GET /health` and `GET /metrics/` only | Start a claim, stream the run, decide (approve, edit, reject), read a case, demo claims, `GET /me` |
 | Approvals through the API | None | Bearer tokens per reviewer; the level and four-eyes checks are in the API; an edit voids every earlier approval |
@@ -179,7 +179,7 @@ forms and a two-level approval. Streamlit's AppTest also lets pytest click throu
 **CI** (`.github/workflows/ci.yml`): job `test` now installs `.[dev,agents,mcp,ui]` and runs the UI
 tests. New job `compose` (after `test`) checks the compose file, builds both images, waits until
 both are healthy, serves a demo claim through the API container, and calls the API from inside the
-UI container. Its first run is the first push of Phase 3.
+UI container. Its first run (#110) passed in 76 seconds: the first build of both images anywhere.
 
 **API additions for the UI:** `GET /me` and the `llm` and `tools` fields on `/health`. The 403
 message now reads "needs an adjudicator reviewer" (it said "a adjudicator").
@@ -236,9 +236,9 @@ These tokens are for a local run only; anywhere else use long random values. To 
 | Fresh environment, installed as CI installs | Installs cleanly; `pip check` clean; strict-checkpoint API and UI tests 76 passed; `requirements.txt` resolves with Streamlit |
 | UI alone, installed as `Dockerfile.ui` installs it | No agent packages installed; the page runs without error |
 | Lint and format, tool pins | `ruff check` and `ruff format --check` clean (372 files); 8 in-process and 8 MCP pins match |
-| CI on GitHub | Phase 2 code green on Python 3.12 (runs #106 to #109, `test` 76 s and `eval-gate` 60 s) |
+| CI on GitHub, Python 3.12 | Phase 2: green from run #106 (#105 failed on the broken dev gold, not on Phase 2). Phase 3: run #110 passed, `test` 110 s, `compose` 76 s, `eval-gate` 66 s |
 | Ship check, stub mode | REHEARSAL PASSED for Phase 2a, Phase 2b and Phase 3 (`ss-1114-phase3`: all seven blocking stages passed; the security and retrieval reports passed; the two judges were skipped, as stub mode does) |
-| Docker images | Not built on the Windows machine used (no Docker); the `compose` CI job is their first build |
+| Docker images | Built and checked by the `compose` CI job (run #110): both healthy, a demo claim served, the UI reached the API. Not built on the Windows machine used, which has no Docker |
 
 ---
 
@@ -249,7 +249,7 @@ These tokens are for a local run only; anywhere else use long random values. To 
 | Deploy & Ops | `src/claimsense/api/`, `src/claimsense/ui/`, `docker-compose.yml`, both Dockerfiles, `.dockerignore`, `ci.yml` (ADR-0015). Next: Grafana provisioning and the edit-rate alert in `monitoring/`; real sign-in instead of static tokens; image publishing |
 | Tools & Security | `mcp_servers/adjudication_calc.py`, the MCP pins and `SERVER_ENV` (ADR-0012). Open: make `record_history` a claims-db write tool |
 | Agents & Orchestration | `agents/mcp_services.py` (ADR-0012); the case API runs your graph unchanged |
-| Eval & Red-Team | The Phase 3 ship check; one real-model run through the API to record cost per claim; the held-out decision (section 11) |
+| Eval & Red-Team | One real-model run through the API to record cost per claim; the held-out decision (section 11) |
 | Domain & Product | A corrected CLM-0022 change, with its follow-ups: rebuild the red-team set, update the pinned suite rows and the counts in the reports |
 | Everyone | Run the demo once from `src/claimsense/ui/README.md`. New rules are in `CLAUDE.md` (Case API, Tools over MCP, Case UI) |
 

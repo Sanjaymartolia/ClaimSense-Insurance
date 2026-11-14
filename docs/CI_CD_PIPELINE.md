@@ -20,7 +20,7 @@ stub mode (no API key, no model calls). Real-model checks run only when someone 
 | Eval gate (stub mode, keyless) | Built, runs after the tests pass |
 | Real-model release gate | Built, manual only (costs money) |
 | Failure notice to the team channel | Written, commented out until the `DISCORD_WEBHOOK_CI` secret exists |
-| Docker image build (API and case UI) | Built: job `compose`, after the tests (Phase 3; not yet run on GitHub when written) |
+| Docker image build (API and case UI) | Built: job `compose`, after the tests. First run #110 (14 November) passed in 76 s |
 | `docker compose up` smoke test on a clean machine | Built for the API and the case UI (job `compose`); Chroma, Prometheus and Grafana are not started there (section 8) |
 | Image publishing, deployment | **Not built**; the capstone deliverable is a local `docker compose up` |
 
@@ -43,9 +43,9 @@ flowchart LR
 | Pull request (any branch) | `test`, then `eval-gate` and `compose` side by side |
 | Actions > ci > Run workflow | as above, then `eval-real` after `eval-gate` |
 
-A job runs only if the job before it passed. All jobs use Python 3.12 on `ubuntu-latest`. Before
-Phase 3 a green run took about a minute and a half (run #100: `test` 32 s, `eval-gate` 41 s);
-`compose` builds two images, so expect it to take a few minutes.
+A job runs only if the job before it passed. All jobs use Python 3.12 on `ubuntu-latest`. A green
+run takes about three minutes (run #110: `test` 110 s, then `compose` 76 s and `eval-gate` 66 s side
+by side). Before Phase 3 it took about a minute and a half (run #100: `test` 32 s, `eval-gate` 41 s).
 
 ---
 
@@ -250,6 +250,9 @@ The guide asks for "one failed CI run with an explanation" (L16).
 | [#98](https://github.com/Sanjaymartolia/ClaimSense-Insurance/actions/runs/43400256601) | `36e3aef` | **Failed** in job `test` at step `ruff check .`; the format check and `pytest` never ran | Lint errors had built up in product code: 88 on 12 November, 113 and 3 unformatted files by `36e3aef` (`docs/RUFF_CHECK_REPORT.md`). Runs #93 to #97 (12-13 November) failed too. The product tests passed in the same day's ship checks |
 | [#99](https://github.com/Sanjaymartolia/ClaimSense-Insurance/actions/runs/43420530915) | `4e46e8d` (Phase 1) | **Passed**: `test` 27 s, `eval-gate` 45 s; `eval-real` skipped (manual only) | The first green run: lint fixed with no change in behaviour, and the first run of the eval gate on GitHub |
 | [#100](https://github.com/Sanjaymartolia/ClaimSense-Insurance/actions/runs/43421673947) | `032dfd5` | **Passed**: `test` 32 s, `eval-gate` 41 s, 1 min 18 s in all, 1 artifact | The CI/CD guide itself |
+| [#105](https://github.com/Sanjaymartolia/ClaimSense-Insurance/actions/runs/43497484256) | `2462975` (Phase 2) | **Failed** in job `test` at step `pytest`; the strict-checkpoint step and `eval-gate` never ran | Not the Phase 2 code: the commit before it (`78114a5`, CLM-0022 removed) had broken the dev gold (CLM-0021's worksheet no longer added up), so every test that loads the dev set failed. Runs #103 and #104 failed the same way. Locally, every Phase 2 test passed on the same tree |
+| [#106](https://github.com/Sanjaymartolia/ClaimSense-Insurance/actions/runs/43502447223) | `9b82c5f` (revert of `78114a5`) | **Passed**, every job | The dev gold restored; the first run where the Phase 2 steps ran on GitHub (case API under strict checkpoint loading, MCP tool pins) |
+| [#110](https://github.com/Sanjaymartolia/ClaimSense-Insurance/actions/runs/43566444404) | `49f705e` (Phase 3) | **Passed**: `test` 110 s, `compose` 76 s, `eval-gate` 66 s | The first run of job `compose`: the API and case UI images built, became healthy, served a demo claim, and reached each other |
 
 GitHub reports two warnings on these runs: `checkout@v4`, `setup-python@v5` and `upload-artifact@v4`
 are built for Node.js 20, which GitHub has deprecated. They now use `checkout@v5`,
