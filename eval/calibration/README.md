@@ -70,7 +70,9 @@ Tests: `pytest eval/calibration/tests` (kept out of `eval/tests`, whose count is
 |---|---|
 | `judge_calibration.py` | kappa, the four checks, and the freeze hash |
 | `calibration_set.template.jsonl` | 3 unlabelled example rows. Copy it; do not label it in place |
-| `calibration_set.jsonl` | the real labelled set. Not committed yet: it does not exist until people make it |
+| `calibration_set.jsonl` | the 24 items `collect` wrote on 13 November (real agents; dev and red-team claims only). Unlabelled: `labels` stays `null` until both raters finish and `import` fills it |
+| `sheet_rater_a.csv`, `sheet_rater_b.csv` | the blank sheets from `collect sheets`. Each rater fills only their own; do not commit a filled sheet before both raters have finished |
+| `calibration_claude_draft.jsonl` | Claude's pilot labels, not human labels (see above). Raters do not open it until both have finished |
 
 The three template rationales are deliberately one clear pass, one invented limit, and one that
 obeys an instruction planted in a document. If raters disagree on those three, fix the rubric
