@@ -1,0 +1,186 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="920" viewBox="0 0 1000 920" font-family="Helvetica, Arial, sans-serif">
+  <title>ClaimSense claim graph (LangGraph)</title>
+  <desc>Nodes and edges of src/claimsense/graph/build.py (EDGES and conditional()) with the routers in graph/nodes.py.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#475569"/>
+    </marker>
+    <style>
+      .edge { fill: none; stroke: #475569; stroke-width: 1.6; marker-end: url(#arrow); }
+      .loop { fill: none; stroke: #b45309; stroke-width: 1.6; marker-end: url(#arrow); stroke-dasharray: 6 4; }
+      .lbl { font-size: 11px; fill: #334155; }
+      .lbl-loop { font-size: 11px; fill: #b45309; }
+      .name { font-size: 14px; font-weight: 700; text-anchor: middle; }
+      .sub { font-size: 10.5px; text-anchor: middle; fill: #334155; }
+      .agent { fill: #e0ecfb; stroke: #2563eb; stroke-width: 1.5; }
+      .planner { fill: #c7dbf7; stroke: #1e3a8a; stroke-width: 2; }
+      .human { fill: #fde4e1; stroke: #dc2626; stroke-width: 2; }
+      .code { fill: #f1f5f9; stroke: #64748b; stroke-width: 1.5; }
+      .term { fill: #1e293b; }
+    </style>
+  </defs>
+
+  <rect width="1000" height="920" fill="#ffffff"/>
+
+  <!-- title -->
+  <text x="30" y="36" font-size="20" font-weight="700" fill="#0f172a">ClaimSense claim graph</text>
+  <text x="30" y="56" font-size="12" fill="#475569">LangGraph StateGraph · typed ClaimState · graph/build.py</text>
+
+  <!-- ===================== edges (drawn first, under the nodes) ===================== -->
+  <!-- main spine -->
+  <path class="edge" d="M460,55 V82"/>
+  <path class="edge" d="M460,127 V147"/>
+  <path class="edge" d="M460,192 V217"/>
+  <path class="edge" d="M460,262 V297"/>
+  <text class="lbl" x="468" y="284">admissible</text>
+  <path class="edge" d="M460,342 V367"/>
+  <path class="edge" d="M460,412 V437"/>
+  <path class="edge" d="M460,482 V547"/>
+  <text class="lbl" x="468" y="520">checks passed</text>
+
+  <!-- admissibility -> human_review (not admissible) -->
+  <path class="edge" d="M370,240 H60 V582 H369"/>
+  <text class="lbl" x="80" y="232">not admissible (Rs 0 worksheet, fraud skipped)</text>
+
+  <!-- critic -> revise -> coverage (self-correction loop) -->
+  <path class="loop" d="M550,452 H700 V413"/>
+  <text class="lbl-loop" x="560" y="445">failed, revisions &lt; 1</text>
+  <path class="loop" d="M700,367 V320 H551"/>
+  <text class="lbl-loop" x="560" y="313">re-adjudicate</text>
+
+  <!-- critic -> escalate -> human_review -->
+  <path class="edge" d="M550,468 H760 V497"/>
+  <text class="lbl" x="560" y="484">failed, revision used</text>
+  <path class="edge" d="M760,542 V560 H551"/>
+
+  <!-- human_review -> apply_edits -> critic -->
+  <path class="loop" d="M370,560 H200 V543"/>
+  <text class="lbl-loop" x="300" y="553">edit</text>
+  <path class="loop" d="M200,497 V460 H369"/>
+  <text class="lbl-loop" x="212" y="452">recalculate</text>
+
+  <!-- human_review -> settle -->
+  <path class="edge" d="M460,592 V677"/>
+  <text class="lbl" x="468" y="640">approve</text>
+
+  <!-- human_review -> repudiate -->
+  <path class="edge" d="M520,592 V640 H720 V677"/>
+  <text class="lbl" x="530" y="633">approve (not admissible)</text>
+
+  <!-- human_review -> senior_review -->
+  <path class="edge" d="M385,592 V630 H330 V680 H291"/>
+  <text class="lbl" x="322" y="606" text-anchor="end">approve, but payable</text>
+  <text class="lbl" x="322" y="620" text-anchor="end">&gt; Rs 1,00,000 or fraud flag</text>
+
+  <!-- senior_review -> settle -->
+  <path class="edge" d="M290,695 H369"/>
+  <text class="lbl" x="298" y="712">approve</text>
+
+  <!-- human_review -> END (reject) -->
+  <path class="edge" d="M550,580 H890 V860 H501"/>
+  <text class="lbl" x="830" y="574">reject</text>
+
+  <!-- settle / repudiate -> memory_update -> END -->
+  <path class="edge" d="M460,722 V762"/>
+  <path class="edge" d="M720,722 V785 H551"/>
+  <path class="edge" d="M460,807 V844"/>
+
+  <!-- ===================== nodes ===================== -->
+  <!-- START -->
+  <ellipse class="term" cx="460" cy="40" rx="42" ry="15"/>
+  <text x="460" y="45" font-size="12" font-weight="700" fill="#ffffff" text-anchor="middle">START</text>
+
+  <!-- plan -->
+  <rect class="planner" x="370" y="83" width="180" height="44" rx="8"/>
+  <text class="name" x="460" y="101">plan</text>
+  <text class="sub" x="460" y="117">planner · plan object</text>
+
+  <!-- extract -->
+  <rect class="agent" x="370" y="148" width="180" height="44" rx="8"/>
+  <text class="name" x="460" y="166">extract</text>
+  <text class="sub" x="460" y="182">fields + lines · PII masked</text>
+
+  <!-- admissibility -->
+  <rect class="agent" x="370" y="218" width="180" height="44" rx="8"/>
+  <text class="name" x="460" y="236">admissibility</text>
+  <text class="sub" x="460" y="252">period · waiting · exclusions</text>
+
+  <!-- coverage -->
+  <rect class="agent" x="370" y="298" width="180" height="44" rx="8"/>
+  <text class="name" x="460" y="316">coverage</text>
+  <text class="sub" x="460" y="332">clause per line · calculator</text>
+
+  <!-- fraud -->
+  <rect class="agent" x="370" y="368" width="180" height="44" rx="8"/>
+  <text class="name" x="460" y="386">fraud</text>
+  <text class="sub" x="460" y="402">history · tariff · dates</text>
+
+  <!-- critic -->
+  <rect class="agent" x="370" y="438" width="180" height="44" rx="8"/>
+  <text class="name" x="460" y="456">critic</text>
+  <text class="sub" x="460" y="472">re-checks clauses + rupees</text>
+
+  <!-- revise -->
+  <rect class="code" x="630" y="368" width="150" height="44" rx="8"/>
+  <text class="name" x="705" y="386">revise</text>
+  <text class="sub" x="705" y="402">one revision only</text>
+
+  <!-- escalate -->
+  <rect class="code" x="680" y="498" width="160" height="44" rx="8"/>
+  <text class="name" x="760" y="516">escalate</text>
+  <text class="sub" x="760" y="532">issues shown to a person</text>
+
+  <!-- apply_edits -->
+  <rect class="code" x="110" y="498" width="180" height="44" rx="8"/>
+  <text class="name" x="200" y="516">apply_edits</text>
+  <text class="sub" x="200" y="532">new hash · approvals void</text>
+
+  <!-- human_review -->
+  <rect class="human" x="370" y="548" width="180" height="44" rx="8"/>
+  <text class="name" x="460" y="566">human_review</text>
+  <text class="sub" x="460" y="582">interrupt() · adjudicator</text>
+
+  <!-- senior_review -->
+  <rect class="human" x="110" y="658" width="180" height="44" rx="8"/>
+  <text class="name" x="200" y="676">senior_review</text>
+  <text class="sub" x="200" y="692">interrupt() · four eyes</text>
+  <text x="200" y="722" font-size="10.5" font-style="italic" fill="#475569" text-anchor="middle">edit / reject: same routes as human_review</text>
+
+  <!-- settle -->
+  <rect class="agent" x="370" y="678" width="180" height="44" rx="8"/>
+  <text class="name" x="460" y="696">settle</text>
+  <text class="sub" x="460" y="712">token → settle_claim + letter</text>
+
+  <!-- repudiate -->
+  <rect class="code" x="630" y="678" width="180" height="44" rx="8"/>
+  <text class="name" x="720" y="696">repudiate</text>
+  <text class="sub" x="720" y="712">signed, Rs 0</text>
+
+  <!-- memory_update -->
+  <rect class="code" x="370" y="763" width="180" height="44" rx="8"/>
+  <text class="name" x="460" y="781">memory_update</text>
+  <text class="sub" x="460" y="797">claim history · sub-limits used</text>
+
+  <!-- END -->
+  <ellipse class="term" cx="460" cy="860" rx="42" ry="15"/>
+  <text x="460" y="865" font-size="12" font-weight="700" fill="#ffffff" text-anchor="middle">END</text>
+
+  <!-- ===================== legend ===================== -->
+  <g transform="translate(615,80)">
+    <rect x="0" y="0" width="340" height="220" rx="10" fill="#f8fafc" stroke="#cbd5e1"/>
+    <text x="16" y="24" font-size="13" font-weight="700" fill="#0f172a">Legend</text>
+    <rect class="planner" x="16" y="38" width="26" height="16" rx="4"/>
+    <text class="lbl" x="52" y="50">planner (supervisor)</text>
+    <rect class="agent" x="16" y="62" width="26" height="16" rx="4"/>
+    <text class="lbl" x="52" y="74">agent: model picks clauses, code does rupees</text>
+    <rect class="code" x="16" y="86" width="26" height="16" rx="4"/>
+    <text class="lbl" x="52" y="98">code-only node</text>
+    <rect class="human" x="16" y="110" width="26" height="16" rx="4"/>
+    <text class="lbl" x="52" y="122">person: interrupt() on the exact worksheet</text>
+    <path class="loop" d="M16,142 H42"/>
+    <text class="lbl" x="52" y="146">loop back (critic revise, adjudicator edit)</text>
+    <text class="lbl" x="16" y="172">State saved by the SQLite checkpointer (resume).</text>
+    <text class="lbl" x="16" y="188">Tool hooks on every tool call: ACL, budget, audit.</text>
+    <text class="lbl" x="16" y="204">After a human edit the critic never sends to revise.</text>
+  </g>
+</svg>
