@@ -152,7 +152,7 @@ What the system learns from instead:
 | Release check | Harness self-check, then one traced run scored by both of the above | `python -m eval.full` |
 | Security | Every defence against every attack, honest claims alongside; an adaptive attacker model | `eval/security/` |
 | Retrieval | Top-1, Recall@5 and MRR per retrieval stage | `claimsense.retrieval.evaluate` |
-| RAGAS faithfulness | Is the model's rationale supported by the clause it saw? | `--judge`; **weight 0.00, uncalibrated** |
+| RAGAS faithfulness | Is the model's rationale supported by the clause it saw? | `--judge`; **weight 0.00: failed calibration** (kappa 0.150 against two raters, bar 0.6; `eval/calibration/README.md`) |
 | Self-tests | The harness must score the gold at ~1.0 and a do-nothing agent near 0, and every gate must fire on a planted fault | `python -m eval.harness.suite` (9 of 9 rows match) |
 
 Dataset: 22 dev claims and 30 red-team claims (52 in all). The held-out set has not been run.
@@ -167,7 +167,7 @@ Dataset: 22 dev claims and 30 red-team claims (52 in all). The held-out set has 
 | Security scoreboard | — | — | 0 / 30 with the input guardrail (10 / 30 without it) | 18 / 18 | — | — | — | `runs/security/real-scoreboard-1112` |
 | Adaptive attacker, 6 rounds | — | — | did not win (5 held, 1 flagged) | — | — | — | — | `runs/security/real-attack-1112` |
 | Retrieval, 47 queries (all stages) | Recall@5 1.000, top-1 0.766, MRR 0.867 | — | — | — | — | — | — | `runs/retrieval_retrieval-1112.png` |
-| RAGAS faithfulness, 2 claims judged | 0.743 and 0.594 in two runs | — | — | — | — | — | not usable (unstable, uncalibrated) | `runs/ragas-rr-1112.scorecard.json` |
+| RAGAS faithfulness, 2 claims judged | 0.743 and 0.594 in two runs | — | — | — | — | — | not usable (unstable; the judge failed calibration on 14 November) | `runs/ragas-rr-1112.scorecard.json` |
 
 Honest dev claims handled correctly: 20 of 22 in every configuration. Clean claims sent to a
 person anyway: 1 of 10. The two weakest claims are CLM-0021 and CLM-0022 (cataract lines, 0.613):

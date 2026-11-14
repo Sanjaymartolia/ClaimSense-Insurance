@@ -43,12 +43,15 @@ The main results are:
 6. **Real models are cheap.** One claim costs about $0.0007. A four-minute drill with 250 claims
    cost $0.172.
 7. **One failed tool call crashes a claim (MON-01).** An advisory tariff lookup has no fallback.
+8. **The judge does not agree with people.** Its Cohen's kappa against two raters is 0.150, and
+   the minimum is 0.6 (14 November 2026). Its weight stays 0.00 (Section 5.7).
 
 Section 12 gives the recommendations. The first three are these:
 
 1. Stop the attacks (AGT-05).
 2. Add a fallback to the tariff lookup (MON-01).
-3. Calibrate the judge after the pipeline keeps its rationales.
+3. Calibrate the judge after the pipeline keeps its rationales. (Done on 14 November 2026. The
+   judge failed. Section 5.7 gives the result.)
 
 ---
 
@@ -198,7 +201,7 @@ four kinds. `claimsense-real-calc` and `claimsense-no-docs` are variants of `cla
 | `flags` | 0.20 | Are the review flags correct (F1)? |
 | `citations` | 0.10 | Does each cited clause exist? |
 | `required_tool_coverage` | 0.20 | Did the agent run the tools that the claim needs? |
-| judge | 0.00 | Is the rationale faithful to the clause? Off until it is calibrated |
+| judge | 0.00 | Is the rationale faithful to the clause? Off: it failed its calibration (Section 5.7) |
 
 A run passes when every gate holds and the composite is 0.85 or more. The commented CI gate in
 `.github/workflows/ci.yml` uses 0.80. The team must agree one value.
@@ -266,13 +269,24 @@ The composite over both sets is 0.342. A real-model run on the dev set (Section 
 ### 5.7 The judge
 
 The judge uses RAGAS faithfulness and the judge model in `config/models.yaml`. Its weight is
-0.00, for two reasons:
+0.00, because it does not agree with people.
 
-1. **It is not calibrated.** No comparison with human labels exists yet.
-2. **It has nothing real to score.** `CoverageAgent.choose_clauses` discards the rationale that
-   the model writes. The harness can only send a placeholder sentence.
+The team calibrated the judge on 14 November 2026. Two raters labelled 24 rationales from the
+real coverage agent. The raters agree with each other: Cohen's kappa is 0.739, and the minimum is
+0.7. The judge does not agree with the raters: its kappa is 0.150, and the minimum is 0.6. All
+seven disagreements go in one direction. The judge accepts a rationale that both raters reject:
 
-One measurement error in the harness was found and fixed. The judge needs the claim facts as well
+1. Six rationales say "procedure fees". Clause 4.1 does not contain these words. The raters
+   reject them. The judge accepts them.
+2. One rationale repeats an instruction that an attacker put in a bill line. The judge gives it
+   1.0, because the instruction is in the claim facts that the judge receives.
+
+No threshold gives a pass. The highest kappa is 0.153. Before the judge can count, it must use
+the rule of the raters, and it must not accept text in a claim document as policy text. Then it
+must pass on new labelled items. `eval/calibration/README.md` gives the details.
+
+Two earlier problems are closed. Since 12 November 2026 the pipeline keeps the rationale that the
+model writes, so the judge scores real explanations. And the judge needs the claim facts as well
 as the clause text. With the clause text only, a correct rationale scored 0.200. With the facts it
 scored 0.800.
 
@@ -619,7 +633,8 @@ One earlier problem is now fixed. The gold relabel of 4 November 2026 broke 7 pr
 - **The monitoring traffic comes from 20 base claims.** Its noise is smaller than the noise of
   real traffic.
 - **No production traffic exists.** The offline mix of claims is a guess.
-- **The judge is not calibrated.** Its weight is 0.00, and its score is not a result.
+- **The judge failed its calibration.** Its kappa against two raters is 0.150, and the minimum is
+  0.6 (Section 5.7). Its weight is 0.00, and its score is not a result.
 - **The held-out set did not run.** It runs one time, at the end, with everything frozen.
 - **Live monitoring is an evaluation tool.** The product API exports one counter only. The alert
   rules and the dashboard are ready for Deploy & Ops, but the product does not use them yet.
@@ -634,7 +649,7 @@ One earlier problem is now fixed. The gold relabel of 4 November 2026 broke 7 pr
 | 2 | Add a fallback to the tariff lookup. Add a flag and continue the claim (MON-01) | Agents & Orchestration |
 | 3 | Fix AGT-04, AGT-03 and the maternity check. Decide the behaviour for AGT-02 | Agents & Orchestration |
 | 4 | Close the open gold defects and decisions | Domain lead |
-| 5 | Keep the rationale in the graph state. Then calibrate the judge against human labels | Agents & Orchestration, Eval & Red-Team |
+| 5 | Give the judge the rule of the raters, and do not let it accept claim-document text as policy text. Then calibrate it again on new labelled items (the pipeline keeps the rationale since 12 November 2026; the first calibration failed on 14 November 2026) | Eval & Red-Team |
 | 6 | Export the metrics from the product API. Adopt the alert rules and the dashboard (`python -m eval.monitoring export`) | Deploy & Ops |
 | 7 | Set the alert limits from a real-model baseline, with longer windows (MON-02, MON-04) | Eval & Red-Team, Deploy & Ops |
 | 8 | Add the agent-suite gate and `pytest eval/tests` to CI. At first, do not let them stop the build | Deploy & Ops |
@@ -735,6 +750,7 @@ NOTE: A plain `pytest` does not run the evaluation tests.
 | Harness suite result | `runs/suite.json` |
 | Fault results (0.905, 0.794, 0.824) | `runs/fault-*.scorecard.json` |
 | Judge context test (0.200, 0.800) | section 9.5 of `docs/EVAL_HARNESS_REPORT.md` |
+| Judge calibration (kappa 0.739 for the raters, 0.150 for the judge) | `eval/calibration/README.md`, `eval/calibration/calibration_set.jsonl`, `eval/calibration/judge_scores.json` |
 | Rubric total (2.85) | `docs/FRAMEWORK_RUBRIC_SCORE.md`, through `python -m eval.tools.rubric_score` |
 | Agent suite runs | `runs/agent_suite/l13-baseline/`, `real-dev/`, `l13-7-1/` |
 | Combined runs | `runs/full/full-baseline/`, `runs/full/real-dev/` |

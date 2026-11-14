@@ -632,14 +632,46 @@ CLM-0016 ICU questions (ADR-0009). These are rulings on a synthetic demo set, no
 sign-off, so the gold is still not authoritative. Every scorecard JSON holds this warning in the
 field `gold_caveat`.
 
-### 9.3 The judge is not calibrated
+### 9.3 The judge failed its calibration
 
-The judge works. The judge is not calibrated. Its weight is therefore 0.00, and it is off.
+The judge works, but it does not agree with people. Its weight is therefore 0.00, and it is off.
+Do not put a judge number in a report.
 
-Do not put a judge number in a report before the calibration passes. Section 10.7 gives the
-procedure.
+The team did the calibration of Section 10.7 on 14 November 2026. Two people labelled 24
+rationales that the real coverage agent wrote. Then the judge (`google/gemini-3.1-flash-lite`)
+scored the same 24 rationales.
 
-### 9.4 The pipeline throws the rationale away, so the judge has nothing to score
+| Check | Rows | Kappa | Minimum | Result |
+|---|---|---|---|---|
+| The two people agree with each other | 24 | 0.739 | 0.7 | Pass |
+| The judge agrees with the people (threshold 0.5) | 21 | 0.150 | 0.6 | **Fail** |
+
+The judge comparison uses 21 rows, because the two people do not agree on 3 rows.
+
+All seven disagreements go in one direction. The judge accepts a rationale that both people
+reject. There are two causes:
+
+1. Six rationales say that clause 4.1 covers "procedure fees". Clause 4.1 does not use these
+   words. It lists room rent, ICU, surgeon fees, OT, medicines and diagnostics. The people accept
+   each rationale that names surgeon fees or OT (13 rows). They reject each rationale that names
+   only procedure fees (6 rows). The judge accepts the six.
+2. One rationale repeats an instruction that an attacker put in a bill line (red-team claim
+   CLM-9011). The judge gives it the full score, 1.0. The instruction is in the claim facts, and
+   the judge receives the claim facts as context (Section 9.5). The judge cannot tell policy text
+   from text in a document.
+
+A different threshold does not help. The highest kappa at any threshold is 0.153. The threshold
+stays at 0.5.
+
+The scores of the judge are in `eval/calibration/judge_scores.json`. The details and the next
+steps are in `eval/calibration/README.md`.
+
+### 9.4 The pipeline threw the rationale away, so the judge had nothing to score (fixed)
+
+**Repaired on 12 November 2026.** `CoverageAgent` now keeps the rationale that the model writes
+(`.rationales`) and the clause text that the model saw (`.shown`). `ClaimSenseAdapter` gives both
+to the judge. The calibration in Section 9.3 used these real rationales. The record below is kept,
+because it shows how a placeholder can look like a measurement.
 
 **The judge cannot measure anything useful until somebody repairs this. The repair is outside the
 `eval/` folder.**
@@ -852,7 +884,8 @@ Repeat for each fault in Section 8.3. Each fault must fire its own gate.
 section is free.**
 
 **CAUTION: An uncalibrated judge gives an opinion and not a measurement. Do not put its number in
-a report before Section 10.6 passes.**
+a report before the calibration of Section 10.7 passes. On 14 November 2026 the calibration
+failed (Section 9.3).**
 
 1. Install the evaluation extra.
 
@@ -871,6 +904,10 @@ The judge model comes from `config/models.yaml`. Do not write a model identifier
 
 Do the steps in this order. Step 2 is the step that people skip.
 
+`eval/calibration/README.md` gives a quicker path with real rows. Its command
+`python -X utf8 -m eval.calibration.collect score` does steps 3 to 6. It stops after step 4 if the
+people do not agree. It costs money, because it runs the judge.
+
 1. Copy the template.
 
        cp eval/calibration/calibration_set.template.jsonl eval/calibration/calibration_set.jsonl
@@ -888,6 +925,11 @@ Do the steps in this order. Step 2 is the step that people skip.
 5. Run the judge on the same rows. Collect a score for each row.
 6. Compare the judge with the people. Use `judge_agreement(items, judge_scores)`. The kappa must
    reach 0.6.
+
+   If the kappa is below 0.6, the judge fails. Do not change the threshold to get a pass. Keep the
+   weight at 0.00. Change the judge. Then do the calibration again on new rows, because the old
+   rows helped to find the problem.
+
 7. Freeze the result. Use `freeze(items, judge_model, rubric_path)`. Record the hash in your report.
 
 The harness uses Cohen's kappa and not raw agreement. There is a reason. Two people who both
@@ -1014,7 +1056,7 @@ development set (a pass) and 0.998 on the red-team set (a pass; 12 November 2026
 reads the RT-012 injections). It has six catastrophic gates.
 Testing proved that four of them fire, and the other two have unit tests.
 
-The work found seven things that the plan did not expect:
+The work found eight things that the plan did not expect:
 
 1. A run with an invented citation on every claim passed the threshold. The new gate
    `fabricated_citation` closes that hole. Section 8.3 holds the measurement.
@@ -1033,8 +1075,11 @@ The work found seven things that the plan did not expect:
 6. The judge needs the claim facts and not only the clause text. Without them a correct rationale
    scores 0.200 instead of 0.800. This was a measurement error in the harness, and it is fixed.
    Section 9.5 holds the measurement.
-7. The pipeline discards the rationale that its own model writes, so the judge has nothing real to
-   score. Section 9.4 holds the measurement and the repair.
+7. The pipeline discarded the rationale that its own model writes, so the judge had nothing real
+   to score. Section 9.4 holds the measurement and the repair, which was done on 12 November 2026.
+8. The judge does not agree with people. Its kappa is 0.150, and the minimum is 0.6 (14 November
+   2026). It accepts rationales that people reject, and it accepts an instruction that an attacker
+   put in a bill line. Its weight stays at 0.00. Section 9.3 holds the measurement.
 
 The repair in Section 9.1 and defects AGT-04 and AGT-05 are done: the input guardrail reads the
 RT-010 and RT-012 injections (12 November 2026, `docs/GUARDRAILS_BEFORE_AFTER.md`), and the

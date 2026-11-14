@@ -117,10 +117,11 @@ Full documentation, including the measured results and every open limitation:
 **The gold is partly wrong.** See the next section. A high score means "agrees with today's gold",
 not "correct under the policy wording".
 
-**The judge is not calibrated, and has nothing real to score yet.** `choose_clauses` in
-`src/claimsense/agents/coverage.py` discards the per-line `rationale` the model writes, so the
-harness can only judge a placeholder sentence. Its weight is 0.00 and it is off by default. See
-section 9.4 of the report.
+**The judge failed calibration.** Since 12 November the coverage agent keeps the per-line
+`rationale` the model writes, so the judge scores real explanations, but on 14 November it agreed
+with two human raters at Cohen's kappa 0.150 (the bar is 0.6): it accepts rationales the raters
+reject, including one that repeats an instruction planted in a bill line. Its weight is 0.00 and it
+is off by default. See `calibration/README.md` and section 9.3 of the report.
 
 ## Gold-set status (2026-11-04)
 
