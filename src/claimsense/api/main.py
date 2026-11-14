@@ -42,9 +42,23 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @app.get("/health")
     def health() -> dict[str, str]:
-        return {"status": "ok", "version": __version__}
+        """Up, and how claims run: agents `stub` or `real` models, tools stub, real or mcp."""
+        return {
+            "status": "ok",
+            "version": __version__,
+            "llm": _llm_mode(),
+            "tools": app.state.settings.tools,
+        }
 
     return app
+
+
+def _llm_mode() -> str:
+    try:
+        from claimsense.agents.llm import stub_mode
+    except ImportError:  # no .[agents]: the case routes answer 503 anyway
+        return "unavailable"
+    return "stub" if stub_mode() else "real"
 
 
 app = create_app()

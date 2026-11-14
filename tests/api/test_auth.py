@@ -5,7 +5,7 @@ import pytest
 from claimsense.api.auth import ApiIdentityProvider, Reviewer, find_reviewer, parse_reviewers
 from claimsense.contracts import ApprovalLevel
 
-from .conftest import ALICE, auth, make_client
+from .conftest import ALICE, BOB, auth, make_client
 
 
 def test_parse_reviewers():
@@ -49,6 +49,15 @@ def test_identity_comes_from_the_token_and_holds_only_its_level():
     )
     with pytest.raises(PermissionError):
         provider.authenticate("CLM-1", ApprovalLevel.ADJUDICATOR)
+
+
+def test_me_names_the_reviewer_behind_a_token_and_never_echoes_it():
+    client = make_client()
+    assert client.get("/me").status_code == 401
+    alice = client.get("/me", headers=auth(ALICE))
+    assert alice.json() == {"approver_id": "alice", "level": "adjudicator"}
+    assert ALICE not in alice.text
+    assert client.get("/me", headers=auth(BOB)).json() == {"approver_id": "bob", "level": "senior"}
 
 
 def test_case_routes_need_a_reviewer_token():

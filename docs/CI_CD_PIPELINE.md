@@ -1,7 +1,7 @@
 # ClaimSense CI/CD pipeline
 
-**For:** the team and reviewers. **Updated:** 14 November 2026 (Eval & Red-Team, after Phase 2: the
-case API and the agent tools over MCP).
+**For:** the team and reviewers. **Updated:** 14 November 2026 (Eval & Red-Team, after Phase 3: the
+case UI, its image and the `compose` job; Phase 2 added the case API and the tools over MCP).
 **Workflow file:** `.github/workflows/ci.yml` (owner: Deploy & Ops; the eval steps: Eval & Red-Team).
 **Related:** `docs/SHIP_CHECK.md` (every check on your machine, one verdict), `docs/RUFF_CHECK_REPORT.md`.
 
@@ -20,8 +20,8 @@ stub mode (no API key, no model calls). Real-model checks run only when someone 
 | Eval gate (stub mode, keyless) | Built, runs after the tests pass |
 | Real-model release gate | Built, manual only (costs money) |
 | Failure notice to the team channel | Written, commented out until the `DISCORD_WEBHOOK_CI` secret exists |
-| Docker image build | **Not built** (section 8) |
-| `docker compose up` smoke test on a clean machine | **Not built** (section 8) |
+| Docker image build (API and case UI) | Built: job `compose`, after the tests (Phase 3; not yet run on GitHub when written) |
+| `docker compose up` smoke test on a clean machine | Built for the API and the case UI (job `compose`); Chroma, Prometheus and Grafana are not started there (section 8) |
 | Image publishing, deployment | **Not built**; the capstone deliverable is a local `docker compose up` |
 
 ---
@@ -33,23 +33,25 @@ flowchart LR
     P[push to main or any pull request] --> T[test: ruff + pytest]
     M[manual: Run workflow] --> T
     T --> G[eval-gate: stub mode, free]
+    T --> C[compose: API + UI images, smoke test]
     G -->|manual runs only| R[eval-real: real models, paid]
 ```
 
 | Trigger | Jobs that run |
 |---|---|
-| Push to `main` | `test`, then `eval-gate` |
-| Pull request (any branch) | `test`, then `eval-gate` |
-| Actions > ci > Run workflow | `test`, then `eval-gate`, then `eval-real` |
+| Push to `main` | `test`, then `eval-gate` and `compose` side by side |
+| Pull request (any branch) | `test`, then `eval-gate` and `compose` side by side |
+| Actions > ci > Run workflow | as above, then `eval-real` after `eval-gate` |
 
-A job runs only if the job before it passed. All jobs use Python 3.12 on `ubuntu-latest`. A green
-run takes about a minute and a half (run #100: `test` 32 s, `eval-gate` 41 s).
+A job runs only if the job before it passed. All jobs use Python 3.12 on `ubuntu-latest`. Before
+Phase 3 a green run took about a minute and a half (run #100: `test` 32 s, `eval-gate` 41 s);
+`compose` builds two images, so expect it to take a few minutes.
 
 ---
 
 ## 3. The jobs, step by step
 
-### Job `test` (installs `.[dev,agents,mcp]`, runs with `CLAIMSENSE_LLM=stub`)
+### Job `test` (installs `.[dev,agents,mcp,ui]`, runs with `CLAIMSENSE_LLM=stub`)
 
 | Step | Command | Fails when |
 |---|---|---|
@@ -58,12 +60,26 @@ run takes about a minute and a half (run #100: `test` 32 s, `eval-gate` 41 s).
 | Product tests | `pytest` (`testpaths = ["tests"]`) | A product test fails |
 | Case API, strict checkpoints | `pytest tests/api` with `LANGGRAPH_STRICT_MSGPACK=true` | A type stored in a checkpoint is not named in the graph state, so LangGraph's strict loading (its announced future default) would refuse it |
 
-`.[dev,agents,mcp]` is installed here, so the case API tests (`tests/api`), the LangGraph wiring
-and tool-hook tests, and the MCP tests (three tool servers over stdio, ADR-0012) run instead of
-being skipped (Phase 2; before, this job installed `.[dev]` only). A product test that needs
+`.[dev,agents,mcp,ui]` is installed here, so the case API tests (`tests/api`), the LangGraph wiring
+and tool-hook tests, the MCP tests (three tool servers over stdio, ADR-0012) and the case UI tests
+(`tests/ui`: Streamlit's AppTest clicks through the demo scenes, ADR-0015) run instead of being
+skipped (Phases 2 and 3; before, this job installed `.[dev]` only). A product test that needs
 another extra (chromadb, ragas, docx, dspy) must start with `pytest.importorskip`, or this job
 breaks. The MCP run with all four servers needs the policy index, so it is opt-in
 (`CLAIMSENSE_MCP_E2E=1`) and not part of CI.
+
+### Job `compose` (Docker Compose, after `test`; no Python install, no key)
+
+| Step | Command | Fails when |
+|---|---|---|
+| Compose file is valid | `docker compose config --quiet` | `docker-compose.yml` does not parse, or names something that does not exist |
+| Build and start | `docker compose up --build --detach --no-deps --wait --wait-timeout 300 api ui` | An image does not build, or a container is not healthy within 5 minutes (healthchecks in `Dockerfile` and `Dockerfile.ui`) |
+| The API serves a demo claim | `curl` `/health`, then `POST /demo/claims/CLM-0004` with a throwaway token; the stream must reach `event: review` | The image lacks a file the claim needs (the demo claims, `config/`), or the run fails in the container |
+| The UI reaches the API | `curl` `/_stcore/health`, then the UI's own client calls `http://api:8000/health` from inside the `ui` container | Streamlit does not start, or the compose network or `CLAIMSENSE_API_URL` is wrong |
+
+The compose file runs the agents in stub mode unless `CLAIMSENSE_LLM` is set, and this job sets
+only `CLAIMSENSE_REVIEWERS`: no key, no model call. On a failure it prints both containers' logs;
+it always ends with `docker compose down --volumes`.
 
 ### Job `eval-gate` (installs `.[dev,agents,mcp,docs]`, runs with `CLAIMSENSE_LLM=stub`)
 
@@ -118,7 +134,9 @@ Open the failed step's log in the Actions tab. For the eval gate, also download 
 |---|---|---|
 | `ruff check .` | Lint error | `ruff check --fix .`, then fix the rest by hand. Do not add blanket ignores |
 | `ruff format --check .` | Formatting | `ruff format .` and commit |
-| `pytest` (test job) | A product test failed, or a test needs an extra that `.[dev,agents,mcp]` lacks | Fix the code, or add `pytest.importorskip` to the test |
+| `pytest` (test job) | A product test failed, or a test needs an extra that `.[dev,agents,mcp,ui]` lacks | Fix the code, or add `pytest.importorskip` to the test |
+| `compose`: build and start | An image did not build, or a container never became healthy | Read "Container logs" in the job. Build both images locally with `docker compose build api ui` if you have Docker |
+| `compose`: demo claim or UI step | The containers run but the API cannot serve the claim, or the UI cannot reach the API | The logs name the error. A file the API needs in the container goes into `Dockerfile` (and stays out of `.dockerignore`) |
 | Install, or many tests at once, with no change of ours | A new release of a dependency changed what pip installs (14 Nov: fastmcp 4 brought MCP SDK 2, which `langchain-mcp-adapters` does not support) | Compare package versions with the last green run's install log. Cap the release in `pyproject.toml` and `requirements.txt`, with a comment, as for `fastmcp<4` |
 | Case API, strict checkpoints | A checkpoint type is missing from the `ClaimState` annotations | Name the type in the graph state (Agents & Orchestration). Do not remove the step |
 | Tool pins | A tool definition changed (also after a FastMCP upgrade that writes schemas differently) | Review the change. Only then run `python -m claimsense.hooks.pins --update` (needs `.[mcp]`) and commit `config/tool_pins.json` |
@@ -152,6 +170,10 @@ python -m eval.agentic.run --label ci-agentic
 pytest eval/agentic/tests eval/ship/tests eval/experiments/tests eval/calibration/tests
 Remove-Item Env:CLAIMSENSE_LLM
 git checkout -- runs/suite.json   # the self-check rewrites this tracked file
+# job compose (needs Docker; reviewers from .env or the shell, or the case routes answer 503)
+docker compose config --quiet
+docker compose up --build --detach --no-deps --wait api ui
+docker compose down --volumes
 ```
 
 `eval.full` overwrites a label that exists, so use a new label to keep earlier results, and never
@@ -194,40 +216,28 @@ a problem after it has landed instead of before. The pull request template
 
 What exists:
 
-- `Dockerfile`: `python:3.12-slim`, installs `.[agents,mcp]`, serves `claimsense.api.main:app` with
-  uvicorn on port 8000.
-- `docker-compose.yml`: `api`, `chroma` (vector store), `prometheus`, `grafana`.
+- `Dockerfile`: `python:3.12-slim`, installs `.[agents,mcp]`, copies `config/` and the synthetic
+  demo claims (dev and red-team), serves `claimsense.api.main:app` with uvicorn on port 8000, with
+  a healthcheck on `/health`.
+- `Dockerfile.ui` (Phase 3): `python:3.12-slim`, installs `.[ui]` only (core dependencies and
+  Streamlit), runs `python -m claimsense.ui` on port 8501, healthcheck on `/_stcore/health`.
+- `docker-compose.yml`: `api`, `ui`, `chroma` (vector store), `prometheus`, `grafana`. Host ports
+  are published on 127.0.0.1 only. The API runs the agents in stub mode unless `CLAIMSENSE_LLM` is
+  set, takes `CLAIMSENSE_REVIEWERS` from `.env` or the shell, keeps checkpoints on the `case-data`
+  volume, and `.env` is optional.
+- `.dockerignore`: keeps `.env`, `Reference_code_files/` (real keys), `exercises/`, `runs/`, the
+  virtual environments and `.git/` out of every build context.
+- Job `compose` (section 3) builds both images and smoke-tests them on every push.
 
-Gaps that stop `docker compose up` from proving the capstone's "installation on a clean machine":
+Gaps left (owner Deploy & Ops):
 
 | Gap | Effect |
 |---|---|
-| `env_file: [.env]` is required | Compose stops on a machine without a `.env` file |
-| The image copies `src/` and `config/` but not `data/`, and skips `.[retrieval]` | No policy index or tariff table inside the container |
+| The API image copies `src/`, `config/` and the demo claims but not `data/`, and skips `.[retrieval]` | No policy index or tariff table inside the container: stub tools only |
 | MCP servers | With `CLAIMSENSE_TOOLS=mcp` the API starts the four servers inside its own container (stdio, ADR-0012), but policy-kb needs the index and `.[retrieval]` (row above) |
-| No Grafana provisioning | Grafana starts with no data source, dashboard or alert |
-| The case API (Phase 2a, `src/claimsense/api/README.md`) needs `CLAIMSENSE_REVIEWERS` | Without it the case routes answer 503; `/health` and `/metrics/` still work |
-
-Proposed jobs (**not in `ci.yml` yet, not yet run**; owner Deploy & Ops, after the gaps above):
-
-```yaml
-  compose-smoke:            # a GitHub runner is a clean machine
-    needs: test
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v5
-      - run: touch .env      # until env_file is made optional
-      - run: docker compose up -d --build
-      - run: |
-          for i in $(seq 1 30); do curl -fsS localhost:8000/health && break; sleep 2; done
-          curl -fsSL localhost:8000/metrics/ | grep claimsense_claims_processed
-          curl -fsS localhost:9090/-/ready
-      - if: always()
-        run: docker compose logs --no-color > compose.log; docker compose down -v
-```
-
-Then, if wanted, a job that builds the image on every push and publishes it to the GitHub container
-registry on a version tag.
+| No Grafana provisioning | Grafana starts with no data source, dashboard or edit-rate alert. The case UI's dashboard page shows the same numbers since the API started (ADR-0015) |
+| The case API needs `CLAIMSENSE_REVIEWERS` | Without it the case routes answer 503; `/health` and `/metrics/` still work |
+| No image publishing | Images are built and thrown away in CI; publishing to the GitHub container registry on a version tag would be a next step |
 
 ---
 
@@ -260,7 +270,7 @@ request without merging it.
 
 - Keep the automatic jobs free and the same on every run: stub mode, no key, no network calls
   beyond installing packages.
-- Add a new eval check to `eval-gate`, not to `test`, unless it needs only `.[dev,agents,mcp]`.
+- Add a new eval check to `eval-gate`, not to `test`, unless it needs only `.[dev,agents,mcp,ui]`.
 - A threshold changes only with a reason in the commit message, and in `docs/adr/` if it is a
   policy decision.
 - After any change to `ci.yml`, run the local commands in section 6 first, then push and watch the

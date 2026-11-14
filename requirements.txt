@@ -33,6 +33,9 @@ langchain-mcp-adapters>=0.3.2  # declares mcp<2; 0.3.1 does not, and breaks on M
 # --- mcp: tool servers ---
 fastmcp>=2.0,<4              # fastmcp 4 needs MCP SDK 2, which the adapters above do not support
 
+# --- ui: the adjudicator case UI (python -m claimsense.ui) ---
+streamlit>=1.67,<2
+
 # --- retrieval: hybrid search (then build the index: python -m claimsense.retrieval.index) ---
 chromadb>=0.5
 rank-bm25>=0.2.2

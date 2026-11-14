@@ -1,0 +1,8 @@
+# Streamlit settings for the case UI when it is started from the repository root with
+# `streamlit run src/claimsense/ui/app.py`. `python -m claimsense.ui` passes the same settings.
+[browser]
+gatherUsageStats = false  # no usage statistics leave the machine
+
+[server]
+address = "127.0.0.1"  # this machine only: a session holds reviewer tokens
+headless = true

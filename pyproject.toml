@@ -27,6 +27,8 @@ agents = [
 # fastmcp 4 needs MCP SDK 2, which langchain-mcp-adapters does not support yet. Lift the cap when it
 # does, then run tests/orchestration/test_mcp_services.py and the pin check (ADR-0012).
 mcp = ["fastmcp>=2.0,<4"]
+# The adjudicator case UI (src/claimsense/ui/, ADR-0015): a client of the case API.
+ui = ["streamlit>=1.67,<2"]
 retrieval = [
     "chromadb>=0.5",
     "rank-bm25>=0.2.2",

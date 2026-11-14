@@ -5,8 +5,8 @@ on:
   workflow_dispatch: # manual run; also the only trigger for the paid `eval-real` job
 
 jobs:
-  # `agents` and `mcp` too, so the case API, LangGraph wiring, tool-hook and MCP tests (servers
-  # over stdio) run here instead of being skipped. Stub mode: no key, no model calls.
+  # `agents`, `mcp` and `ui` too, so the case API, LangGraph wiring, tool-hook, MCP (servers over
+  # stdio) and case UI tests run here instead of being skipped. Stub mode: no key, no model calls.
   test:
     runs-on: ubuntu-latest
     env:
@@ -15,7 +15,7 @@ jobs:
       - uses: actions/checkout@v5
       - uses: actions/setup-python@v6
         with: { python-version: "3.12" }
-      - run: pip install -e ".[dev,agents,mcp]"
+      - run: pip install -e ".[dev,agents,mcp,ui]"
       - run: ruff check .
       - run: ruff format --check .
       - run: pytest
@@ -23,6 +23,37 @@ jobs:
         run: pytest tests/api
         env:
           LANGGRAPH_STRICT_MSGPACK: "true"
+
+  # Docker Compose: the API and case UI images build, start healthy, and reach each other. The
+  # compose file runs the agents in stub mode by default: no key, no model calls. Chroma is not
+  # started (--no-deps): stub tools do not use it.
+  compose:
+    needs: test
+    runs-on: ubuntu-latest
+    env:
+      CLAIMSENSE_REVIEWERS: ci-reviewer=ci:adjudicator # a throwaway token for this job's containers
+    steps:
+      - uses: actions/checkout@v5
+      - name: Compose file is valid
+        run: docker compose config --quiet
+      - name: Build and start the API and the case UI
+        run: docker compose up --build --detach --no-deps --wait --wait-timeout 300 api ui
+      - name: The API serves a demo claim up to its first review
+        run: |
+          curl -fsS http://127.0.0.1:8000/health
+          curl -fsS -N -X POST -H "Authorization: Bearer ci-reviewer" \
+            http://127.0.0.1:8000/demo/claims/CLM-0004 > run.txt
+          grep -q "^event: review" run.txt
+      - name: The UI answers and reaches the API over the compose network
+        run: |
+          curl -fsS http://127.0.0.1:8501/_stcore/health
+          docker compose exec -T ui python -c "from claimsense.ui.client import ApiClient; print(ApiClient.from_url('http://api:8000').health())"
+      - name: Container logs
+        if: failure()
+        run: docker compose logs api ui
+      - name: Stop
+        if: always()
+        run: docker compose down --volumes
 
   # T48: the eval gate. Free and deterministic: the agents run in stub mode (no key, no model
   # calls), so a red build means the code changed behaviour, never that a model was unlucky.

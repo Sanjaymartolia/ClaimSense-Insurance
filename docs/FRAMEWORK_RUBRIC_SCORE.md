@@ -226,6 +226,12 @@ advertised tools. A new server, `adjudication-calc`, serves the calculator. Test
 results with the in-process tools. Both parts of level 3 are now in the code. This note does not
 change the score; the next scoring decides.
 
+Note of 14 November 2026 (Phase 3): a case UI now sits in front of the API (Streamlit,
+`src/claimsense/ui/`, ADR-0015). The adjudicator starts or uploads a claim, watches the run
+stream, approves, edits a line or rejects. A dashboard page shows the L16 numbers from the API's
+metrics. Docker Compose runs the API and the UI together, and a CI job builds both images and
+smoke-tests them. This note does not change the score.
+
 ### 5.3 D3 Compliance and audit — score 2, weight 15%
 
 **Matched: "Structured logs".**

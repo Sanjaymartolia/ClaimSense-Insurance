@@ -14,8 +14,11 @@ uvicorn claimsense.api.main:app --reload   # http://localhost:8000/health
 ```
 Case API (start a claim, stream the agents' work, approve, edit or reject; needs `.[agents]` and
 `CLAIMSENSE_REVIEWERS`): [src/claimsense/api/README.md](src/claimsense/api/README.md).
-Full stack (needs Docker): `cp .env.example .env` then `docker compose up`.
-Grafana: http://localhost:3000 · Prometheus: http://localhost:9090
+Case UI for the adjudicator (Streamlit; `python -m claimsense.ui` with the API running, needs
+`.[ui]`), with the three demo scenes step by step: [src/claimsense/ui/README.md](src/claimsense/ui/README.md).
+Full stack (needs Docker): `cp .env.example .env`, set `CLAIMSENSE_REVIEWERS`, then
+`docker compose up --build`. Case UI: http://127.0.0.1:8501 · Grafana: http://127.0.0.1:3000 ·
+Prometheus: http://127.0.0.1:9090 (agents in stub mode unless `CLAIMSENSE_LLM=real`).
 
 Install extras for your area: `pip install -e ".[dev,agents,mcp,retrieval]"` (others: `course`,
 `docs`, `eval`). Or install everything in one step: `pip install -r requirements.txt`.
@@ -54,6 +57,9 @@ More in [eval/README.md](eval/README.md). The one-command ship check, step by st
 [docs/SHIP_CHECK.md](docs/SHIP_CHECK.md).
 
 ## Documentation
+- **[What changed in Phases 1 to 3](docs/CHANGE_REPORT_PHASES_1_TO_3.md)**: before and after for CI,
+  the case API, the tools over MCP, the case UI and Docker (12 to 14 November 2026), and what each
+  role should review
 - **[Team guide](docs/TEAM_GUIDE.md)**: workflow diagram, how each member sets up and runs the code, the
   test and eval sets, scoring ([PDF](docs/ClaimSense_Team_Guide.pdf) ·
   [Word](docs/ClaimSense_Team_Guide.docx)). Rebuild: `python scripts/build_team_guide.py`

@@ -49,8 +49,9 @@ it reads (`agents/mcp_services.py::SERVER_ENV`); the model key never reaches one
 
 | Method and path | Who | What it does |
 |---|---|---|
-| `GET /health` | anyone | `{"status": "ok", "version": ...}` |
+| `GET /health` | anyone | `{"status": "ok", "version", "llm": "stub" \| "real", "tools": "stub" \| "real" \| "mcp"}` |
 | `GET /metrics/` | anyone | Prometheus metrics (below) |
+| `GET /me` | reviewer | `{"approver_id", "level"}` of the token (the case UI shows who is signed in) |
 | `POST /claims[?case_id=]` | reviewer | Start a claim from a packet; stream the run to its first review |
 | `GET /demo/claims` | reviewer | The synthetic claims the demo can start |
 | `POST /demo/claims/{claim_id}[?case_id=]` | reviewer | Start a synthetic claim; stream the run |

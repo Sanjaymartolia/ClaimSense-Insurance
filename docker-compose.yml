@@ -1,27 +1,45 @@
-# docker compose up  -> API, vector store, Prometheus, Grafana.
-# MCP servers (HTTP transport) are added as services in T16–T18.
+# docker compose up  -> case API, case UI (http://127.0.0.1:8501), vector store, Prometheus, Grafana.
+# Host ports listen on this machine only. The agents run in stub mode (free) unless .env or the
+# shell sets CLAIMSENSE_LLM=real: then every claim costs money. Reviewer tokens come from
+# CLAIMSENSE_REVIEWERS (src/claimsense/api/README.md); with none set, the case routes answer 503.
+# The MCP servers as their own services over HTTP come later (ADR-0012).
 services:
   api:
     build: .
-    ports: ["8000:8000"]
-    env_file: [.env]
+    ports: ["127.0.0.1:8000:8000"]
+    env_file:
+      - path: .env
+        required: false
     environment:
       CHROMA_HOST: chroma
+      CLAIMSENSE_LLM: ${CLAIMSENSE_LLM:-stub}
+      CLAIMSENSE_REVIEWERS: ${CLAIMSENSE_REVIEWERS:-}
+      CLAIMSENSE_CHECKPOINTS: /data/checkpoints.sqlite
+      CLAIMSENSE_CLAIMS_DB: /data/claims.db
+    volumes: [case-data:/data]
     depends_on: [chroma]
+
+  ui:
+    build: { context: ., dockerfile: Dockerfile.ui }
+    ports: ["127.0.0.1:8501:8501"]
+    environment:
+      CLAIMSENSE_API_URL: http://api:8000
+    depends_on:
+      api: { condition: service_healthy }
 
   chroma:
     image: chromadb/chroma:0.5.23
-    ports: ["8001:8000"]
+    ports: ["127.0.0.1:8001:8000"]
     volumes: [chroma-data:/chroma/chroma]
 
   prometheus:
     image: prom/prometheus:v2.54.1
-    ports: ["9090:9090"]
+    ports: ["127.0.0.1:9090:9090"]
     volumes: [./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro]
 
   grafana:
     image: grafana/grafana:11.2.0
-    ports: ["3000:3000"]
+    ports: ["127.0.0.1:3000:3000"]
     environment:
       GF_AUTH_ANONYMOUS_ENABLED: "true"
     volumes: [grafana-data:/var/lib/grafana]
@@ -30,3 +48,4 @@ services:
 volumes:
   chroma-data:
   grafana-data:
+  case-data:

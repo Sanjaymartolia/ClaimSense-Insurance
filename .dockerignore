@@ -1,0 +1,25 @@
+# Everything listed here stays out of every image build: the Docker daemon receives this whole
+# folder as the build context, and some of it holds keys or data that must never reach an image.
+# Secrets and personal copies
+.env
+.env.*
+!.env.example
+Reference_code_files/
+exercises/
+.claude/
+# The held-out evaluation set (CLAUDE.md rule 5): never in an image or a build context
+data/claimsense-heldout/
+eval/heldout/
+# Bulk the images do not need
+.git/
+.venv/
+venv/
+runs/
+**/__pycache__/
+**/*.pyc
+**/.ipynb_checkpoints/
+.pytest_cache/
+.ruff_cache/
+**/*.sqlite
+**/*.sqlite-*
+**/*.db

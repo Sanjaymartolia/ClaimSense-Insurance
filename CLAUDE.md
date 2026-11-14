@@ -162,6 +162,23 @@ pytest tests/api                         # CI also runs it with LANGGRAPH_STRICT
 - `CLAIMSENSE_MCP_E2E=1 pytest tests/orchestration/test_mcp_services.py`: all four servers,
   compared with in-process (policy-kb opens the index first: about 2 min).
 
+### Case UI (`src/claimsense/ui/`, Deploy & Ops, ADR-0015)
+```bash
+python -m claimsense.ui                  # Streamlit on 127.0.0.1:8501; needs .[ui] and the API running
+docker compose up --build api ui         # both in containers; agents in stub mode unless CLAIMSENSE_LLM=real
+pytest tests/ui                          # AppTest drives the screens against the API app in memory
+```
+- A client of the case API only (`ui/client.py`, `CLAIMSENSE_API_URL`): no graph, tool or database
+  access. Run, demo script and rules: `src/claimsense/ui/README.md`.
+- Show every string from the API with `st.text`, `st.code` or a table, never `st.markdown`,
+  `st.error` or another markdown element: fraud flags quote the documents (rule 2). Our own labels
+  escape ids with `views.md_escape`. `tests/ui/test_app.py` checks a flag written as markdown.
+- What a screen shows is built in `ui/views.py` (plain functions, tested without Streamlit).
+  Buttons only queue an action in a callback; `main()` performs it where the run streams.
+- Tokens stay in the session, never rendered; `python -m claimsense.ui` binds 127.0.0.1 with usage
+  statistics off. Do not import the agents or the graph from `ui/`: `Dockerfile.ui` installs only
+  core dependencies and Streamlit.
+
 ### Everything at once (`eval/ship/`, Eval & Red-Team)
 ```bash
 python -X utf8 -m eval.ship --label X --stub   # every eval stage, one verdict; drop --stub for the real ship decision (paid)
@@ -325,10 +342,13 @@ never edit the generated PDF/DOCX/HTML by hand.
   clears addopts must pass it again), and `eval/deepeval_suite/conftest.py` sets
   `DEEPEVAL_DISABLE_DOTENV=1` before the import. The `deepeval` CLI imports DeepEval before
   pytest starts, so export `DEEPEVAL_DISABLE_DOTENV=1` and `DEEPEVAL_TELEMETRY_OPT_OUT=1` first.
-- CI (`.github/workflows/ci.yml`) is Python 3.12. Job `test`, `.[dev,agents,mcp]`, stub mode:
+- CI (`.github/workflows/ci.yml`) is Python 3.12. Job `test`, `.[dev,agents,mcp,ui]`, stub mode:
   `ruff check`, `ruff format --check`, `pytest`, then `pytest tests/api` with
   `LANGGRAPH_STRICT_MSGPACK=true`. A test that needs another extra (chromadb, ragas, docx, dspy…)
-  must start with `pytest.importorskip`, or CI breaks. Job `eval-gate`, `.[dev,agents,mcp,docs]`,
+  must start with `pytest.importorskip`, or CI breaks. Job `compose` (after `test`) builds the API
+  and UI images, starts them healthy, serves a demo claim, and calls the API from the UI
+  container; without Docker installed locally, this job is the only check of the images. Job
+  `eval-gate`, `.[dev,agents,mcp,docs]`,
   stub mode (keyless, deterministic): tool pins (in process and MCP), `eval.harness.suite`, the harness gate on the
   product calculator (`--adapter claimsense-real-calc`, threshold from `scorecard.yaml`),
   `eval.full --stub`, `eval.agentic.run`, and the eval package tests. Job `eval-real` runs the

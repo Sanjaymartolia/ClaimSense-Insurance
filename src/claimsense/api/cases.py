@@ -148,6 +148,12 @@ def start_claim(
     return _start(cases, case_id or body.claim_id, packet, who)
 
 
+@router.get("/me", tags=["reviewers"])
+def who_am_i(who: Who) -> dict[str, str]:
+    """The reviewer behind the token: the approver id and level the review gate signs with."""
+    return {"approver_id": who.approver_id, "level": who.level.value}
+
+
 @router.get("/demo/claims", tags=["demo"])
 def list_demo_claims(who: Who) -> dict[str, Any]:
     """The synthetic claims the demo can start (dev and red-team fixtures)."""
@@ -184,7 +190,8 @@ def decide(case_id: CaseId, body: DecisionIn, who: Who, cases: Cases) -> Streami
     if review is None:
         raise HTTPException(409, "no decision is pending on this case")
     if review["level"] != who.level.value:
-        raise HTTPException(403, f"this review needs a {review['level']} reviewer")
+        article = "an" if review["level"] == "adjudicator" else "a"
+        raise HTTPException(403, f"this review needs {article} {review['level']} reviewer")
     if who.level == ApprovalLevel.SENIOR and cases.approved_by(case_id, who.approver_id):
         raise HTTPException(
             403, "four eyes: the senior review needs someone other than the adjudicator"
