@@ -24,3 +24,5 @@ data/raw/
 .ipynb_checkpoints/
 # DeepEval's local test-run cache (`deepeval test run`): it stores each test case's input and output
 .deepeval/
+# Office lock files (Word, Excel): created while a document is open; they hold the user's name
+~$*
