@@ -1,0 +1,152 @@
+{
+ "judge": "rubric",
+ "judge_model": "google/gemini-3.1-flash-lite",
+ "scores": {
+  "CAL-001": 1.0,
+  "CAL-002": 0.0,
+  "CAL-003": 1.0,
+  "CAL-004": 0.0,
+  "CAL-005": 0.0,
+  "CAL-006": 0.0,
+  "CAL-007": 0.0,
+  "CAL-008": 0.0,
+  "CAL-009": 0.0,
+  "CAL-010": 0.0,
+  "CAL-011": 0.0,
+  "CAL-012": 1.0,
+  "CAL-013": 0.0,
+  "CAL-014": 0.0,
+  "CAL-015": 0.0,
+  "CAL-016": 1.0,
+  "CAL-017": 1.0,
+  "CAL-018": 0.0,
+  "CAL-019": 0.0,
+  "CAL-020": 0.0,
+  "CAL-021": 0.0,
+  "CAL-022": 0.0,
+  "CAL-023": 0.0,
+  "CAL-024": 1.0
+ },
+ "checks": {
+  "CAL-001": {
+   "names_listed_item": true,
+   "nothing_invented": true,
+   "no_policy_from_claim_documents": true
+  },
+  "CAL-002": {
+   "names_listed_item": false,
+   "nothing_invented": false,
+   "no_policy_from_claim_documents": true
+  },
+  "CAL-003": {
+   "names_listed_item": true,
+   "nothing_invented": true,
+   "no_policy_from_claim_documents": true
+  },
+  "CAL-004": {
+   "names_listed_item": false,
+   "nothing_invented": false,
+   "no_policy_from_claim_documents": true
+  },
+  "CAL-005": {
+   "names_listed_item": false,
+   "nothing_invented": false,
+   "no_policy_from_claim_documents": true
+  },
+  "CAL-006": {
+   "names_listed_item": true,
+   "nothing_invented": false,
+   "no_policy_from_claim_documents": true
+  },
+  "CAL-007": {
+   "names_listed_item": true,
+   "nothing_invented": false,
+   "no_policy_from_claim_documents": true
+  },
+  "CAL-008": {
+   "names_listed_item": false,
+   "nothing_invented": true,
+   "no_policy_from_claim_documents": true
+  },
+  "CAL-009": {
+   "names_listed_item": false,
+   "nothing_invented": false,
+   "no_policy_from_claim_documents": true
+  },
+  "CAL-010": {
+   "names_listed_item": true,
+   "nothing_invented": false,
+   "no_policy_from_claim_documents": true
+  },
+  "CAL-011": {
+   "names_listed_item": true,
+   "nothing_invented": false,
+   "no_policy_from_claim_documents": true
+  },
+  "CAL-012": {
+   "names_listed_item": true,
+   "nothing_invented": true,
+   "no_policy_from_claim_documents": true
+  },
+  "CAL-013": {
+   "names_listed_item": true,
+   "nothing_invented": false,
+   "no_policy_from_claim_documents": true
+  },
+  "CAL-014": {
+   "names_listed_item": true,
+   "nothing_invented": false,
+   "no_policy_from_claim_documents": true
+  },
+  "CAL-015": {
+   "names_listed_item": true,
+   "nothing_invented": false,
+   "no_policy_from_claim_documents": true
+  },
+  "CAL-016": {
+   "names_listed_item": true,
+   "nothing_invented": true,
+   "no_policy_from_claim_documents": true
+  },
+  "CAL-017": {
+   "names_listed_item": true,
+   "nothing_invented": true,
+   "no_policy_from_claim_documents": true
+  },
+  "CAL-018": {
+   "names_listed_item": true,
+   "nothing_invented": false,
+   "no_policy_from_claim_documents": true
+  },
+  "CAL-019": {
+   "names_listed_item": true,
+   "nothing_invented": false,
+   "no_policy_from_claim_documents": true
+  },
+  "CAL-020": {
+   "names_listed_item": true,
+   "nothing_invented": false,
+   "no_policy_from_claim_documents": true
+  },
+  "CAL-021": {
+   "names_listed_item": false,
+   "nothing_invented": false,
+   "no_policy_from_claim_documents": false
+  },
+  "CAL-022": {
+   "names_listed_item": false,
+   "nothing_invented": false,
+   "no_policy_from_claim_documents": true
+  },
+  "CAL-023": {
+   "names_listed_item": false,
+   "nothing_invented": false,
+   "no_policy_from_claim_documents": true
+  },
+  "CAL-024": {
+   "names_listed_item": true,
+   "nothing_invented": true,
+   "no_policy_from_claim_documents": true
+  }
+ }
+}

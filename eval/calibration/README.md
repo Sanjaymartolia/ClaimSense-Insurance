@@ -86,6 +86,7 @@ before labelling the other seventeen.
 | `calibration_claude_draft.jsonl` | Claude's pilot labels, not human labels (see above). Both raters have finished, so it now serves as the sanity check |
 | `judge_scores.json` | the RAGAS judge's score for each of the 24 items and the judge model, from `collect score` on 14 November (see "Result"). Item ids and scores only, no rationale text. A later RAGAS run on this set rewrites it; a run on another set writes beside that set |
 | `rubric_judge.py` | the judge with the raters' rule (see "Round 2"); its prompt is `config/prompts/judge.md` |
+| `judge_scores_rubric.json` | the rubric judge's development run on these 24 items (prompt v1, 14 November): one score and the three checks per item, no reasoning text. Development only, because the rule was read off these labels (see "Round 2", step 1) |
 
 ## Result (14 November 2026)
 
@@ -170,6 +171,12 @@ never the result. In order:
    and whether structured output works through OpenRouter:
 
        python -X utf8 -m eval.calibration.collect score --judge rubric
+
+   Done on 14 November with prompt v1 (`judge_scores_rubric.json`, development only): kappa
+   0.395, against 0.150 for RAGAS. It rejects all 8 items the raters rejected, CAL-021 included,
+   but also 7 they accepted. On each of those 7, only check 2 (`nothing_invented`) failed: the
+   explanation names surgeon fees and adds words such as "procedure costs". The next prompt
+   change narrows check 2 to limits, exceptions, approvals, waivers, amounts and clause numbers.
 
 2. **Both raters confirm** that the Constraints section of `config/prompts/judge.md` states their
    rule, or correct it. Look hardest at the clause-number point of check 2: CAL-010 and CAL-020
