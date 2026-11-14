@@ -32,7 +32,7 @@ from eval.agent_suite.judge import openrouter_structured
 from eval.agent_suite.suite import VARIANTS, preflight
 from eval.harness.loader import REPO_ROOT
 
-from . import abtest, readback, stack
+from . import abtest, ops, readback, stack
 from .dashboard import RULES_FILE, build_dashboard, thresholds
 from .live import (
     ARMS,
@@ -151,7 +151,11 @@ def cmd_export(args: argparse.Namespace) -> int:
         return CANNOT_START
     out.mkdir(parents=True, exist_ok=True)
     shutil.copyfile(RULES_FILE, out / "alert_rules.yml")
+    # L16, production windows: the edit-rate alert on the case API's metrics, and its unit test.
+    shutil.copyfile(ops.OPS_RULES_FILE, out / ops.OPS_RULES_FILE.name)
+    shutil.copyfile(ops.OPS_RULES_TEST, out / ops.OPS_RULES_TEST.name)
     config = stack.prometheus_config(args.metrics_target)
+    config["rule_files"].append(ops.OPS_RULES_FILE.name)
     (out / "prometheus.example.yml").write_text(
         "# Example only: written by `python -m eval.monitoring export`.\n"
         "# The 5 s intervals suit a demo. In production use 15 s or more, and lengthen the\n"
@@ -162,9 +166,13 @@ def cmd_export(args: argparse.Namespace) -> int:
     dash = stack.write_provisioning(
         out / "grafana", build_dashboard(), args.prometheus_url, args.dashboards_dir
     )
+    ops_dash = dash.with_name(f"{ops.OPS_UID}.json")  # same folder: Grafana loads both
+    ops_dash.write_text(json.dumps(ops.build_ops_dashboard(), indent=2), encoding="utf-8")
     print(f"alert rules        {out / 'alert_rules.yml'}")
+    print(f"ops alert (L16)    {out / ops.OPS_RULES_FILE.name} (+ {ops.OPS_RULES_TEST.name})")
     print(f"Prometheus example {out / 'prometheus.example.yml'}")
     print(f"Grafana dashboard  {dash}")
+    print(f"ops dashboard      {ops_dash}")
     print(f"Grafana provision  {out / 'grafana' / 'provisioning'}")
     print("These are for Deploy & Ops to review and mount; nothing in monitoring/ was changed.")
     return 0

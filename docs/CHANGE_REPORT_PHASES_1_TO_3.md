@@ -223,6 +223,7 @@ These tokens are for a local run only; anywhere else use long random values. To 
 | The held-out set was committed into the repository (13 November) | The repository is public, so the held-out claims and gold answers became visible | The team moved it to `data/claimsense-heldout/` (ADR-0013) and updated the deny rules; `.dockerignore` keeps it out of images. See section 11 |
 | `.env` and the course notebooks went to the Docker daemon with every build | One careless `COPY . .` would put real keys in an image | `.dockerignore` |
 | Two ADRs numbered 0013 | Confusing references | The UI decision is ADR-0015 |
+| Stub runs had replaced the two real-model runs the reports quote (`runs/full/real-dev`, `runs/full/rr-release-1112c`), through copy-paste of documented commands | The files no longer matched the model card and the technical report | Restored from git. `eval.full` and `eval.agent_suite` now refuse a stub run whose label holds a real-model run |
 
 ---
 
@@ -246,7 +247,7 @@ These tokens are for a local run only; anywhere else use long random values. To 
 
 | Role | Please review or do |
 |---|---|
-| Deploy & Ops | `src/claimsense/api/`, `src/claimsense/ui/`, `docker-compose.yml`, both Dockerfiles, `.dockerignore`, `ci.yml` (ADR-0015). Next: Grafana provisioning and the edit-rate alert in `monitoring/`; real sign-in instead of static tokens; image publishing |
+| Deploy & Ops | `src/claimsense/api/`, `src/claimsense/ui/`, `docker-compose.yml`, both Dockerfiles, `.dockerignore`, `ci.yml` (ADR-0015). Next: adopt the edit-rate alert and the operations dashboard into `monitoring/` (ready and tested: `python -m eval.monitoring export`, steps in `eval/monitoring/README.md`); real sign-in instead of static tokens; image publishing |
 | Tools & Security | `mcp_servers/adjudication_calc.py`, the MCP pins and `SERVER_ENV` (ADR-0012). Open: make `record_history` a claims-db write tool |
 | Agents & Orchestration | `agents/mcp_services.py` (ADR-0012); the case API runs your graph unchanged |
 | Eval & Red-Team | One real-model run through the API to record cost per claim; the held-out decision (section 11) |
@@ -271,8 +272,9 @@ These tokens are for a local run only; anywhere else use long random values. To 
 - **The API image has no policy index** (`data/` and `.[retrieval]` are not in it), so containers
   use stub tools.
 - **fastmcp 4 is capped out** until `langchain-mcp-adapters` supports MCP SDK 2.
-- **Dashboard history.** The UI dashboard counts since the API started; Grafana keeps history and
-  raises the alert once it is provisioned.
+- **Dashboard history.** The UI dashboard counts since the API started. Grafana keeps history and
+  raises the edit-rate alert once Deploy & Ops mounts the bundle from `python -m eval.monitoring
+  export` (the alert passes its promtool unit test; the dashboard ran against a live API).
 
 ---
 

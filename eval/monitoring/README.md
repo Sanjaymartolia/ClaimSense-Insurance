@@ -67,6 +67,36 @@ second `run`, or `down`, refuse while one is in progress.
 Outputs go to `runs/monitoring/<label>/`: `summary.json` (everything the report quotes),
 `live.csv` (one row per claim: no claim text, no member id), `panels.json`, `panels.png`.
 
+## The operations dashboard and the edit-rate alert (L16), for Deploy & Ops
+
+The drill above simulates its own traffic. The capstone brief also asks for the live product:
+"show claims processed, adjudicator edit rate, rupees deducted by reason, fraud flags, turnaround
+time and cost per claim on a dashboard. Alert when the edit rate rises, indicating drift." Those
+read the case API's own metrics (`src/claimsense/api/metrics.py`), so they are separate files:
+
+| File | What |
+|---|---|
+| `ops_alert_rules.yml` | `AdjudicatorEditRateRising`: the last hour's edit rate is above 1.5 times the last day's, over at least 10 decisions, and above 20%, for 15 minutes. Production windows; the thresholds are proposals |
+| `ops_alert_rules.test.yml` | Its promtool unit test: a normal day (10% edits) and a quiet morning (6 decisions an hour) stay silent; a jump to 40% fires and says "40%" |
+| `ops.py` | `build_ops_dashboard()`: six tiles (claims processed, edit rate, rupees deducted, fraud flags, turnaround P95, cost per claim), the edit rate over the last hour against the last day, rupees deducted by reason, claims by outcome, flags by kind, review decisions, tool calls, alerts firing |
+
+`python -m eval.monitoring export --out runs/monitoring/export` writes them next to the drill's
+files: `ops_alert_rules.yml` (also listed in `prometheus.example.yml`) and
+`grafana/dashboards/claimsense-ops.json`. To adopt them (Deploy & Ops, in `monitoring/`):
+
+1. Copy `ops_alert_rules.yml` into `monitoring/` and add `rule_files: [ops_alert_rules.yml]` to
+   `monitoring/prometheus.yml`; mount the file next to it in the `prometheus` service.
+2. Copy `grafana/provisioning/` and `grafana/dashboards/` into `monitoring/grafana/`, set the data
+   source URL to `http://prometheus:9090`, and mount them in the `grafana` service at
+   `/etc/grafana/provisioning` and at the dashboards path the provider names.
+3. Check: `promtool test rules ops_alert_rules.test.yml` passes; after `docker compose up` and one
+   demo claim, the "ClaimSense operations" dashboard shows it.
+
+Checked on 14 November 2026: `promtool check rules` and the unit test pass, and a live run (the
+case API with stub agents, the demo scenes through it, then this package's Prometheus and Grafana)
+loaded the alert, evaluated every dashboard query without error (edit rate 1 in 6, as sent), and
+served all 13 panels. Counts over short ranges can show fractions: `increase()` extrapolates.
+
 ## Rules this package keeps
 
 - Fresh claims are built in memory from the 20 dev claims. Their gold is the human dev gold, plus
@@ -90,4 +120,5 @@ is installed. Run `python -m eval.monitoring down` first if a run was interrupte
 ## Tests
 
 `pytest eval/tests/test_monitoring.py -q`: no network, no binaries. The stack is checked through
-the files it writes, the read-back through a fake Prometheus.
+the files it writes, the read-back through a fake Prometheus. They also check that every metric the
+operations alert and dashboard read exists in the case API, and that `export` writes them.

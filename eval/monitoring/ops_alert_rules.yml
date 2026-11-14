@@ -1,0 +1,40 @@
+# L16: the operations alert from the capstone brief, "alert when the edit rate rises, indicating
+# drift", on the case API's own metrics (src/claimsense/api/metrics.py). Owner: Eval & Red-Team,
+# for Deploy & Ops to adopt: `python -m eval.monitoring export` (eval/monitoring/README.md).
+#
+# Unlike alert_rules.yml (windows of seconds, for a four-minute demo), this file uses production
+# windows: the last hour of review decisions against the last day. The thresholds are PROPOSED,
+# like those in eval/agent_suite/gate.yaml: change one only with a reason, never to silence a real
+# rise. Every metric named here must exist in the API (eval/tests/test_monitoring.py checks it).
+# Unit test: promtool test rules ops_alert_rules.test.yml (from this folder).
+groups:
+  - name: claimsense-ops
+    rules:
+      # The value is the last hour's edit rate. It fires when that rate is above 1.5 times the
+      # last day's, over at least 10 decisions in the hour, and above 20%: a few edits on a quiet
+      # morning page nobody, and neither does a steady rate the team already knows about.
+      - alert: AdjudicatorEditRateRising
+        expr: |
+          (
+            sum(increase(claimsense_review_decisions_total{decision="edit"}[1h]))
+              / sum(increase(claimsense_review_decisions_total[1h]))
+          )
+          > 1.5 * (
+            sum(increase(claimsense_review_decisions_total{decision="edit"}[1d]))
+              / sum(increase(claimsense_review_decisions_total[1d]))
+          )
+          and on () sum(increase(claimsense_review_decisions_total[1h])) >= 10
+          and on () (
+            sum(increase(claimsense_review_decisions_total{decision="edit"}[1h]))
+              / sum(increase(claimsense_review_decisions_total[1h]))
+          ) > 0.2
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "adjudicators edited {{ $value | humanizePercentage }} of worksheets in the last hour"
+          runbook: >-
+            The agents may have drifted: a model, prompt or policy change, or a new kind of bill.
+            Open a few edited cases in the case UI and read their audit trails to see which clause
+            or amount people corrected. Then run the release gate with real models on a new label
+            (python -m eval.full --label <new label>; costs money) to see whether it still passes.

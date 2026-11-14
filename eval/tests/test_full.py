@@ -83,3 +83,12 @@ def test_one_command_writes_both_scorers_side_by_side(tmp_path):
     assert summary["self_check"]["ok"] is True
     assert summary["harness"]["v1"]["per_split"]["dev"] == pytest.approx(0.965, abs=0.01)
     assert (tmp_path / "harness.v1.scorecard.json").exists()
+
+    # A stub run never replaces a real-model run (reports quote those): on 14 November 2026 two
+    # quoted runs were found overwritten. It refuses before any work and leaves the run alone.
+    traces = (tmp_path / "traces.jsonl").read_text(encoding="utf-8")
+    real = traces.replace('"mode": "stub"', '"mode": "llm"')
+    (tmp_path / "traces.jsonl").write_text(real, encoding="utf-8")
+    again = ["--stub", "--label", "t", "--splits", "dev", "--quiet", "--out", str(tmp_path)]
+    assert full.main(again) == 2
+    assert (tmp_path / "traces.jsonl").read_text(encoding="utf-8") == real

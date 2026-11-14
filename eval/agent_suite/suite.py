@@ -454,6 +454,25 @@ def preflight(force_stub: bool) -> str | None:
     return None
 
 
+def overwrite_problem(out: Path) -> str | None:
+    """A stub run never replaces a real-model run: reports quote those runs, and they cost money
+    to redo (on 14 November 2026 two quoted runs were found overwritten by stub reruns). An error
+    message, or None. Call after `preflight`, which settles stub or real."""
+    from claimsense.agents.llm import stub_mode
+
+    try:
+        with (out / "traces.jsonl").open(encoding="utf-8") as f:
+            previous = json.loads(f.readline()).get("mode")
+    except (OSError, ValueError):  # no earlier run there, or not one we can read
+        return None
+    if stub_mode() and previous not in (None, "stub"):
+        return (
+            f"{out} holds a real-model run that this stub run would replace. Reports quote such "
+            "runs: use another --label."
+        )
+    return None
+
+
 def retrieval_problem(variants: list[str]) -> str | None:
     """Open the real retriever once, before any claim, if a variant needs it. An error message, or
     None. Without this a missing index would crash the run (or a worker pool) on the first claim."""
@@ -470,7 +489,7 @@ def retrieval_problem(variants: list[str]) -> str | None:
 
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
-    problem = preflight(args.stub)
+    problem = preflight(args.stub) or overwrite_problem(RUNS_DIR / args.label)
     if problem:
         print(problem, file=sys.stderr)
         return 2

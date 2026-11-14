@@ -279,6 +279,10 @@ python -m eval.monitoring export --out runs/monitoring/export      # alert rules
 - Thresholds in `eval/agent_suite/gate.yaml` and `eval/monitoring/alert_rules.yml` are proposals:
   never loosen one to get a pass. `test_monitoring.py` checks that rules, dashboard queries and
   metric names agree. Never edit `monitoring/` (Deploy & Ops); `export` refuses to write there.
+- The L16 edit-rate alert (`eval/monitoring/ops_alert_rules.yml`, production windows; promtool
+  unit test `ops_alert_rules.test.yml`) and the operations dashboard (`eval/monitoring/ops.py`)
+  read the case API's own metrics, not the drill's. `export` writes them for Deploy & Ops to adopt;
+  `test_monitoring.py` checks every metric they read exists in `claimsense.api.metrics`.
 - L15 guardrails are wired in (`docs/GUARDRAILS_BEFORE_AFTER.md`, `docs/SECURITY_REPORT_CARD.md`):
   extraction masks PII (`input_guardrails.mask_pii`) before the model and runs
   `classify_injection_fast`; `SettlementAgent` runs `payment_guard` (`check_payment_ceiling`) and
@@ -298,6 +302,9 @@ python -m eval.monitoring export --out runs/monitoring/export      # alert rules
   variant). Monitoring findings MON-01 to MON-04 are in `docs/MONITORING_REPORT_CARD.md`.
 - A run label that exists is overwritten (`runs/monitoring/<label>/`). Never reuse the labels the
   reports quote (`drill-2`, `drill-3`, `real-drill`); a reused label already lost drill 1's evidence.
+  `eval.full` and `eval.agent_suite` refuse a stub run whose label holds a real-model run
+  (`suite.overwrite_problem`): on 14 November `runs/full/real-dev` and `rr-release-1112c` were
+  found replaced by stub runs and were restored from git.
 - Reports: `docs/AGENT_SUITE_REPORT.md`, `docs/MONITORING_REPORT_CARD.md`, and all evaluation work
   in one ASD-STE100-style report, `docs/TECHNICAL_REPORT_EVAL_AND_MONITORING.md`.
 

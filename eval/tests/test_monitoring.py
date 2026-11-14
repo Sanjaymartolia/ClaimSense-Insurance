@@ -23,7 +23,7 @@ from eval.harness.loader import DEV_DIR, read_jsonl  # noqa: E402
 from eval.harness.models import EVAL_ONLY_FIELDS  # noqa: E402
 from eval.harness.suite import stub_llm  # noqa: E402
 from eval.monitoring import __main__ as cli  # noqa: E402
-from eval.monitoring import abtest, dashboard, readback, stack  # noqa: E402
+from eval.monitoring import abtest, dashboard, ops, readback, stack  # noqa: E402
 from eval.monitoring import live as live_module  # noqa: E402
 from eval.monitoring.live import (  # noqa: E402
     ARMS,
@@ -132,12 +132,30 @@ def test_every_metric_in_a_rule_or_query_is_exported():
         used |= dashboard.metric_names(expr)
     assert used and used <= exported, sorted(used - exported)
 
+    # The L16 operations alert and dashboard read the case API's own metrics instead.
+    ops_used = set()
+    for rule in dashboard.load_rules(ops.OPS_RULES_FILE):
+        ops_used |= dashboard.metric_names(rule["expr"])
+    for expr in ops.OPS_QUERIES.values():
+        ops_used |= dashboard.metric_names(expr)
+    api = ops.api_metric_names()
+    assert "claimsense_review_decisions_total" in ops_used
+    assert ops_used <= api, sorted(ops_used - api)
+
 
 def test_every_rule_has_a_wait_a_summary_and_a_runbook():
     rules = dashboard.load_rules()
     assert {r["alert"] for r in rules} == set(dashboard.thresholds())
     for rule in rules:
         assert rule["for"].endswith("s"), rule["alert"]
+        assert rule["annotations"]["summary"] and rule["annotations"]["runbook"], rule["alert"]
+
+    # The operations rules wait minutes, not seconds: they watch production, not a demo.
+    ops_rules = dashboard.load_rules(ops.OPS_RULES_FILE)
+    assert [r["alert"] for r in ops_rules] == [ops.EDIT_ALERT]
+    assert dashboard.thresholds(ops.OPS_RULES_FILE) == {ops.EDIT_ALERT: 0.2}
+    for rule in ops_rules:
+        assert rule["for"].endswith("m"), rule["alert"]
         assert rule["annotations"]["summary"] and rule["annotations"]["runbook"], rule["alert"]
 
 
@@ -169,6 +187,16 @@ def test_dashboard_shape_and_url():
         assert p["targets"] and all(t["datasource"]["uid"] == "prom" for t in p["targets"])
     st = stack.Stack(stack.home(), 1, 2, 3000, board["uid"], board["title"])
     assert st.dashboard_url.endswith("/d/claimsense-live/claimsense-live?orgId=1&refresh=5s&kiosk")
+
+    ops_board = ops.build_ops_dashboard()
+    assert ops_board["uid"] == ops.OPS_UID and len(ops_board["panels"]) == 13
+    assert len({p["id"] for p in ops_board["panels"]}) == 13
+    for p in ops_board["panels"]:
+        assert p["targets"] and all(t["datasource"]["uid"] == "prom" for t in p["targets"])
+        assert p["gridPos"]["x"] + p["gridPos"]["w"] <= 24, p["title"]
+    edit_tile = next(p for p in ops_board["panels"] if p["title"] == "Adjudicator edit rate")
+    steps = edit_tile["fieldConfig"]["defaults"]["thresholds"]["steps"]
+    assert steps[-1] == {"color": "red", "value": 0.2}  # red where the alert fires
 
 
 def test_scenario_and_chart_only_name_real_alerts_and_queries():
@@ -692,3 +720,10 @@ def test_export_writes_files_for_deploy_and_ops(tmp_path, capsys):
     assert example["scrape_configs"][0]["static_configs"][0]["targets"] == ["api:8000"]
     assert (tmp_path / "grafana" / "dashboards" / "claimsense-live.json").exists()
     assert "nothing in monitoring/ was changed" in capsys.readouterr().out
+    # L16: the edit-rate alert with its unit test, loaded by the example config, and the
+    # operations dashboard next to the live one.
+    assert (tmp_path / "ops_alert_rules.yml").read_text() == ops.OPS_RULES_FILE.read_text()
+    assert (tmp_path / "ops_alert_rules.test.yml").exists()
+    assert example["rule_files"] == ["alert_rules.yml", "ops_alert_rules.yml"]
+    board = json.loads((tmp_path / "grafana" / "dashboards" / "claimsense-ops.json").read_text())
+    assert board["uid"] == ops.OPS_UID

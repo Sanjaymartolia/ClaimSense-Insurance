@@ -235,7 +235,7 @@ Gaps left (owner Deploy & Ops):
 |---|---|
 | The API image copies `src/`, `config/` and the demo claims but not `data/`, and skips `.[retrieval]` | No policy index or tariff table inside the container: stub tools only |
 | MCP servers | With `CLAIMSENSE_TOOLS=mcp` the API starts the four servers inside its own container (stdio, ADR-0012), but policy-kb needs the index and `.[retrieval]` (row above) |
-| No Grafana provisioning | Grafana starts with no data source, dashboard or edit-rate alert. The case UI's dashboard page shows the same numbers since the API started (ADR-0015) |
+| No Grafana provisioning | Grafana starts with no data source, dashboard or edit-rate alert. A tested bundle is ready to adopt: `python -m eval.monitoring export` writes the edit-rate alert (with its promtool unit test) and the operations dashboard (`eval/monitoring/README.md`). Until then the case UI's dashboard page shows the numbers since the API started (ADR-0015) |
 | The case API needs `CLAIMSENSE_REVIEWERS` | Without it the case routes answer 503; `/health` and `/metrics/` still work |
 | No image publishing | Images are built and thrown away in CI; publishing to the GitHub container registry on a version tag would be a next step |
 

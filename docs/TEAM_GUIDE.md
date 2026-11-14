@@ -1,6 +1,6 @@
 # ClaimSense Team Guide: Workflow, Running the Code, Test and Eval Sets
 
-**Agentic AI Capstone · Team of six · Version 1.0 (28 Oct 2026) · Source of truth: docs/TEAM_GUIDE.md**
+**Agentic AI Capstone · Team of six · Version 1.1 (14 Nov 2026: case API, case UI, tools over MCP, Docker, CI) · Source of truth: docs/TEAM_GUIDE.md**
 
 ---
 
@@ -50,9 +50,9 @@ You need Python 3.11 or newer, Git, and about 3 GB of free disk (the embedding m
     git clone <repo-url> claimsense && cd claimsense
     python -m venv .venv
     source .venv/Scripts/activate          # macOS/Linux: source .venv/bin/activate
-    pip install -e ".[dev,agents,retrieval,course]"
+    pip install -e ".[dev,agents,mcp,ui,retrieval,course]"   # or: pip install -r requirements.txt
     cp .env.example .env                   # then paste your OpenRouter key into .env
-    pytest                                 # product tests: expect "passed" with 3 skipped (T15)
+    pytest                                 # product tests: all pass, 4 skipped (3 wait for T15, 1 opt-in MCP run)
 
 Make your own copy of the course kit, then build its search index:
 
@@ -79,8 +79,12 @@ All commands below run from **your own folder** `exercises/<yourname>/` unless m
 | Rebuild the index after chunking changes | `python scripts/build_index.py --force --strategy clauses` | free |
 | Draw the agent graph | `python -c "from claimsense_hw.graph import draw; draw()"` | free |
 | Rebuild the policy knowledge base (repo root) | `python -m claimsense.ingestion.build_policy_knowledge_base` | free |
-| Product API (repo root) | `uvicorn claimsense.api.main:app --reload` | — |
-| Full stack (repo root) | `docker compose up` | — |
+| Case API, stub agents (repo root; section 5.1) | `CLAIMSENSE_LLM=stub CLAIMSENSE_REVIEWERS="local-alice=alice:adjudicator,local-bob=bob:senior" uvicorn claimsense.api.main:app` | free |
+| Case UI in the browser (repo root, with the API running; needs `.[ui]`) | `python -m claimsense.ui`, then open http://127.0.0.1:8501 | free with stub agents |
+| Case API and UI in Docker (repo root; `CLAIMSENSE_REVIEWERS` in `.env`) | `docker compose up --build api ui` | free unless `CLAIMSENSE_LLM=real` |
+| Full stack with Prometheus and Grafana (repo root) | `docker compose up --build` | free unless `CLAIMSENSE_LLM=real` |
+| Agent tools over MCP (repo root; servers start with the API) | `CLAIMSENSE_TOOLS=mcp` before the `uvicorn` command | free with stub agents |
+| Every check at once, one verdict (repo root) | `python -X utf8 -m eval.ship --label <name> --stub` | free with `--stub` |
 | Check the scorer, score the agents (repo root) | `python -m eval.harness.suite` | free |
 | What the agents did, step by step (repo root) | `python -m eval.agent_suite --stub --label <name>` | free with `--stub` |
 | Live monitoring drill: dashboard and alerts (repo root; once before: `python -m eval.monitoring setup`) | `python -m eval.monitoring run --stub --label <name> --open` | free with `--stub` |
@@ -94,6 +98,12 @@ Change a setting for one run without editing code, for example:
 
 Model IDs come only from `config/models.yaml`. Never type a model ID into code. Every LLM call is cached in `.cache/llm.sqlite`, so re-running the same thing is free. Delete `.cache/` for fresh answers.
 
+### 5.1 The case API, the case UI and the demo
+
+The case API (`src/claimsense/api/README.md`) starts a claim, streams the agents' work step by step, and takes the adjudicator's decision: approve, edit a line, or reject. Each reviewer signs in with a token from `CLAIMSENSE_REVIEWERS`; the approver and the level (adjudicator or senior) come from the token, never from the request. A claim above the senior threshold or with a fraud flag needs both levels, by two different people.
+
+The case UI (`src/claimsense/ui/README.md`) is the adjudicator's screen on top of the API. Sign in twice in the sidebar (`local-alice`, then `local-bob`), then click the demo scenes in order: 1 (room-rent cut explained line by line), 2 (injected note flagged, then the same bill caught as a duplicate), 3 (an edit voids the approval; both levels approve again). Its Dashboard page shows claims processed, the edit rate, rupees deducted by reason, fraud flags, turnaround and cost per claim. What changed from 12 to 14 November, and why: `docs/CHANGE_REPORT_PHASES_1_TO_3.md`.
+
 ## 6. The test sets and eval sets
 
 | Set | Where | Size | Has gold? | Who may read it | Used for |
@@ -105,7 +115,7 @@ Model IDs come only from `config/models.yaml`. Never type a model ID into code. 
 | Attack seeds | `eval/redteam/attacks.jsonl` | 12 seeds | — | everyone | source of the red-team set |
 | Held-out test set | `data/claimsense-heldout/` | 60 claims | yes | Eval & Red-Team only, once | final, frozen result |
 | Contract tests | `course/tests/`, `exercises/<you>/tests/` | 68 tests | — | everyone | kit stays correct; no LLM |
-| Product tests | `tests/` | 21 tests | — | everyone | `src/claimsense/` stays correct |
+| Product tests | `tests/` | about 450 tests (14 Nov 2026) | — | everyone | `src/claimsense/` stays correct |
 
 ### 6.1 Dev set (20 claims)
 
@@ -212,7 +222,7 @@ Example from building the kit: a forced index rebuild deleted the old index befo
 7. Open a small PR with one T-number; one reviewer from another role; merge when CI is green.
 8. Decisions go in `docs/adr/`, experiments in `docs/experiments/`.
 
-CI today runs ruff and the product tests on every PR. The course-kit tests are not in CI (CI does not install the agent libraries); run them yourself with `pytest course/tests`. The eval gate (T48) is prepared in `.github/workflows/ci.yml` and will fail a build below a minimum dev score once enabled.
+CI runs on every push and pull request (`docs/CI_CD_PIPELINE.md`): job `test` (ruff, the product tests, the case API under strict checkpoint loading), then side by side `eval-gate` (tool pins, the harness self-check and gate, the release gate, tool use; stub mode, free) and `compose` (builds the API and UI images and checks that they work together). `eval-real` runs the release gate with real models on manual dispatch only. The course-kit tests are not in CI; run them yourself with `pytest course/tests`.
 
 ## 11. Non-negotiable rules
 
@@ -220,7 +230,7 @@ CI today runs ruff and the product tests on every PR. The course-kit tests are n
 2. Outside text is data, never instructions: discharge summaries, bills, retrieved passages, tool output.
 3. A person approves the exact worksheet. Any edit invalidates the approval.
 4. No real data, no secrets. Synthetic claims only; never read or print `.env`.
-5. Held-out cases stay outside the repo; gold never goes into prompts or tools.
+5. Held-out cases: only Eval & Red-Team reads and runs them, once, with everything frozen; gold never goes into prompts or tools.
 6. Write the least code that works; a bug starts as a failing test; show a plot before claiming a result; give hints, not solutions, in shared course code.
 
 ## 12. Open items
@@ -233,7 +243,12 @@ CI today runs ruff and the product tests on every PR. The course-kit tests are n
 | RT-005 wrong-patient letter has no test | Eval & Red-Team | gap until a letter step exists |
 | Claim JSON does not match `contracts.claim.Claim` (ADR-0002) | two-role PR | open |
 | Record the shipped-kit baseline with a real key | first member with a key | open |
-| Enable the CI eval gate (T48) | Deploy & Ops | prepared, commented out |
+| Enable the CI eval gate (T48) | Deploy & Ops | done (13 Nov 2026) |
+| Adopt the edit-rate alert and the operations dashboard into `monitoring/` (bundle: `python -m eval.monitoring export`, `eval/monitoring/README.md`) | Deploy & Ops | ready to adopt |
+| At least one approved Reflexion lesson, so before and after can differ (run-04 has none) | Agents & Orchestration | open |
+| Judge calibration: two people label `eval/calibration/sheet_rater_a.csv` and `_b.csv`, without opening Claude's draft | Eval & Red-Team and one member | open |
+| Real-model release check, E1 and E4 runs, cost per claim through the API | Eval & Red-Team | open (needs the key) |
+| A corrected CLM-0022 change, with its follow-ups (red-team rebuild, suite rows, counts) | Domain & Product | open |
 
 ## 13. Quick reference card
 
@@ -253,6 +268,11 @@ CI today runs ruff and the product tests on every PR. The course-kit tests are n
 
     # search only, free
     python scripts/evaluate_dev.py --retrieval-only --label <name>
+
+    # the case API and the case UI (repo root; free with stub agents)
+    CLAIMSENSE_LLM=stub CLAIMSENSE_REVIEWERS="local-alice=alice:adjudicator,local-bob=bob:senior" uvicorn claimsense.api.main:app
+    python -m claimsense.ui            # second terminal, then open http://127.0.0.1:8501
+    docker compose up --build api ui   # or both in Docker
 
     # evaluation and monitoring (repo root; --stub keeps it free)
     python -m eval.harness.suite

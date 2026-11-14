@@ -195,7 +195,8 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
-    problem = agent.preflight(args.stub)
+    out_dir = Path(args.out) if args.out else RUNS_DIR / args.label
+    problem = agent.preflight(args.stub) or agent.overwrite_problem(out_dir)
     if problem:
         print(problem, file=sys.stderr)
         return 2
@@ -277,7 +278,7 @@ def main(argv: list[str] | None = None) -> int:
         "verdicts": verdicts,
         "passed": passed,
     }
-    out = write_all(args.label, results, harness, summary, Path(args.out) if args.out else None)
+    out = write_all(args.label, results, harness, summary, out_dir)
     print(f"\nwritten to {out}")
     return 0 if passed else 1
 
