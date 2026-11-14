@@ -35,7 +35,7 @@ retrieval = [
     "sentence-transformers>=3.0",
     "pypdf>=4.0",
 ]
-dev = ["pytest>=8.0", "ruff>=0.6", "pypdf>=5.0,<7.0"]  # pypdf: ingestion tests
+dev = ["pytest>=8.0", "ruff>=0.6", "pypdf>=5.0,<7.0", "mypy>=2.4,<3"]  # pypdf: ingestion tests
 course = ["matplotlib>=3.8", "langchain-community>=0.3"]  # + agents,retrieval; see course/README
 docs = ["matplotlib>=3.8", "python-docx>=1.1"]  # scripts/build_team_guide.py
 # L12 §6-7 prompt optimizers for the Reflexion comparison (reflexion/dspy_coverage.py). Its own
@@ -91,6 +91,27 @@ testpaths = ["tests"]
 # re-enables it. The flag stops only the plugin: eval/deepeval_suite/conftest.py also sets
 # DEEPEVAL_DISABLE_DOTENV=1 before the suite imports deepeval.
 addopts = "-q -p no:deepeval"
+
+[tool.mypy]
+# Static type checking (rubric D8), run in CI: `mypy` checks the product code.
+files = ["src/claimsense"]
+ignore_missing_imports = true
+follow_imports = "silent"
+
+[[tool.mypy.overrides]]
+# Packages that still had type errors on 14 November 2026 (31 in all). Each owner fixes theirs and
+# removes the package here; D8 reaches level 5 when this list is empty. `mypy src/claimsense/<pkg>`
+# with the package removed shows its errors. Owners: reflexion, agents and graph: Agents &
+# Orchestration; mcp_servers and guardrails: Tools & Security; ingestion: Knowledge & Memory.
+module = [
+    "claimsense.reflexion.*",
+    "claimsense.agents.*",
+    "claimsense.graph.*",
+    "claimsense.mcp_servers.*",
+    "claimsense.guardrails.*",
+    "claimsense.ingestion.*",
+]
+ignore_errors = true
 
 [tool.ruff]
 line-length = 100

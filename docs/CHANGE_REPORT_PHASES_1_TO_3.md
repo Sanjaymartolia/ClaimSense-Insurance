@@ -262,8 +262,15 @@ These tokens are for a local run only; anywhere else use long random values. To 
   `data/claimsense-heldout/`). Rule 5 still applies: nobody but Eval & Red-Team reads it, and it
   is run once with everything frozen. The final held-out score should state that the set was
   visible from that date.
-- **Scoring.** `docs/FRAMEWORK_RUBRIC_SCORE.md` has dated notes for Phases 2 and 3 but no new
-  scores. Rescoring D2 (2 to 3) and D9 (3 to 4) is the next scoring's decision.
+- **Scoring.** `docs/FRAMEWORK_RUBRIC_SCORE.md` Issues 3 and 4 (14 November): **3.30 out of 5**
+  (Issue 2: 2.85). Issue 3 scored D2 3 and D9 4 (the API serves claims, the agents speak MCP);
+  Issue 4 scored D3 4 after the audit work below. D6 stays at 1 (cost measured, not limited) and D8
+  at 4 (until the `mypy` owners' list is empty). The next team review should confirm both Issues.
+- **Audit trail, tracing, type checking (added 14 November, after Phase 3).** Every API run has a
+  run id (first stream event, every tool's audit record); `CLAIMSENSE_AUDIT_LOG` writes the trail
+  as JSON lines (on in Docker Compose); `CLAIMSENSE_OTEL` traces each run, with the same redaction
+  as the evaluation, now in `claimsense/tracing.py`. `mypy` runs in CI; six packages with 31 errors
+  are on an owners' list in `pyproject.toml` (`docs/CI_CD_PIPELINE.md`).
 - **Identity** is demo-grade: static tokens from the environment.
 - **Shared database file.** Approvals and claim history are written straight to the claims
   database file, which the claims-db server also reads: one machine or one shared volume.

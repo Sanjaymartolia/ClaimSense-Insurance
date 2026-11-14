@@ -240,7 +240,10 @@ def stream(title: str, events: Iterator[Event]) -> None:
         trace: list[str] = []
         try:
             for name, data in events:
-                if name == "plan":
+                if name == "run":  # the run id the audit trail and the trace carry (rubric D3)
+                    label = f"{label} · run {views.md_escape(str(data['run_id'])[:8])}"
+                    box.update(label=label)
+                elif name == "plan":
                     plan_slot.dataframe(pd.DataFrame(views.plan_rows(data)), hide_index=True)
                 elif name == "step":
                     trace += data.get("trace", [])

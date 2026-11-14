@@ -143,12 +143,15 @@ def render(rows: list[dict], plan: list, *, show_plan: bool, show_insurance: boo
 
     if show_insurance:
         adjusted = sum(r["score"] * INSURANCE_WEIGHTS[r["dim"]] for r in rows) / 100
+        score = {r["dim"]: r["score"] for r in rows}
+        up, down = score["D3"] + score["D7"], score["D1"] + score["D4"]  # weight moves down -> up
+        word = "lower" if up < down else "higher" if up > down else "the same"
         lines += [
             "  Regulated-domain weighting (the book's tip: up-weight D3 and D7)",
             "    D3 and D7 -> 20 each, D1 and D4 -> 10 each, sum still 100",
             f"    score: {adjusted:.2f}  "
             f"({adjusted - total / 100:+.2f} against the book's weights)",
-            "    It is lower because compliance and safety hold the most unconnected work.",
+            f"    It is {word}: D3 + D7 (compliance, safety) score {up}, D1 + D4 score {down}.",
             "",
         ]
 

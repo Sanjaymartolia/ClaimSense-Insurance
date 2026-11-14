@@ -249,6 +249,7 @@ CI runs on every push and pull request (`docs/CI_CD_PIPELINE.md`): job `test` (r
 | Judge calibration: two people label `eval/calibration/sheet_rater_a.csv` and `_b.csv`, without opening Claude's draft | Eval & Red-Team and one member | open |
 | Real-model release check, E1 and E4 runs, cost per claim through the API | Eval & Red-Team | open (needs the key) |
 | A corrected CLM-0022 change, with its follow-ups (red-team rebuild, suite rows, counts) | Domain & Product | open |
+| Fix the type errors in your package and take it off the `mypy` owners' list in `pyproject.toml` (counts in `docs/CI_CD_PIPELINE.md`) | each package owner | open: 31 errors in six packages |
 
 ## 13. Quick reference card
 

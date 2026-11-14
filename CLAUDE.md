@@ -142,6 +142,12 @@ pytest tests/api                         # CI also runs it with LANGGRAPH_STRICT
   in strict mode only a compiled graph knows the `ClaimState` types.
 - `api/metrics.py` uses the `eval/monitoring` metric names, so its alert rules apply to live traffic
   (`tests/api/test_metrics.py` checks); labels never hold claim ids, approver ids or claim text.
+- Rubric D3: each run (a start or a decision) gets a `run_id` (first stream event `run`, every
+  hook `AuditRecord`, `run.start`/`run.end`). `CLAIMSENSE_AUDIT_LOG` writes them as JSON lines
+  (`api/audit.py`); `CLAIMSENSE_OTEL=otlp|console` traces a run as `claim.run` with node and tool
+  children (`claimsense/tracing.py`, needs `.[observability]`). Only content-free fields: a new
+  audit field joins `hooks.SAFE_AUDIT_FIELDS`, a span attribute uses a `claimsense.` key, and the
+  redaction allowlist lives once, in `claimsense.tracing` (`eval/observability` imports it).
 
 ### Tools over MCP (`agents/mcp_services.py`, ADR-0012)
 - `CLAIMSENSE_TOOLS=mcp`: the four servers (`mcp_servers.SERVERS`, `adjudication-calc` included) run
@@ -349,8 +355,9 @@ never edit the generated PDF/DOCX/HTML by hand.
   clears addopts must pass it again), and `eval/deepeval_suite/conftest.py` sets
   `DEEPEVAL_DISABLE_DOTENV=1` before the import. The `deepeval` CLI imports DeepEval before
   pytest starts, so export `DEEPEVAL_DISABLE_DOTENV=1` and `DEEPEVAL_TELEMETRY_OPT_OUT=1` first.
-- CI (`.github/workflows/ci.yml`) is Python 3.12. Job `test`, `.[dev,agents,mcp,ui]`, stub mode:
-  `ruff check`, `ruff format --check`, `pytest`, then `pytest tests/api` with
+- CI (`.github/workflows/ci.yml`) is Python 3.12. Job `test`, `.[dev,agents,mcp,ui,observability]`,
+  stub mode: `ruff check`, `ruff format --check`, `mypy` (config in `pyproject.toml`; the packages
+  on its owners' list are skipped until their owners fix them), `pytest`, then `pytest tests/api` with
   `LANGGRAPH_STRICT_MSGPACK=true`. A test that needs another extra (chromadb, ragas, docx, dspy…)
   must start with `pytest.importorskip`, or CI breaks. Job `compose` (after `test`) builds the API
   and UI images, starts them healthy, serves a demo claim, and calls the API from the UI

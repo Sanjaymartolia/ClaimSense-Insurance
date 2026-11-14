@@ -51,22 +51,37 @@ by side). Before Phase 3 it took about a minute and a half (run #100: `test` 32 
 
 ## 3. The jobs, step by step
 
-### Job `test` (installs `.[dev,agents,mcp,ui]`, runs with `CLAIMSENSE_LLM=stub`)
+### Job `test` (installs `.[dev,agents,mcp,ui,observability]`, runs with `CLAIMSENSE_LLM=stub`)
 
 | Step | Command | Fails when |
 |---|---|---|
 | Lint | `ruff check .` | Any rule in `pyproject.toml` (`E, F, I, B, UP, S`, line length 100) is broken |
 | Format | `ruff format --check .` | A file is not formatted as `ruff format` would write it |
+| Type check | `mypy` (config in `pyproject.toml`) | A type error in `src/claimsense/`, outside the packages on the owners' list (below) |
 | Product tests | `pytest` (`testpaths = ["tests"]`) | A product test fails |
 | Case API, strict checkpoints | `pytest tests/api` with `LANGGRAPH_STRICT_MSGPACK=true` | A type stored in a checkpoint is not named in the graph state, so LangGraph's strict loading (its announced future default) would refuse it |
 
-`.[dev,agents,mcp,ui]` is installed here, so the case API tests (`tests/api`), the LangGraph wiring
-and tool-hook tests, the MCP tests (three tool servers over stdio, ADR-0012) and the case UI tests
-(`tests/ui`: Streamlit's AppTest clicks through the demo scenes, ADR-0015) run instead of being
-skipped (Phases 2 and 3; before, this job installed `.[dev]` only). A product test that needs
-another extra (chromadb, ragas, docx, dspy) must start with `pytest.importorskip`, or this job
-breaks. The MCP run with all four servers needs the policy index, so it is opt-in
-(`CLAIMSENSE_MCP_E2E=1`) and not part of CI.
+`.[dev,agents,mcp,ui,observability]` is installed here, so the case API tests (`tests/api`, with
+the audit trail and the product tracing), the LangGraph wiring and tool-hook tests, the MCP tests
+(three tool servers over stdio, ADR-0012) and the case UI tests (`tests/ui`: Streamlit's AppTest
+clicks through the demo scenes, ADR-0015) run instead of being skipped (Phases 2 and 3; before,
+this job installed `.[dev]` only). A product test that needs another extra (chromadb, ragas,
+docx, dspy) must start with `pytest.importorskip`, or this job breaks. The MCP run with all four
+servers needs the policy index, so it is opt-in (`CLAIMSENSE_MCP_E2E=1`) and not part of CI.
+
+**The type-check owners' list.** On 14 November 2026 `mypy` found 31 errors, all in six packages;
+`pyproject.toml` skips them (`ignore_errors`) so the check could start. Each owner fixes theirs and
+removes the package from the list; the framework rubric's D8 reaches level 5 when the list is
+empty. Never add a package to the list to silence a new error.
+
+| Package | Errors | Owner |
+|---|---|---|
+| `reflexion` | 9 | Agents & Orchestration |
+| `agents` | 8 | Agents & Orchestration |
+| `mcp_servers` | 5 | Tools & Security |
+| `graph` | 4 | Agents & Orchestration |
+| `ingestion` | 3 | Knowledge & Memory |
+| `guardrails` | 2 | Tools & Security |
 
 ### Job `compose` (Docker Compose, after `test`; no Python install, no key)
 
@@ -134,7 +149,8 @@ Open the failed step's log in the Actions tab. For the eval gate, also download 
 |---|---|---|
 | `ruff check .` | Lint error | `ruff check --fix .`, then fix the rest by hand. Do not add blanket ignores |
 | `ruff format --check .` | Formatting | `ruff format .` and commit |
-| `pytest` (test job) | A product test failed, or a test needs an extra that `.[dev,agents,mcp,ui]` lacks | Fix the code, or add `pytest.importorskip` to the test |
+| `mypy` (test job) | A type error in checked code | Fix it. Do not add the package to the owners' list in `pyproject.toml` to silence it |
+| `pytest` (test job) | A product test failed, or a test needs an extra that `.[dev,agents,mcp,ui,observability]` lacks | Fix the code, or add `pytest.importorskip` to the test |
 | `compose`: build and start | An image did not build, or a container never became healthy | Read "Container logs" in the job. Build both images locally with `docker compose build api ui` if you have Docker |
 | `compose`: demo claim or UI step | The containers run but the API cannot serve the claim, or the UI cannot reach the API | The logs name the error. A file the API needs in the container goes into `Dockerfile` (and stays out of `.dockerignore`) |
 | Install, or many tests at once, with no change of ours | A new release of a dependency changed what pip installs (14 Nov: fastmcp 4 brought MCP SDK 2, which `langchain-mcp-adapters` does not support) | Compare package versions with the last green run's install log. Cap the release in `pyproject.toml` and `requirements.txt`, with a comment, as for `fastmcp<4` |
@@ -159,6 +175,7 @@ $env:CLAIMSENSE_LLM = "stub"
 # job test
 ruff check .
 ruff format --check .
+mypy
 pytest
 $env:LANGGRAPH_STRICT_MSGPACK = "true"; pytest tests/api; Remove-Item Env:LANGGRAPH_STRICT_MSGPACK
 # job eval-gate
@@ -216,7 +233,8 @@ a problem after it has landed instead of before. The pull request template
 
 What exists:
 
-- `Dockerfile`: `python:3.12-slim`, installs `.[agents,mcp]`, copies `config/` and the synthetic
+- `Dockerfile`: `python:3.12-slim`, installs `.[agents,mcp,observability]` (tracing works when
+  `.env` sets `CLAIMSENSE_OTEL`), copies `config/` and the synthetic
   demo claims (dev and red-team), serves `claimsense.api.main:app` with uvicorn on port 8000, with
   a healthcheck on `/health`.
 - `Dockerfile.ui` (Phase 3): `python:3.12-slim`, installs `.[ui]` only (core dependencies and
@@ -273,7 +291,7 @@ request without merging it.
 
 - Keep the automatic jobs free and the same on every run: stub mode, no key, no network calls
   beyond installing packages.
-- Add a new eval check to `eval-gate`, not to `test`, unless it needs only `.[dev,agents,mcp,ui]`.
+- Add a new eval check to `eval-gate`, not to `test`, unless it needs only `.[dev,agents,mcp,ui,observability]`.
 - A threshold changes only with a reason in the commit message, and in `docs/adr/` if it is a
   policy decision.
 - After any change to `ci.yml`, run the local commands in section 6 first, then push and watch the

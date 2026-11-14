@@ -28,7 +28,7 @@ from .conftest import (  # noqa: E402
 def test_a_claim_streams_to_its_first_review(client):
     events = sse(start(client, "CLM-0004"))
     names = [name for name, _ in events]
-    assert names[0] == "plan"
+    assert names[:2] == ["run", "plan"]  # the run id first (rubric D3), then the plan
     assert names[-1] == "review"
     assert {"step", "worksheet"} <= set(names)
     review = last(events, "review")

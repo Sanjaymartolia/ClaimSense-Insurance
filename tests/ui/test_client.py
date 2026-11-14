@@ -46,7 +46,7 @@ def test_a_claim_runs_end_to_end_through_the_client(api):
     assert api.me(ALICE) == {"approver_id": "alice", "level": "adjudicator"}
     assert "CLM-0004" in [claim["claim_id"] for claim in api.demo_claims(ALICE)]
     events = list(api.start_demo(ALICE, "CLM-0004"))
-    assert events[0][0] == "plan"
+    assert [name for name, _ in events[:2]] == ["run", "plan"]
     assert events[-1][0] == "review" and events[-1][1]["level"] == "adjudicator"
     finished = list(api.decide(ALICE, "CLM-0004", {"decision": "approve"}))
     assert finished[-1][0] == "done" and finished[-1][1]["status"] == "settled"

@@ -34,6 +34,8 @@ Run one process (no `--workers`): the per-case lock and the stub stores live in 
 | `CLAIMSENSE_LLM` | unset | `stub` forces the deterministic agents. Unset with `OPENROUTER_API_KEY` set means real models, which cost money |
 | `CLAIMSENSE_DEMO_CLAIMS` | dev and red-team fixtures | JSONL files the demo routes read (synthetic claims only) |
 | `LANGGRAPH_STRICT_MSGPACK` | unset | `true`: LangGraph loads only the checkpoint types the graph state names, and stops its "unregistered type" warnings. CI runs `tests/api` this way |
+| `CLAIMSENSE_AUDIT_LOG` | unset: no file | A JSON-lines file for the audit trail (below); compose writes `/data/audit.jsonl` on the `case-data` volume |
+| `CLAIMSENSE_OTEL` | unset: off | `otlp` (the standard `OTEL_EXPORTER_OTLP_*` settings name the collector) or `console`: one trace per claim run. Needs `.[observability]` |
 
 `real` tools need what `run_one.py --real-tools` needs: `CLAIMSENSE_APPROVAL_SECRET`, the seeded
 policies (`python -m claimsense.mcp_servers.seed_dev_policies`) and the retrieval index
@@ -89,6 +91,7 @@ The start and decision routes answer `text/event-stream`. Each event is `event: 
 
 | Event | When | Data |
 |---|---|---|
+| `run` | first, every time | `run_id` (this run: a start or a decision), `case_id`, `kind` (`start` or `decision`) |
 | `plan` | the plan changes | `revision`, `steps` (`name`, `agent`, `status`), `text` |
 | `step` | a graph node finished | `node`, `trace` (the lines it added) |
 | `worksheet` | the worksheet changed | the worksheet: lines, deductions with clause and reason, totals. Not sent while the claim is ruled not admissible |
@@ -153,6 +156,22 @@ checks it). The second group is the operations dashboard from the brief.
 
 No claim id, approver id or claim text is ever a label. `error` in the processed counter counts a
 run that stopped with an error; the case stays where it was, so a retry can still finish it.
+
+## Audit trail and tracing
+
+Every run (a start, or a decision) gets a random `run_id`: the first stream event, every tool
+call's audit record, and the run's trace all carry it, so two runs of one claim never mix.
+
+- **Audit file** (`CLAIMSENSE_AUDIT_LOG`, `api/audit.py`): one JSON line per tool call (agent,
+  tool, allowed, status, error class, claim id, duration) and a `run.start` and `run.end` per run
+  (case id, claim id, kind, decision, the approver id and level from the token, the worksheet hash
+  the run ended on, the outcome, the number of tool calls). Ids, codes and hashes only: never a
+  document, a diagnosis, a bill description, a token or a signature (`tests/api/test_audit.py`).
+- **Tracing** (`CLAIMSENSE_OTEL`, `claimsense/tracing.py`): a `claim.run` span per run with a
+  child per graph node and per tool call. Every exporter is wrapped in `RedactingExporter`, the
+  same allowlist the evaluation's tracing uses, so only `claimsense.*` ids and names leave the
+  process (`tests/api/test_tracing.py`). Point `OTEL_EXPORTER_OTLP_ENDPOINT` at Jaeger, or at
+  Langfuse or LangSmith over OTLP.
 
 ## Limits
 

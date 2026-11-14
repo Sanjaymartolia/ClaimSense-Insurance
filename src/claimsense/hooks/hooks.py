@@ -49,7 +49,7 @@ import sys
 import threading
 import time
 from collections.abc import Callable
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime
 from functools import lru_cache
 from pathlib import Path
@@ -318,7 +318,17 @@ class BudgetState:
 # The only fields an audit record may ever carry. Enforced by tests: nothing here can hold a claim
 # document, policy text, patient identity, diagnosis, approval secret, signature or token.
 SAFE_AUDIT_FIELDS = frozenset(
-    {"timestamp", "agent", "tool", "allowed", "status", "error_code", "claim_id", "duration_ms"}
+    {
+        "timestamp",
+        "agent",
+        "tool",
+        "allowed",
+        "status",
+        "error_code",
+        "claim_id",
+        "duration_ms",
+        "run_id",
+    }
 )
 
 
@@ -332,6 +342,7 @@ class AuditRecord:
     error_code: str | None = None  # exception CLASS name or a safe code; never a message
     claim_id: str | None = None  # correlation id only (a claim id is not PHI)
     duration_ms: float | None = None
+    run_id: str | None = None  # the claim run this call belongs to (a random id, rubric D3)
 
 
 class AuditLog:
@@ -346,9 +357,10 @@ class AuditLog:
     proceed un-audited; the default (``False``) keeps processing but leaves the failure observable.
     """
 
-    def __init__(self, *, fail_closed: bool = False) -> None:
+    def __init__(self, *, fail_closed: bool = False, run_id: str | None = None) -> None:
         self.records: list[AuditRecord] = []
         self.fail_closed = fail_closed
+        self.run_id = run_id  # stamped on every record: two runs of one claim stay apart
         self.emit_failures = 0
         self.last_emit_error: str | None = None
         self._lock = threading.Lock()
@@ -373,6 +385,7 @@ class AuditLog:
             error_code=error_code,
             claim_id=claim_id,
             duration_ms=duration_ms,
+            run_id=self.run_id,
         )
         with self._lock:
             self.records.append(rec)  # source of truth, captured before any sink can fail
@@ -392,6 +405,8 @@ class AuditLog:
                 rec.error_code,
                 rec.claim_id,
                 None if rec.duration_ms is None else round(rec.duration_ms, 3),
+                # The same record as fields, for a sink that writes data (`api/audit.py`).
+                extra={"audit": {"event": "tool", **asdict(rec)}},
             )
             return True
         except Exception as exc:  # noqa: BLE001 - a broken sink must not lose the audit record

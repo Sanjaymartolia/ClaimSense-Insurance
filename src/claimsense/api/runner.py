@@ -9,6 +9,10 @@ running claim), its own hook audit log (for the tool metrics), and the requestin
 review gate's identity. One lock per case stops two runs of the same case at once. As after a
 process restart, a resumed run gets a fresh tool budget (``graph/nodes.py::Nodes``).
 
+Rubric D3: every run has a run id (the first event, every tool's audit record, ``run.start`` and
+``run.end`` in the audit sink of ``api/audit.py``) and, when ``CLAIMSENSE_OTEL`` asks for it, one
+trace: a ``claim.run`` span with a child per graph node and per tool call (``claimsense.tracing``).
+
 Rule 4: events and summaries carry the plan, trace lines, the worksheet and the review payload,
 which by design hold ids, amounts, clauses and flags. The packet (documents, diagnosis, bill
 descriptions) stays in the checkpoint and is never sent or logged.
@@ -21,10 +25,15 @@ import logging
 import os
 import threading
 import time
+import uuid
 from collections.abc import Iterable, Iterator, Mapping
 from dataclasses import dataclass, field
+from datetime import datetime
 from typing import Any
 
+from claimsense import __version__
+
+from . import audit as audit_sink
 from . import metrics
 from .auth import ApiIdentityProvider, Reviewer, parse_reviewers
 
@@ -44,6 +53,8 @@ class Settings:
     tools: str = "stub"
     checkpoints: str = "claimsense_checkpoints.sqlite"
     reviewers: Mapping[str, Reviewer] = field(default_factory=dict)
+    audit_log: str = ""  # a JSON-lines file for the audit trail (api/audit.py); empty: none
+    otel: str = ""  # "otlp" or "console" turns tracing on (claimsense.tracing); empty: off
 
     def __post_init__(self) -> None:
         if self.tools not in TOOLS:
@@ -55,6 +66,8 @@ class Settings:
             tools=os.environ.get("CLAIMSENSE_TOOLS", "stub"),
             checkpoints=os.environ.get("CLAIMSENSE_CHECKPOINTS", "claimsense_checkpoints.sqlite"),
             reviewers=parse_reviewers(os.environ.get("CLAIMSENSE_REVIEWERS", "")),
+            audit_log=os.environ.get("CLAIMSENSE_AUDIT_LOG", ""),
+            otel=os.environ.get("CLAIMSENSE_OTEL", ""),
         )
 
 
@@ -72,7 +85,7 @@ def _admissible(values: Mapping[str, Any]) -> bool:
 
 
 class CaseService:
-    def __init__(self, settings: Settings) -> None:
+    def __init__(self, settings: Settings, tracer_provider: Any = None) -> None:
         from claimsense.agents import make_stub_services
         from claimsense.graph.build import sqlite_checkpointer  # needs the `agents` extra
         from claimsense.mcp_servers.approvals import InMemoryApprovalStore
@@ -92,6 +105,10 @@ class CaseService:
         self._locks: dict[str, threading.Lock] = {}
         self._locks_guard = threading.Lock()
         self._reader: Any = None
+        # Tracing (rubric D3): a provider given here (tests), or one CLAIMSENSE_OTEL asks for.
+        self._own_provider = None if tracer_provider else _tracer_provider(settings.otel)
+        provider = tracer_provider or self._own_provider
+        self.tracer: Any = provider.get_tracer("claimsense.api") if provider else None
 
     # ------------------------------------------------------------------ reading
     def exists(self, case_id: str) -> bool:
@@ -125,6 +142,8 @@ class CaseService:
     def close(self) -> None:
         if self.mcp is not None:
             self.mcp.close()
+        if self._own_provider is not None:
+            self._own_provider.shutdown()  # sends the spans still in the batch
         self.checkpointer.conn.close()
 
     # ------------------------------------------------------------------ running
@@ -138,7 +157,9 @@ class CaseService:
             if self.exists(case_id):
                 yield error_event("CaseExists")
                 return
-            yield from self._segment(case_id, initial_state(packet), packet, reviewer, first=True)
+            yield from self._segment(
+                case_id, initial_state(packet), packet, reviewer, kind="start", first=True
+            )
 
     def decide(self, case_id: str, decision: dict[str, Any], reviewer: Reviewer) -> Iterator[Event]:
         from langgraph.types import Command
@@ -157,6 +178,8 @@ class CaseService:
                 Command(resume=decision),
                 values.get("packet") or {},
                 reviewer,
+                kind="decision",
+                decision=decision.get("decision"),
                 admissible=_admissible(values),
             )
 
@@ -178,13 +201,29 @@ class CaseService:
         packet: dict[str, Any],
         reviewer: Reviewer,
         *,
+        kind: str,
+        decision: str | None = None,
         first: bool = False,
         admissible: bool = True,
     ) -> Iterator[Event]:
         from claimsense.agents.llm import stub_mode
         from claimsense.hooks.hooks import AuditLog
 
-        audit = AuditLog()
+        run_id = uuid.uuid4().hex  # this run, apart from every other run of the same claim
+        run = {
+            "run_id": run_id,
+            "case_id": case_id,
+            "claim_id": packet.get("claim_id"),
+            "kind": kind,
+            "decision": decision,
+            "approver_id": reviewer.approver_id,  # from the token; the token itself never
+            "level": reviewer.level.value,
+        }
+        audit_sink.run_event("run.start", **run)
+        yield {"event": "run", "data": {"run_id": run_id, "case_id": case_id, "kind": kind}}
+        spans = _RunSpans(self.tracer, run) if self.tracer is not None else None
+
+        audit = AuditLog(run_id=run_id)
         app = self._graph(packet, reviewer, audit)
         cfg = config(case_id)
         started = time.monotonic()
@@ -192,7 +231,11 @@ class CaseService:
         metrics.IN_FLIGHT.inc()
         try:
             with metrics.llm_usage(not stub_mode()):
-                yield from events(app.stream(graph_input, cfg, stream_mode="updates"), admissible)
+                stream = app.stream(graph_input, cfg, stream_mode="updates")
+                for event in events(stream, admissible):
+                    if spans is not None and event["event"] == "step":
+                        spans.node(event["data"]["node"])
+                    yield event
         except Exception as exc:  # noqa: BLE001 - an event for the client, never a crash
             failed = exc
         finally:
@@ -201,6 +244,21 @@ class CaseService:
 
         state = app.get_state(cfg)
         values = state.values
+        if failed is not None:
+            outcome = type(failed).__name__
+        elif state.interrupts:
+            outcome = "awaiting_review"
+        else:
+            outcome = str(values.get("status"))
+        audit_sink.run_event(
+            "run.end",
+            **run,
+            status=outcome,
+            worksheet_hash=_worksheet_hash(state),
+            tool_calls=len(audit.records),
+        )
+        if spans is not None:
+            spans.finish(audit.records, outcome, failed)
         if first:
             metrics.record_first_segment(values, time.monotonic() - started, failed is not None)
         if failed is not None:
@@ -329,3 +387,86 @@ def summarize(case_id: str, snapshot: Any) -> dict[str, Any]:
         "letter": values.get("letter"),
         "trace": list(values.get("trace") or []),
     }
+
+
+# ---------------------------------------------------------------------- audit and tracing (D3)
+def _worksheet_hash(snapshot: Any) -> str | None:
+    """The worksheet the run ended on: the pending review's, else the settled one's."""
+    if snapshot.interrupts:
+        return (snapshot.interrupts[0].value or {}).get("worksheet_hash")
+    settlement = snapshot.values.get("settlement") or {}
+    if isinstance(settlement, dict) and settlement.get("worksheet_hash"):
+        return str(settlement["worksheet_hash"])
+    sheet = snapshot.values.get("worksheet")
+    return sheet.content_hash() if hasattr(sheet, "content_hash") else None
+
+
+def _tracer_provider(mode: str) -> Any:
+    """The provider `CLAIMSENSE_OTEL` asks for; None if off, unknown, or no observability extra."""
+    if not mode:
+        return None
+    try:
+        from claimsense import tracing
+    except ImportError:
+        log.warning("CLAIMSENSE_OTEL=%s needs the observability extra: tracing is off", mode)
+        return None
+    exporter = tracing.exporter_for(mode)
+    if exporter is None:
+        log.warning("CLAIMSENSE_OTEL=%s is neither otlp nor console: tracing is off", mode)
+        return None
+    return tracing.provider(exporter, simple=mode == "console", version=__version__)
+
+
+def _ns(timestamp: str) -> int:
+    return int(datetime.fromisoformat(timestamp).timestamp() * 1_000_000_000)
+
+
+class _RunSpans:
+    """One claim run as one trace: a root `claim.run`, a child per graph node as its update
+    arrives, and a child per tool call from the hooks' audit records. Only `claimsense.*`
+    attributes from content-free values (ids, names, statuses); the exporter redacts anyway."""
+
+    def __init__(self, tracer: Any, run: Mapping[str, Any]) -> None:
+        from opentelemetry import trace
+
+        self._trace = trace
+        self.tracer = tracer
+        self.run_id = run["run_id"]
+        keys = ("run_id", "case_id", "claim_id", "kind", "decision", "level")
+        attributes = {f"claimsense.{k}": run[k] for k in keys if run.get(k) is not None}
+        self.root = tracer.start_span("claim.run", attributes=attributes)
+        self.context = trace.set_span_in_context(self.root)
+        self.last = time.time_ns()
+
+    def _child(self, name: str, start: int, end: int, **attributes: Any) -> None:
+        attrs = {"claimsense.run_id": self.run_id}
+        attrs.update({f"claimsense.{k}": v for k, v in attributes.items() if v is not None})
+        span = self.tracer.start_span(
+            name, context=self.context, start_time=start, attributes=attrs
+        )
+        span.end(end_time=end)
+
+    def node(self, name: str) -> None:
+        """A node's update arrived: its span runs from the previous update to now."""
+        now = time.time_ns()
+        self._child(f"node {name}", self.last, now, node=name)
+        self.last = now
+
+    def finish(self, records: Iterable[Any], status: str, failed: Exception | None) -> None:
+        for rec in records:
+            end = _ns(rec.timestamp)
+            start = end - int((rec.duration_ms or 0) * 1_000_000)
+            self._child(
+                f"tool {rec.tool}",
+                start,
+                end,
+                tool=rec.tool,
+                agent=rec.agent,
+                tool_status=rec.status,
+                allowed=rec.allowed,
+            )
+        self.root.set_attribute("claimsense.status", status)
+        if failed is not None:  # the class only: a message can quote claim text
+            error = self._trace.Status(self._trace.StatusCode.ERROR, type(failed).__name__)
+            self.root.set_status(error)
+        self.root.end()

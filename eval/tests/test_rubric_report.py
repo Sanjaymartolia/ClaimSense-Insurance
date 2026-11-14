@@ -126,13 +126,23 @@ def test_the_total_row_matches_the_recomputed_sum(report_text):
 
 # ------------------------------------------------------------------ the improvement table
 def test_the_headline_improvement_claim_is_arithmetically_sound(report_text):
-    """Section 7 claims the top four items are worth +0.80 and land near 3.65. Check both."""
-    current = sum(r[3] for r in scorecard_rows(report_text))
+    """Section 7.1 states what the top four items are worth and where they land. Check the claim
+    against the table and the scorecard. It is read from the report, not pinned here: each Issue
+    changes it (Issue 2: +0.80 to 3.65; Issue 4: +0.65 to 3.95)."""
+    claim = re.search(
+        r"worth \+(\d\.\d\d) together, and they take the score from (\d\.\d\d) to\s+"
+        r"about \*\*(\d\.\d\d)\*\*",
+        section(report_text, 7),
+    )
+    assert claim, "Section 7.1 states no headline claim"
+    worth, start, land = (float(g) for g in claim.groups())
+    current = sum(r[3] for r in scorecard_rows(report_text)) / 100
     gains = improvement_gains(report_text)
     assert gains, "no gain figures found in the Section 7 table"
     top_four = sum(sorted(gains, reverse=True)[:4])
-    assert top_four == pytest.approx(0.80, abs=0.005), f"top four gains sum to {top_four}"
-    assert (current / 100) + top_four == pytest.approx(3.65, abs=0.005)
+    assert start == pytest.approx(current, abs=0.005), f"7.1 starts at {start}, not {current}"
+    assert worth == pytest.approx(top_four, abs=0.005), f"7.1 says +{worth}, rows sum {top_four}"
+    assert land == pytest.approx(current + top_four, abs=0.005)
 
 
 # ------------------------------------------------------------------ structure
@@ -171,14 +181,15 @@ def test_the_scorer_agrees_with_the_report(report_text):
     assert recomputed == pytest.approx(stated_total(report_text), abs=0.005)
 
 
-def test_the_scorer_runs_and_prints_the_score(capsys):
+def test_the_scorer_runs_and_prints_the_score(capsys, report_text):
     """A guard against the tool crashing on a default Windows console: the report contains
-    characters (an arrow) that cp1252 cannot encode, which raised UnicodeEncodeError once."""
+    characters (an arrow) that cp1252 cannot encode, which raised UnicodeEncodeError once. The
+    score it prints is the report's own, not a number pinned here (each Issue changes it)."""
     from eval.tools.rubric_score import main
 
     assert main(["--plan", "--insurance"]) == 0
     out = capsys.readouterr().out
-    assert "SCORE: 2.85 out of 5" in out
+    assert f"SCORE: {stated_total(report_text):.2f} out of 5" in out
     assert "->" in out, "the arrow should be transliterated, not dropped"
     assert out.isascii(), "output must be printable on a cp1252 console"
 

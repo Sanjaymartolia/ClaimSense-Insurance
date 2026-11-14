@@ -426,10 +426,12 @@ def test_run_with_memory_backend_writes_its_outputs(tmp_path, monkeypatch, capsy
 def test_a_run_fails_when_the_backend_refuses_spans_or_redaction_is_off(tmp_path, monkeypatch):
     """force_flush says True even when every batch got a 401, and a redaction check that reads
     the redacted copy can never fail: both checks must be able to fail."""
+    from claimsense import tracing
     from eval.observability import __main__ as cli
 
     monkeypatch.setattr(cli, "RUNS_DIR", tmp_path)
-    monkeypatch.setattr(otel, "keep", lambda key: True)  # redaction switched off
+    # Redaction switched off where `redact` looks it up: the rule lives in claimsense.tracing.
+    monkeypatch.setattr(tracing, "keep", lambda key: True)
     with _local_server(post=lambda path: (401, b"")) as port:
         monkeypatch.setenv(
             "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT", f"http://127.0.0.1:{port}/v1/traces"

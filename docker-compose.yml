@@ -16,6 +16,7 @@ services:
       CLAIMSENSE_REVIEWERS: ${CLAIMSENSE_REVIEWERS:-}
       CLAIMSENSE_CHECKPOINTS: /data/checkpoints.sqlite
       CLAIMSENSE_CLAIMS_DB: /data/claims.db
+      CLAIMSENSE_AUDIT_LOG: /data/audit.jsonl # the audit trail, kept on the volume (rubric D3)
     volumes: [case-data:/data]
     depends_on: [chroma]
 

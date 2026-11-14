@@ -5,12 +5,12 @@
 **Project:** ClaimSense, Agentic AI Capstone
 **Subject:** The stack and the architecture, scored against the nine-dimension framework rubric.
 **Owner role:** Eval and Red-Team
-**Date:** 12 November 2026 (Issue 1: 7 November 2026)
-**Document status:** Issue 2
+**Date:** 14 November 2026, Issues 3 and 4 (Issue 2: 12 November 2026; Issue 1: 7 November 2026)
+**Document status:** Issue 4
 **Writing standard:** ASD-STE100 Simplified Technical English
 **Source file:** `docs/FRAMEWORK_RUBRIC_SCORE.md`. Edit this file. Then build the DOCX again.
 
-**Result: 2.85 out of 5.** (Issue 1: 2.70.)
+**Result: 3.30 out of 5.** (Issue 3: 3.00. Issue 2: 2.85. Issue 1: 2.70.)
 
 ---
 
@@ -83,6 +83,39 @@ unchanged. Only a score that the skeptic upheld changed.
 
 The result moves from 2.70 to **2.85**.
 
+### 1.7 Issue 3: what changed
+
+Between 12 and 14 November the team connected the two items that Issue 2 put at the top of the
+connection work: the case API now serves claims, and the agents can call the tool servers over the
+MCP protocol (Section 4.2). Issue 3 scores those dimensions again, with the same honesty rule
+(Section 1.4) and ladder rule (Section 2.3). Eval and Red-Team proposed each change with file
+evidence and then tried to refute it. A score changed only where the lower rungs also held.
+
+| Dim | Issue 2 | Proposed | Upheld | Why |
+|---|---|---|---|---|
+| D2 | 2 | 3 | **3** | The API serves claims through the real tools with the hooks on, the agents call the MCP servers over the protocol, and Compose and CI run and check the stack. |
+| D9 | 3 | 4 | **4** | MCP between separate processes, with the tool definitions pinned at the protocol. AGT-09, which Issue 2 held against the lower rung, is settled. |
+| D6 | 1 | 2 | 1 | The product now measures tokens and cost for every claim, and AGT-09 is settled, but nothing limits money yet: the reason Issue 2 gave first still holds. |
+| Others | | unchanged | unchanged | Section 5 records what changed in the evidence. |
+
+The result moves from 2.85 to **3.00**. Issue 3 was written by Eval and Red-Team with an AI
+assistant; the next team review should confirm it.
+
+### 1.8 Issue 4: what changed
+
+Later on 14 November the top row of Section 7 was built: every claim run has a run id, the audit
+trail reaches a sink, and the case API traces each run from `src/` (Section 5.3). The same method
+as Issue 3 applies.
+
+| Dim | Issue 3 | Proposed | Upheld | Why |
+|---|---|---|---|---|
+| D3 | 2 | 4 | **4** | Level 3, trace ids: a run id on every run, every tool record and every trace. Level 4, full traceability: the audit trail reaches a JSON-lines sink (on in Docker Compose) and the API traces each run, its nodes and its tool calls. |
+| D8 | 4 | 4 | 4 | `mypy` now runs in CI, but six packages are still on its skip list (31 errors): level 5 needs the whole product. |
+| Others | | unchanged | unchanged | |
+
+The result moves from 3.00 to **3.30**. Issue 4 was written like Issue 3; the next team review
+should confirm it.
+
 ---
 
 ## 2. The rubric and the method
@@ -124,15 +157,15 @@ is 3, not 4. A ladder with a missing step does not carry weight.
 | Dim | Weight | Score | Weighted | One-line reason |
 |---|---|---|---|---|
 | D1 Task complexity fit | 15 | 4 | 60 | A real graph with branches and cycles, and a critic that corrects itself once. |
-| D2 Ecosystem fit | 10 | 2 | 20 | OpenRouter, Chroma and SQLite are connected. No MCP client exists and the API serves no claims. |
-| D3 Compliance and audit | 15 | 2 | 30 | Structured audit in the graph state and the tool hooks. No run IDs, no trace IDs, no log sink. |
+| D2 Ecosystem fit | 10 | 3 | 30 | The API serves claims, the agents speak MCP to the tool servers, and Compose and CI run the stack. |
+| D3 Compliance and audit | 15 | 4 | 60 | A run id on every claim run, an audit trail in a JSON-lines sink, and a trace per run from the API. |
 | D4 Data vs. orchestration | 15 | 3 | 45 | The coverage agent now searches the hybrid retriever. Only on the opt-in real-tools path. |
 | D5 Experimentation | 5 | 4 | 20 | A working harness with adapters, gates and a regression suite. |
 | D6 Cost and performance | 10 | 1 | 10 | A cheap model default, a tool-call limit and a search cache. Nothing in the product measures cost. |
 | D7 Safety and governance | 15 | 3 | 45 | Guardrails, hooks and an approval gate now run. Coverage and critic prompts take outside text unwrapped. |
 | D8 Typed outputs | 10 | 4 | 40 | Pydantic v2 everywhere, with real invariants. No static type checker. |
-| D9 Interoperability | 5 | 3 | 15 | One gateway to many vendors, per-role model overrides. MCP servers exist but nothing speaks MCP. |
-| **Total** | **100** | | **285** | **285 / 100 = 2.85 out of 5** |
+| D9 Interoperability | 5 | 4 | 20 | One gateway to many vendors; the agents call separately running tool servers over MCP. |
+| **Total** | **100** | | **330** | **330 / 100 = 3.30 out of 5** |
 
 ---
 
@@ -164,8 +197,20 @@ The calculator was a separate case. On 7 November `calc/adjudication.py` raised
 | Hooks | **Yes**, on in `run_one.py` | `hooks/hooks.py` `HookedToolBelt`: tool ACL, tool-call budget, claim scope, audit that fails closed. | `build_graph` defaults to `tool_hooks=False`; the API serves no claims. |
 
 **The finding still holds, with a smaller gap.** Most of the work left is again connection work:
-make the real path the default, serve claims from the API, and speak MCP. Section 7 shows that
-the top four items raise the score from 2.85 to about 3.65.
+make the real path the default, serve claims from the API, and speak MCP.
+
+### 4.2 The state on 14 November
+
+| Subsystem | Connected now? | Evidence | What is still missing |
+|---|---|---|---|
+| Case API | **Yes** | `api/cases.py` starts a claim, streams the run and takes the reviewer's decision; `api/runner.py` builds the graph with `tool_hooks=True`; the approver comes from a token (`api/auth.py`); `CLAIMSENSE_TOOLS=real` selects `real_services()`. | Static demo tokens instead of single sign-on. |
+| MCP servers | **Yes, over the protocol**, opt-in (`CLAIMSENSE_TOOLS=mcp`) | `agents/mcp_services.py` starts the four servers, `adjudication-calc` included, as their own processes over stdio, loads their tools with `langchain-mcp-adapters`, and refuses a server whose advertised tools differ from `config/tool_pins.json` (ADR-0012). | The servers run inside the API container over stdio, not as their own compose services over HTTP. |
+| Case UI, Compose, CI | **Yes** | `src/claimsense/ui/` (Streamlit, ADR-0015); `docker-compose.yml` runs `api` and `ui`; CI job `compose` builds both images and checks them (first run #110, passed). | The edit-rate alert and the operations dashboard wait for Deploy & Ops to adopt them (`eval/monitoring`). |
+
+| Audit trail and tracing (Issue 4) | **Yes** | A run id per run (`api/runner.py`, `hooks/hooks.py` `AuditRecord.run_id`); the JSON-lines sink `api/audit.py` (`CLAIMSENSE_AUDIT_LOG`, set in `docker-compose.yml`); a trace per run (`claimsense/tracing.py`, `CLAIMSENSE_OTEL`). | Model calls are not traced in the product; the audit file has no tamper evidence. |
+
+Two of the connections from Section 4.1 are now made, and the audit work is done. Section 7 shows
+that the top four items left raise the score from 3.30 to about 3.95.
 
 ---
 
@@ -193,9 +238,9 @@ itself once and then stops. The planner in `graph/planner.py` fills a fixed temp
 reasoning. Without an API key the critic's meaning check falls back to a keyword table, and defect
 AGT-13 records that this table rejects correct deductions for clauses 6.2.6 and 7.15.
 
-### 5.2 D2 Ecosystem fit — score 2, weight 10%
+### 5.2 D2 Ecosystem fit — score 3, weight 10%
 
-**Matched: "Common tools".**
+**Matched: "Platform integration"** (Issue 3; Issues 1 and 2 matched "Common tools").
 
 Two integrations work. The agents reach models through OpenRouter in `agents/llm.py`. The
 retrieval layer uses Chroma. `docker-compose.yml` starts the API, Chroma, Prometheus and Grafana.
@@ -232,9 +277,18 @@ stream, approves, edits a line or rejects. A dashboard page shows the L16 number
 metrics. Docker Compose runs the API and the UI together, and a CI job builds both images and
 smoke-tests them. This note does not change the score.
 
-### 5.3 D3 Compliance and audit — score 2, weight 15%
+Issue 3 (14 November): **level 3 is met.** Both parts that Issue 2 named are now in the code and
+run: the API serves claims through `real_services()` with the hooks on (`api/runner.py`), and the
+agents call the MCP servers over the protocol (`agents/mcp_services.py`; parity with the in-process
+tools in `tests/orchestration/test_mcp_services.py`). The platform around them runs as well: Docker
+Compose starts the API, the case UI, Chroma, Prometheus and Grafana, and the CI job `compose` builds
+and checks the API and UI images. **Not 4.** "Multi-platform" needs more than one deployment target;
+ClaimSense has one (Compose on one machine), the MCP servers are not yet their own services, and
+Grafana is not provisioned.
 
-**Matched: "Structured logs".**
+### 5.3 D3 Compliance and audit — score 4, weight 15%
+
+**Matched: "Full traceability"** (Issue 4; Issues 1 to 3 matched "Structured logs").
 
 The audit trail inside the graph state is good. `graph/state.py:74-81` defines four append-only
 fields with reducers: `trace`, `handoffs`, `critic_history` and `edit_log`. Every node writes a
@@ -257,6 +311,28 @@ id finds none. The thread id is still `claim_id` (`graph/build.py:124`), so two 
 cannot be told apart. OpenTelemetry spans exist only in `eval/observability/`. Langfuse and
 LangSmith appear in no product code. No code configures a log handler, so the `INFO` audit lines
 reach no sink in a real run, and the in-memory audit records are not saved.
+
+Issue 4 (14 November): **levels 3 and 4 are met.**
+
+- **Level 3, trace ids.** Every run of the case API (a start, or a decision) gets a random run id
+  (`api/runner.py` `_segment`). It is the first stream event, it is stamped on every tool call's
+  `AuditRecord` (`hooks/hooks.py`; the field is on `SAFE_AUDIT_FIELDS`), and it opens and closes
+  the run in the audit trail. The case id is the checkpoint thread, so two runs of one claim, or
+  two cases of one claim, never mix (`tests/api/test_audit.py`).
+- **Level 4, full traceability.** `api/audit.py` writes the trail as JSON lines when
+  `CLAIMSENSE_AUDIT_LOG` is set; `docker-compose.yml` sets it on the `case-data` volume. A
+  `run.start` and a `run.end` per run name the case, the claim, the decision, the approver id and
+  level from the token, the worksheet hash the run ended on, and the outcome, so the file shows who
+  approved which exact worksheet. Every tool call has its line. The API also traces each run from
+  `src/` (`claimsense/tracing.py`, `CLAIMSENSE_OTEL`): a `claim.run` span with a child per graph
+  node and per tool call, through the same redacting exporter as the evaluation
+  (`tests/api/test_tracing.py`). A live run of demo scene 3 (five runs) gave five run ids in the
+  file and in the spans, and no claim text and no token in either.
+
+**Not 5.** "Compliance-ready audit trails" needs more: the file has no tamper evidence (no hash
+chain or signature) and no retention or access policy, model calls are not traced in the product,
+tracing is off unless configured, and the developer script `scripts/run_one.py` still runs without
+a run id.
 
 ### 5.4 D4 Data vs. orchestration — score 3, weight 15%
 
@@ -355,6 +431,13 @@ Nothing in `src/` counts tokens or cost yet, and AGT-09 is still open. The evalu
 measure cost in every real run (about $0.0013 per claim on 12 November), but that is a
 measurement outside the product.
 
+Issue 3 (14 November): two of the reasons above are gone. AGT-09 is settled: since 13 November
+`agents/llm.py` reads every agent role from `config/models.yaml` version 2. The case API counts
+tokens and US dollars for every claim run in `src/` (`api/metrics.py` `llm_usage`, metrics
+`claimsense_tokens_total` and `claimsense_cost_usd_total`), and the case UI shows cost per claim.
+**Still not 2.** The product measures cost but does not limit it: `max_cost_usd_per_claim` is
+still not enforced, and there is no model-response cache. Proposed 2, not upheld; score unchanged.
+
 ### 5.7 D7 Safety and governance — score 3, weight 15%
 
 **Matched: "Input/output validation".**
@@ -414,9 +497,9 @@ and ruff selects no annotation rules. `ClaimState` is `total=False`, so every re
 `.get()` rather than a guarantee. The `Services` fields are `Callable[..., X]`, which types almost
 nothing, and one line carries a `# type: ignore`.
 
-### 5.9 D9 Interoperability — score 3, weight 5%
+### 5.9 D9 Interoperability — score 4, weight 5%
 
-**Matched: "Multi-provider".**
+**Matched: "Protocol support"** (Issue 3; Issues 1 and 2 matched "Multi-provider").
 
 This is real and in use. OpenRouter is a single gateway to many vendors, and
 `config/models.yaml` deliberately mixes three families: OpenAI for the agents, Google Gemini for
@@ -435,6 +518,15 @@ product agent defaults to one family (`openai/gpt-4.1-mini`); the Gemini judge i
 evaluation. The MCP servers now have pinned tool definitions, but nothing consumes them over the
 protocol.
 
+Issue 3 (14 November): **level 4 is met, and the level-3 rung under it is sound.** The agents call
+the four tool servers over MCP, each in its own process (`agents/mcp_services.py`, ADR-0012). Each
+server gets only the settings it reads, and the client refuses a server whose advertised tools
+differ from the eight reviewed MCP pins. The case API speaks HTTP with typed JSON and server-sent
+events. AGT-09 is settled: `config/models.yaml` version 2 is the one source of model ids, read by
+`agents/llm.py`. **Not 5.** "Full vendor neutrality" is far off: Chroma has no abstraction layer,
+LangGraph is woven through the graph layer, every product agent defaults to one model family, and
+the prompts are inline strings.
+
 ---
 
 ## 6. What this score does not say
@@ -445,7 +537,7 @@ Two numbers describe this project. They answer different questions, and they mus
 
 | Number | Source | Question it answers |
 |---|---|---|
-| **2.85 out of 5** | This document | Are these the right parts, and how far are they built? |
+| **3.30 out of 5** | This document | Are these the right parts, and how far are they built? |
 | **0.984 composite, every gate held, on 52 dev and red-team claims (12 November; 0.220 on 7 November)** | `docs/EVAL_HARNESS_REPORT.md`, `docs/terminal.md` | Do the agents produce correct worksheets today? |
 
 On 7 November the rubric score was the kinder of the two. On 12 November the harness score is the
@@ -470,12 +562,13 @@ The book advises raising D3 and D7 for a regulated unit. One way to do that, kee
 | D7 Safety and governance | 15 | 20 | 3 |
 | All others | unchanged | unchanged | unchanged |
 
-That gives **2.75**, against 2.85 with the book's weights.
+That gives **3.30**, the same as with the book's weights.
 
-The adjusted number is lower, and the reason matters: compliance and safety are two of the
-dimensions where ClaimSense has the most unwired work, so giving them more weight exposes more of
-the gap. **A rubric tuned to insurance makes this project look worse, not better.** That is an
-argument for doing the connection work in Section 7 before the next review.
+In Issues 1 to 3 the adjusted number was lower (2.75 against 2.85, then 2.90 against 3.00), and
+the reason mattered: compliance and safety were two of the dimensions with the most unwired work,
+so more weight on them exposed more of the gap. The audit work of Issue 4 closed half of that gap
+(D3 at 4). Safety is the other half: D7 stays at 3 until AGT-04 is closed, and under the insurance
+weights that is now the dimension that costs ClaimSense most.
 
 ---
 
@@ -485,27 +578,27 @@ Each row gives the points that the work is worth. The list is ordered by value.
 
 | Work | Dimensions it moves | Gain |
 |---|---|---|
-| **Give every claim run a run id, send the audit log to a sink, and trace from `src/`** | D3 2→4 | **+0.30** |
-| Count tokens and USD per claim in `src/`, enforce `max_cost_usd_per_claim`, settle AGT-09, add a model-response cache | D6 1→3 | +0.20 |
-| **T37: serve claims from the API with `real_services()` and hooks on; run the MCP servers over the protocol** | D2 2→3, D9 3→4 | +0.15 |
+| **Enforce `max_cost_usd_per_claim` and add a model-response cache** (the API counts tokens and USD per claim since 13 November; AGT-09 is settled) | D6 1→3 | +0.20 |
 | Make the real retriever the default product path, fix AGT-05 and AGT-06 | D4 3→4 | +0.15 |
 | Wrap coverage and critic prompts in `as_data` (AGT-04), scan the diagnosis, close CLAIM-03 | D7 3→4 | +0.15 |
 | Raise `MAX_REVISIONS`, let the planner reason | D1 4→5 | +0.15 |
-| Add mypy or pyright | D8 4→5 | +0.10 |
-| Enable the CI eval gate, run E1 to E4, measure kappa | D5 4→5 | +0.05 |
+| Clear the `mypy` owners' list (`mypy` runs in CI since 14 November; six packages, 31 errors) | D8 4→5 | +0.10 |
+| Run E1 to E4 with real models and measure kappa (the CI eval gate runs since 13 November) | D5 4→5 | +0.05 |
 
-Issue 1 listed T16 (connect the MCP servers and the retriever) at +0.55. It is half done: the
-retriever is connected (D4 2→3, +0.15), but no code speaks MCP and the API serves no claims.
+Issue 1 listed T16 (connect the MCP servers and the retriever) at +0.55. It is done: the retriever
+was connected in Issue 2 (D4 2→3), and the MCP client and the API endpoint (T37) in Issue 3
+(D2 2→3, D9 3→4). The run id, the audit sink and the tracing (D3 2→4) were done in Issue 4.
 
 ### 7.1 The recommendation
 
 **Connect what is already written, before writing anything new.**
 
-The first four rows of that table are worth +0.80 together, and they take the score from 2.85 to
-about **3.65**. Three of them are connection work: a run id and a log sink, the API endpoint, and
-the real retriever as the default. Only the cost row needs new code in `src/`.
+The first four rows of that table are worth +0.65 together, and they take the score from 3.30 to
+about **3.95**. Two of them are connection work (the real retriever as the default path, and the
+prompts wrapped in `as_data`), one needs new code in `src/` (the cost limit and a response cache),
+and one changes the agents (the planner).
 
-The run id and the log sink are worth the most (+0.30), because D3 carries 15% and sits at 2.
+The cost row is worth the most (+0.20): D6 is the only dimension still at 1.
 
 ---
 
@@ -568,16 +661,18 @@ Section 6.1 explains why the two numbers are different.
 
 ## 9. Summary
 
-ClaimSense scores **2.85 out of 5** on the nine-dimension framework rubric, with the book's
-weights unchanged (Issue 2, 12 November 2026; Issue 1 scored 2.70 on 7 November).
+ClaimSense scores **3.30 out of 5** on the nine-dimension framework rubric, with the book's
+weights unchanged (Issue 4, 14 November 2026; Issue 3 scored 3.00 the same day, Issue 2 2.85 on
+12 November, Issue 1 2.70 on 7 November).
 
-The strong dimensions are the ones that need no integration: the graph topology (D1, score 4), the
-type system (D8, score 4) and the evaluation harness (D5, score 4).
+The strong dimensions are the graph topology (D1, score 4), the type system (D8, score 4), the
+evaluation harness (D5, score 4), and since 14 November interoperability (D9, score 4: MCP over
+the protocol) and audit (D3, score 4: run ids, an audit sink and a trace per run).
 
-Since Issue 1 the retriever, the guardrails and the hooks were connected. Only the retriever moved
-a score (D4 2→3): the guardrails left one level-3 gap open (AGT-04), and the hooks limit tool
-calls, not cost.
+Since Issue 1 the retriever, the guardrails and the hooks were connected (Issue 2: D4 2→3); the
+API serves claims and the agents speak MCP (Issue 3: D2 2→3, D9 3→4); and every claim run is
+traceable (Issue 4: D3 2→4). The guardrails still leave one level-3 gap open (AGT-04), and the
+hooks limit tool calls, not cost.
 
-The weak dimensions are now audit (D3 at 2: no run id, no log sink), cost (D6 at 1: nothing in the
-product measures it) and integration (D2 at 2: no API endpoint, no MCP client). The top four items
-in Section 7 take the project from 2.85 to about 3.65.
+The weakest dimension is now cost (D6 at 1: measured in the API, but not limited). The top four
+items in Section 7 take the project from 3.30 to about 3.95.

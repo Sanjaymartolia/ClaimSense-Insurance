@@ -14,19 +14,25 @@ from prometheus_client import make_asgi_app
 
 from claimsense import __version__
 
+from . import audit
 from .cases import router
 from .runner import CaseService, Settings
 
 
 @contextlib.asynccontextmanager
 async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
-    """With MCP tools the servers start before any request: policy-kb takes minutes to open its
-    index. On shutdown every server process is stopped."""
-    if app.state.settings.tools == "mcp":
-        app.state.cases = CaseService(app.state.settings)
-    yield
-    if app.state.cases is not None:
-        app.state.cases.close()
+    """The audit sink opens first (`CLAIMSENSE_AUDIT_LOG`, rubric D3). With MCP tools the servers
+    start before any request: policy-kb takes minutes to open its index. On shutdown every server
+    process is stopped, buffered spans are sent, and the sink is closed."""
+    sink = audit.attach(app.state.settings.audit_log)
+    try:
+        if app.state.settings.tools == "mcp":
+            app.state.cases = CaseService(app.state.settings)
+        yield
+    finally:
+        if app.state.cases is not None:
+            app.state.cases.close()
+        audit.detach(sink)
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
